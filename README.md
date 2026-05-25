@@ -74,17 +74,26 @@ A small pairing web service (hosted, but also open source for self-hosters) brid
 - [ ] Hardware recommendations and tested configurations
 - [ ] Public release
 
-## Repo layout (planned)
+## Repo layout
 
 ```
 buildersinabox/
-├── firmware/            # Post-install scripts, systemd units, tmux config
-├── installer/           # ISO + autoinstall generator
-├── pairing-backend/     # Web service that bridges device ↔ phone (OSS)
-├── pairing-web/         # Mobile-first setup page
-├── platform-skeleton/   # Empty dev workspace that gets cloned onto the device
-└── docs/                # Hardware guides, DIY instructions, contributing
+├── payload/             # Everything that goes on the device BESIDES Ubuntu
+│   ├── bootstrap.sh        # (coming) main first-boot script
+│   ├── install/            # (coming) per-tool install sub-scripts
+│   ├── systemd/            # (coming) systemd units
+│   ├── tmux/               # (coming) tmux config + session bootstrap
+│   ├── skills/             # Claude Code skills (SDD workflow + utilities)
+│   ├── templates/          # FEAT templates (starter + full), CLAUDE.md template
+│   ├── config/             # Example configs (personas, project matrix)
+│   ├── skeleton/           # Workspace skeleton copied to user's home
+│   └── docs/               # SDD workflow, lifecycle, adoption guide
+├── iso-builder/         # Tool: Ubuntu ISO + payload → bootable USB image
+├── pairing/             # Web service bridging device ↔ phone OAuth (later)
+└── README.md
 ```
+
+A DIY user only needs `payload/` — install Ubuntu manually, clone the repo, run `payload/bootstrap.sh`. `iso-builder/` and `pairing/` are convenience layers for the USB and hosted-service tiers.
 
 ## License
 
