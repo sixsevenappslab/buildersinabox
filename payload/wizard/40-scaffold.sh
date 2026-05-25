@@ -114,6 +114,50 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Bundle the FEAT-002 (Slack coach) spec into the user's project so they
+# have a real, written spec waiting as their first implementation work.
+# ---------------------------------------------------------------------------
+feat_src="${PAYLOAD_DIR}/bundled-feats/FEAT-002-personal-slack-coach.md"
+feat_target_dir="${ws_root}/projects/${project_name}/specs/draft"
+mkdir -p "$feat_target_dir"
+feat_target="${feat_target_dir}/FEAT-002-personal-slack-coach.md"
+if [[ -f "$feat_src" && ! -f "$feat_target" ]]; then
+    cp "$feat_src" "$feat_target"
+    log "40-scaffold: bundled FEAT-002 → $feat_target"
+fi
+
+# ---------------------------------------------------------------------------
+# Install the tmuxc helper into the user's bashrc.
+# ---------------------------------------------------------------------------
+bashrc_d_src="${PAYLOAD_DIR}/bashrc.d"
+bashrc_d_target="${target_home}/.bashrc.d"
+mkdir -p "$bashrc_d_target"
+if [[ -d "$bashrc_d_src" ]]; then
+    for f in "$bashrc_d_src"/*.sh; do
+        [[ -f "$f" ]] || continue
+        cp -n "$f" "$bashrc_d_target/"
+    done
+    log "40-scaffold: installed bashrc snippets to $bashrc_d_target"
+fi
+
+# Make sure the user's .bashrc sources ~/.bashrc.d/*.sh exactly once.
+bashrc="${target_home}/.bashrc"
+touch "$bashrc"
+if ! grep -qF "# biab-bashrc-d-loader" "$bashrc"; then
+    cat >> "$bashrc" <<'EOF'
+
+# biab-bashrc-d-loader (installed by Builders in a Box)
+if [ -d "$HOME/.bashrc.d" ]; then
+    for f in "$HOME/.bashrc.d"/*.sh; do
+        [ -r "$f" ] && . "$f"
+    done
+    unset f
+fi
+EOF
+    log "40-scaffold: appended bashrc.d loader to $bashrc"
+fi
+
+# ---------------------------------------------------------------------------
 # Drop the welcome README into the user's home, with placeholders filled in.
 # ---------------------------------------------------------------------------
 readme_src="${PAYLOAD_DIR}/tutorial/desktop-readme.md"
@@ -132,8 +176,9 @@ fi
 chown -R "$target_user:$target_user" \
     "$ws_root" \
     "${target_home}/.agents" \
-    "${target_home}/.claude" 2>/dev/null || true
-chown "$target_user:$target_user" "$readme_target" 2>/dev/null || true
+    "${target_home}/.claude" \
+    "${target_home}/.bashrc.d" 2>/dev/null || true
+chown "$target_user:$target_user" "$readme_target" "$bashrc" 2>/dev/null || true
 
 # Persist the project name for later wizard steps + tmux.
 state_set '.project_name' "\"$project_name\""

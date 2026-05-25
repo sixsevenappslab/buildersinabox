@@ -49,6 +49,7 @@ run_step "30-ai-cli-login.sh"
 run_step "35-ssh-finalize.sh"
 run_step "40-scaffold.sh"
 run_step "50-tmux.sh"
+run_step "60-slack-bootstrap.sh"
 
 # Clear the first-boot pending marker so /etc/profile.d/biab-firstboot.sh
 # doesn't relaunch the wizard on subsequent logins.

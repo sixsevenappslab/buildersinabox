@@ -3,6 +3,22 @@
 You made it. The device is configured. From now on, everything happens
 from your phone via SSH + tmux + Claude Code.
 
+## Start here
+
+Open any of the three tmux windows and type:
+
+```
+/first-project
+```
+
+That's an interactive walkthrough. It will explain GitHub, put your
+project on GitHub for the first time, and hand you off to FEAT-002 —
+the spec for your AI Slack coach that ships pre-written in your project.
+You build the coach as your first real piece of work, with Claude helping.
+
+If you want the bigger picture first, type `/whats-ahead` instead — it's a
+5-minute narrative tour of the system.
+
 ## What's running right now
 
 A persistent tmux session called `main` with three windows, each running
@@ -52,6 +68,11 @@ listens. Try:
 This device ships with **15 pre-loaded skills**. Type `/` inside any
 Claude Code window and start typing the name. A few you might want:
 
+### Guided onboarding
+- `/first-project` — your guided first-day walkthrough (Git, GitHub, your
+  first commit, hand-off to FEAT-002).
+- `/whats-ahead` — 5-minute narrative tour of the system.
+
 ### Building digital products end-to-end
 - `/sdd-base` — read this first to understand the workflow this device
   is opinionated about (spec-driven development).
@@ -96,6 +117,22 @@ other person can read along, jump in, hand control back. Use it for pair
 programming, demos, or when you want help and "here's my screen" beats
 explaining.
 
+## Switching contexts with tmuxc
+
+You have a function called `tmuxc` available everywhere:
+
+```
+tmuxc                 # list sessions, pick one
+tmuxc <name>          # attach (or create) a session
+tmuxc <name> <dir>    # create with a specific cwd
+tmuxc kill <name>     # close one
+
+tmuxa                 # shortcut: attach to 'main'
+```
+
+Use it when you want a side context — e.g. `tmuxc scratch ~/tmp` for a
+throwaway poke at something, while your `main` session keeps running.
+
 ## Where things live
 
 ```
@@ -104,13 +141,18 @@ explaining.
 ├── projects/
 │   └── {{PROJECT_NAME}}/
 │       ├── CLAUDE.md / GEMINI.md / AGENTS.md
-│       └── specs/draft/ active/ completed/   (when you start using SDD)
+│       └── specs/
+│           ├── draft/FEAT-002-personal-slack-coach.md   <- your first work
+│           ├── active/      (when you start implementing)
+│           └── completed/   (when you ship)
 └── stratops/
     ├── CLAUDE.md / GEMINI.md / AGENTS.md
     └── README.md
 
 ~/.agents/skills/                <- bundled skills (and any you add)
 ~/.claude/skills/                <- same skills, symlinked from above
+~/.bashrc.d/                     <- shell helpers like tmuxc
+~/.config/biab-coach/secrets.env <- Slack tokens (if you ran 60-slack-bootstrap)
 /var/lib/buildersinabox/         <- setup state (don't touch unless asked)
 /var/log/buildersinabox/         <- bootstrap + wizard logs
 ```

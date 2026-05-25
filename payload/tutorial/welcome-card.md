@@ -25,8 +25,18 @@
 After step 4 you can unplug the monitor and keyboard. Everything else
 happens from your phone.
 
-## Need help?
+## First thing to do when you're inside tmux
 
-Read the `README.md` in your home directory once you're connected —
-it has the longer guide, the list of installed skills, and what to type
-when you want to do something useful.
+Type:
+
+    /first-project
+
+That's a guided walkthrough. It explains GitHub, puts your project
+online, and hands you off to your first real piece of work: an AI Slack
+coach whose spec already lives on the device, waiting for you to build it.
+
+## Need more?
+
+`~/README.md` (in your home directory once you SSH in) has the longer
+guide, the list of installed skills, and what to type when something
+breaks.
