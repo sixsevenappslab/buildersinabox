@@ -114,12 +114,26 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Drop the welcome README into the user's home, with placeholders filled in.
+# ---------------------------------------------------------------------------
+readme_src="${PAYLOAD_DIR}/tutorial/desktop-readme.md"
+readme_target="${target_home}/README.md"
+if [[ -f "$readme_src" && ! -f "$readme_target" ]]; then
+    ai_cli="$(state_get '.ai_cli')"
+    sed -e "s|{{PROJECT_NAME}}|${project_name}|g" \
+        -e "s|{{AI_CLI}}|${ai_cli}|g" \
+        "$readme_src" > "$readme_target"
+    log "40-scaffold: wrote $readme_target"
+fi
+
+# ---------------------------------------------------------------------------
 # Fix ownership of everything we created.
 # ---------------------------------------------------------------------------
 chown -R "$target_user:$target_user" \
     "$ws_root" \
     "${target_home}/.agents" \
     "${target_home}/.claude" 2>/dev/null || true
+chown "$target_user:$target_user" "$readme_target" 2>/dev/null || true
 
 # Persist the project name for later wizard steps + tmux.
 state_set '.project_name' "\"$project_name\""

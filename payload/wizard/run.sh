@@ -68,5 +68,9 @@ To connect from your phone:
 You'll land in a session with three windows: platform / <your project> / stratops,
 each already running your AI CLI.
 
+Want a fuller guide? `~/README.md` has the list of installed skills,
+how to type /remote-control to share your session, and what to do when
+something feels off. Read it from any tmux window with `less ~/README.md`.
+
 You can unplug the monitor and keyboard now. The device will keep working.
 EOF
