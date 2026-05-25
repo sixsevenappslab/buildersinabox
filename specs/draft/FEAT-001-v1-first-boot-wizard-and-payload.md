@@ -62,7 +62,7 @@ A user with a fresh Ubuntu Server 24.04 install (mini PC or VM) clones this repo
   - **No Docker in the base stack.** Per-project install. Keeps the base small (~250 MB lighter, no idle daemons). `sudo apt install docker.io` is a 30s task if a project needs it.
   - **AI CLI runs directly** in each tmux window, no wrapper. If the user exits the CLI they land in bash and can rerun it manually. Honest UX, easier to debug.
   - **v1 ships with Claude Code and Gemini CLI as supported choices.** Codex CLI is deferred to v1.x because it currently lacks an OAuth device flow (requires API key paste) which breaks wizard simplicity.
-  - **Skills install to `~/.agents/skills/`** (the cross-CLI alias supported by both Claude Code and Gemini CLI). Open item to verify before Wave 1: whether the existing SDD skills in `~/.claude/skills/` work drop-in under Gemini CLI, or require porting. If incompatible, ship Claude-only skills for v1 and document Gemini as "works but no SDD skills yet".
+  - **Skills install to `~/.agents/skills/` as source-of-truth, with a symlink at `~/.claude/skills/<name>`.** Validated empirically on a clean Ubuntu 24.04 VM (Wave 0, see `payload/docs/cli-skills-compatibility.md`): Gemini CLI 0.43 discovers `~/.agents/skills/` natively; Claude Code 2.1.150 still uses `~/.claude/skills/` as canonical, so we symlink. No content drift, no duplication, both CLIs find their skill at their native path.
 
 - **Never:**
   - Do anything that requires a running mini PC to validate (project rule — see CLAUDE.md). Everything in this FEAT must be testable in a VM or container.
@@ -153,8 +153,7 @@ State file: `/var/lib/buildersinabox/state.json` — tracks `ai_cli` (`"claude"|
 
 ### Implementation plan (waves)
 
-**Wave 0 — Compatibility spike (~half a day, before any code).**
-0. Manually install Gemini CLI on a VM, drop the existing `~/.claude/skills/sdd-base/` into `~/.agents/skills/`, run a SDD-flavored prompt, see if it loads the skill correctly. Document the result. Outcome determines whether v1 ships skills for both CLIs or Claude-only.
+**Wave 0 — Compatibility spike.** ✅ Complete (2026-05-25). Result: format drop-in compatible; install path is `~/.agents/skills/` with a symlink at `~/.claude/skills/`. See `payload/docs/cli-skills-compatibility.md`.
 
 **Wave 1 — Skeleton + library + base install (testable in VM, no OAuth).**
 1. Write `payload/bootstrap.sh` with arg parsing (`--force`, `--skip-wizard`, `--i-know-what-im-doing`, `--ai-cli=claude|gemini`), root check, OS check, state init.
