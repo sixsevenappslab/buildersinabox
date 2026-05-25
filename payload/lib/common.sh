@@ -19,7 +19,13 @@ BIB_STATE_SCHEMA_VERSION=1
 
 _bib_log_init() {
     mkdir -p "$BIB_LOG_DIR"
-    touch "$BIB_LOG_FILE"
+    if [[ ! -e "$BIB_LOG_FILE" ]]; then
+        touch "$BIB_LOG_FILE"
+        # World-writable so unprivileged steps (e.g. tmux launch under the
+        # target user) can append. For v1 this is acceptable; later we can
+        # introduce a dedicated 'biab' group.
+        chmod 0666 "$BIB_LOG_FILE" 2>/dev/null || true
+    fi
 }
 
 log() {
@@ -118,6 +124,7 @@ state_init() {
         }')
         printf '%s\n' "$empty" > "${BIB_STATE_FILE}.tmp"
         mv "${BIB_STATE_FILE}.tmp" "$BIB_STATE_FILE"
+        chmod 0644 "$BIB_STATE_FILE"
         log "state initialised at $BIB_STATE_FILE"
     fi
     # Validate it parses
@@ -145,6 +152,7 @@ state_set() {
         jq --arg v "$value" "$path = \$v" "$BIB_STATE_FILE" > "$tmp"
     fi
     mv "$tmp" "$BIB_STATE_FILE"
+    chmod 0644 "$BIB_STATE_FILE"
 }
 
 # Mark a phase as completed.

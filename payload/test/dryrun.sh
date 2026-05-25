@@ -7,6 +7,8 @@ set -uo pipefail
 # Wipe state and any scaffold artefacts from previous runs.
 sudo rm -f /var/lib/buildersinabox/state.json /var/log/buildersinabox/bootstrap.log
 sudo rm -rf /home/ubuntu/ai-platform /home/ubuntu/.agents /home/ubuntu/.claude
+# Kill any leftover tmux from previous dry-runs.
+sudo -u ubuntu tmux kill-server 2>/dev/null || true
 
 # In BIB_OAUTH_MOCK=1, oauth_step returns immediately without prompting.
 # When --ai-cli is given on the CLI, 05-choose-cli is skipped.

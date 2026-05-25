@@ -20,6 +20,16 @@ on your phone (or laptop). Read the URL straight from this screen, type
 it into your phone's browser, complete the login, and come back here and
 press Enter.
 
+Heads up — this wizard will ask you to log into three services:
+
+  1. Tailscale  (https://tailscale.com)   <- private network for SSH from your phone
+  2. GitHub     (https://github.com)      <- so this device can clone/commit/push for you
+  3. Your AI CLI: Claude Code or Gemini   <- this is what you will be talking to
+
+If you do not have a Tailscale or GitHub account yet, that's fine: the
+login page for each one lets you sign up in 30 seconds. Have your phone
+or laptop ready, and an email you can check.
+
 You can interrupt at any point with Ctrl+C and rerun the bootstrap to resume.
 EOF
 prompt_confirm "Press Enter to begin."
@@ -36,12 +46,27 @@ run_step "05-choose-cli.sh"
 run_step "10-tailscale-up.sh"
 run_step "20-gh-login.sh"
 run_step "30-ai-cli-login.sh"
+run_step "35-ssh-finalize.sh"
 run_step "40-scaffold.sh"
+run_step "50-tmux.sh"
+
+# Clear the first-boot pending marker so /etc/profile.d/biab-firstboot.sh
+# doesn't relaunch the wizard on subsequent logins.
+rm -f "${BIB_STATE_DIR}/firstboot.pending"
 
 prompt_header "Setup complete"
 cat <<'EOF'
-Stack installed, logins done, workspace scaffolded.
+Stack installed, logins done, workspace scaffolded, tmux session ready.
 
-Next: a tmux session called 'main' will start with three windows
-(Wave 3 — coming soon). For now, the wizard ends here.
+To connect from your phone:
+  1. Install Termius (or any SSH client).
+  2. Add a new host: this device's name on your tailnet (run
+     `tailscale status` to see it).
+  3. Connect — Tailscale SSH handles auth, no key paste needed.
+  4. Once in, run: tmux attach -t main
+
+You'll land in a session with three windows: platform / <your project> / stratops,
+each already running your AI CLI.
+
+You can unplug the monitor and keyboard now. The device will keep working.
 EOF
