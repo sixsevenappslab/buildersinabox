@@ -18,7 +18,7 @@ SDD ships in two flavours. Pick the one that matches the size of the work and th
 | **Starter** | 3 (Summary / Tasks / QA) | `templates/FEAT-STARTER.md` | Solo work, side projects, learning the rhythm |
 | **Full** | 6 (§0 Strategy → §6 Feedback) | `templates/FEAT-TEMPLATE.md` | Multiple projects, role-based work, sustained development |
 
-The mode is set in `~/.claude/sdd-config.json` (`"mode": "starter"` or `"mode": "full"`). If the config file is missing, default to `full`.
+The mode is set in `~/.claude/sdd-config.json` (`"mode": "starter"` or `"mode": "full"`). If the config file is missing, default to **starter** — the gentler entry point for first-time users. The example config in `config/sdd-config.example.json` ships with `"mode": "full"` to illustrate the full schema; that's a starting point for customization, not the implicit default.
 
 ## Configuration
 
