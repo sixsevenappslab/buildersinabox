@@ -19,7 +19,7 @@ See `README.md` for the full vision.
 
 Three components, three repos-within-the-repo:
 
-1. **`firmware/`** — runs on the mini PC after Ubuntu is installed. Bash + systemd. Handles Tailscale OAuth device flow, Claude Code OAuth device flow, tmux session setup, and posting state to the pairing backend.
+1. **`firmware/`** — runs on the mini PC after Ubuntu is installed. Bash + systemd. Handles three OAuth device flows (Tailscale, Claude Code, GitHub via `gh auth login`), prompts the user for a project name (via the pairing web), scaffolds the workspace skeleton, sets up three tmux windows each running Claude Code, and posts state to the pairing backend.
 
 2. **`pairing-backend/`** — small web service (likely Cloudflare Worker + KV/D1). Receives state updates from devices and serves a mobile-friendly setup page to users. Stateless except for short-lived pairing sessions.
 
@@ -28,7 +28,8 @@ Three components, three repos-within-the-repo:
 ## Key design decisions (locked)
 
 - **Ethernet first, WiFi later.** First boot assumes wired connection. WiFi provisioning (hotspot dance) is a v2 problem.
-- **OAuth device flows, not embedded credentials.** The user logs into *their own* Tailscale and Claude Code accounts. We never see their credentials. The mini PC reports OAuth URLs to the pairing backend; the phone retrieves them and the user completes login there.
+- **OAuth device flows, not embedded credentials.** The user logs into *their own* Tailscale, Claude Code, and GitHub accounts. We never see their credentials. The mini PC reports OAuth URLs to the pairing backend; the phone retrieves them and the user completes login there.
+- **Final state = three tmux windows with Claude Code.** After setup, the user lands (via Termius SSH) inside a tmux session with three windows: `platform` (cwd `~/ai-platform/`), `<project-name>` (cwd `~/ai-platform/projects/<project-name>/`), and `stratops` (cwd `~/ai-platform/stratops/`). Each window has Claude Code running. The project name is captured from the user during the pairing flow.
 - **One unique token per USB.** Generated at flash time, printed as QR on the USB sticker. The token is the only secret the device knows about itself.
 - **Open source.** AGPL for the pairing backend, MIT for firmware and installer. The commercial moat is hardware + hosted service, not code.
 

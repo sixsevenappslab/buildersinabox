@@ -14,10 +14,15 @@ You buy a mini PC and a Builders in a Box USB. You plug the USB, connect Etherne
 
 1. The mini PC has Ubuntu Server installed.
 2. You log into **your** Tailscale account from the phone — the mini PC joins your tailnet.
-3. You log into **your** Claude Code account — ready to go.
-4. You open Termius on your phone, tap the pre-configured host, and you're inside a `tmux` session with Claude Code running.
+3. You log into **your** Claude Code account.
+4. You log into **your** GitHub account (so the device can clone, commit, and push on your behalf).
+5. You pick a name for your first project. The device scaffolds the workspace.
+6. You open Termius on your phone, tap the pre-configured host, and you land in a `tmux` session with **three windows already running Claude Code**:
+   - `platform` — at `~/ai-platform/`, for changes to the platform itself.
+   - `<your-project-name>` — at `~/ai-platform/projects/<your-project-name>/`, ready to start building.
+   - `stratops` — at `~/ai-platform/stratops/`, your personal strategy & ops mesa (OKRs, roadmap, notes).
 
-That's it. You have a personal cloud dev environment, on hardware you own, accessible from anywhere.
+That's it. You have a personal cloud dev environment, on hardware you own, with Claude Code running on three contexts simultaneously, accessible from anywhere.
 
 ## Why
 
@@ -60,9 +65,10 @@ A small pairing web service (hosted, but also open source for self-hosters) brid
 ## Roadmap
 
 - [ ] Manual bootstrap script working on a real mini PC
-- [ ] Tailscale + Claude Code OAuth device flow validated from mobile
-- [ ] tmux + Claude Code UX from Termius on phone validated
-- [ ] Pairing backend MVP
+- [ ] Tailscale + Claude Code + GitHub OAuth device flows validated from mobile
+- [ ] Three-window tmux + Claude Code UX from Termius on phone validated
+- [ ] Workspace skeleton (ai-platform, projects/, stratops) scaffolding
+- [ ] Pairing backend MVP (including project-name capture and GitHub login bridge)
 - [ ] USB autoinstall image generator
 - [ ] First end-to-end: fresh USB → working remote dev environment from phone
 - [ ] Hardware recommendations and tested configurations
