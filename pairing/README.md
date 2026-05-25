@@ -19,7 +19,11 @@ The pairing service never sees credentials — only the OAuth handoff URLs, whic
 
 ## Status
 
-🚧 Not yet implemented. Comes after `payload/` is validated end-to-end with manual SSH-based OAuth.
+⏸ **Deferred to v2.** In v1, the user connects monitor + keyboard to the mini PC for a ~15 min on-console setup wizard. OAuth URLs appear on the screen; the user opens them on their phone or laptop manually. This eliminates the need for any hosted service in v1.
+
+The pairing service becomes relevant in v2, when we want the device to be fully headless from boot — useful for the commercial hardware tier, where the customer never touches the mini PC's I/O.
+
+**Do not implement before v1 ships.**
 
 ## Stack (planned)
 

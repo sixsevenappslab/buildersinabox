@@ -10,19 +10,23 @@ Builders in a Box turns any x86 mini PC into a personal, remote-accessible devel
 
 ## What it does
 
-You buy a mini PC and a Builders in a Box USB. You plug the USB, connect Ethernet, power it on, and walk away. ~10 minutes later you scan the QR code on the USB with your phone and:
+You buy a mini PC and a Builders in a Box USB. You plug the USB, connect Ethernet, connect a monitor and keyboard for the first boot, and power it on. ~10 minutes later Ubuntu finishes installing and a setup wizard appears on the screen, walking you through:
 
-1. The mini PC has Ubuntu Server installed.
-2. You log into **your** Tailscale account from the phone — the mini PC joins your tailnet.
-3. You log into **your** Claude Code account.
-4. You log into **your** GitHub account (so the device can clone, commit, and push on your behalf).
-5. You pick a name for your first project. The device scaffolds the workspace.
-6. You open Termius on your phone, tap the pre-configured host, and you land in a `tmux` session with **three windows already running Claude Code**:
-   - `platform` — at `~/ai-platform/`, for changes to the platform itself.
+1. **Tailscale login** — open the URL shown on screen from your phone, complete login with your account. The mini PC joins your tailnet.
+2. **Claude Code login** — same flow.
+3. **GitHub login** — `gh auth login` device flow, so the device can clone/commit/push on your behalf.
+4. **Pick a name for your first project.** The device scaffolds the workspace.
+
+Total wizard time: ~15 minutes. After it finishes, you can unplug the monitor and keyboard — **you'll never need them again**. From now on, everything is mobile-only:
+
+5. Open Termius on your phone, tap the pre-configured host, and you land in a `tmux` session with **three windows already running Claude Code**:
+   - `platform` — at `~/ai-platform/`, for changes to the workspace itself.
    - `<your-project-name>` — at `~/ai-platform/projects/<your-project-name>/`, ready to start building.
    - `stratops` — at `~/ai-platform/stratops/`, your personal strategy & ops mesa (OKRs, roadmap, notes).
 
 That's it. You have a personal cloud dev environment, on hardware you own, with Claude Code running on three contexts simultaneously, accessible from anywhere.
+
+> **v1 vs v2.** v1 requires monitor + keyboard for the one-time setup wizard. v2 (planned) will remove that requirement by relaying the OAuth flows through a hosted pairing service, so the entire setup can happen from the phone via a QR scan. v1 is the open-source MVP; v2 unlocks the commercial hardware tier.
 
 ## Why
 

@@ -19,17 +19,18 @@ See `README.md` for the full vision.
 
 Three components, three repos-within-the-repo:
 
-1. **`firmware/`** — runs on the mini PC after Ubuntu is installed. Bash + systemd. Handles three OAuth device flows (Tailscale, Claude Code, GitHub via `gh auth login`), prompts the user for a project name (via the pairing web), scaffolds the workspace skeleton, sets up three tmux windows each running Claude Code, and posts state to the pairing backend.
+1. **`payload/`** — runs on the mini PC after Ubuntu is installed (or applied manually on any Ubuntu by DIY users). Bash + systemd + a console TUI wizard. Handles three OAuth device flows (Tailscale, Claude Code, GitHub via `gh auth login`) by printing URLs to the console for the user to open on their phone, prompts for project name on the console, scaffolds the workspace skeleton (`ai-platform/{projects,stratops}/`), sets up three tmux windows each running Claude Code, and configures SSH for remote access.
 
-2. **`pairing-backend/`** — small web service (likely Cloudflare Worker + KV/D1). Receives state updates from devices and serves a mobile-friendly setup page to users. Stateless except for short-lived pairing sessions.
+2. **`pairing/`** — DEFERRED to v2. Small web service (Cloudflare Worker) that would relay OAuth URLs from a headless device to the user's phone. In v1, we skip this entirely: the user connects monitor+keyboard for the ~15 min wizard. Keep the folder with a README pointing at v2 scope; do not implement.
 
 3. **`installer/`** — generates the bootable USB image. Ubuntu Server 24.04 autoinstall with embedded device token, post-install hook that drops `firmware/` onto the system and enables the first-boot unit.
 
 ## Key design decisions (locked)
 
-- **Ethernet first, WiFi later.** First boot assumes wired connection. WiFi provisioning (hotspot dance) is a v2 problem.
-- **OAuth device flows, not embedded credentials.** The user logs into *their own* Tailscale, Claude Code, and GitHub accounts. We never see their credentials. The mini PC reports OAuth URLs to the pairing backend; the phone retrieves them and the user completes login there.
-- **Final state = three tmux windows with Claude Code.** After setup, the user lands (via Termius SSH) inside a tmux session with three windows: `platform` (cwd `~/ai-platform/`), `<project-name>` (cwd `~/ai-platform/projects/<project-name>/`), and `stratops` (cwd `~/ai-platform/stratops/`). Each window has Claude Code running. The project name is captured from the user during the pairing flow.
+- **Ethernet first, WiFi later.** First boot assumes wired connection. WiFi provisioning is a v2 problem.
+- **v1 = monitor + keyboard for first boot.** The user connects HDMI + USB keyboard to the mini PC for the ~15 min setup wizard (a TUI shell script). Tailscale, GitHub and Claude Code OAuth device flows run on the console — the user reads URLs from the screen and completes login on their phone or laptop. **No pairing backend in v1.** This eliminates Cloudflare Worker, domain, QR-with-token, mobile polling page, deep linking — all deferred to v2.
+- **OAuth device flows, not embedded credentials.** The user logs into *their own* Tailscale, Claude Code, and GitHub accounts. We never see credentials. v1: URLs shown on the mini PC's screen. v2: relayed via pairing backend to phone.
+- **Final state = three tmux windows with Claude Code.** After setup, the user lands (via Termius SSH from phone) inside a tmux session with three windows: `platform` (cwd `~/ai-platform/`), `<project-name>` (cwd `~/ai-platform/projects/<project-name>/`), and `stratops` (cwd `~/ai-platform/stratops/`). Each window has Claude Code running. The project name is captured from the user during the setup wizard.
 - **One unique token per USB.** Generated at flash time, printed as QR on the USB sticker. The token is the only secret the device knows about itself.
 - **Open source.** AGPL for the pairing backend, MIT for firmware and installer. The commercial moat is hardware + hosted service, not code.
 
