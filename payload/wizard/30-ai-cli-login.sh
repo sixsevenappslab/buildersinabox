@@ -20,7 +20,7 @@ if phase_is_done "ai_cli_done"; then
 fi
 
 cli="$(ai_cli_resolve "")"
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-ubuntu}}"
+target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
 
 # Verification commands that check whether the CLI is logged in.
 case "$cli" in

@@ -20,7 +20,7 @@ if phase_is_done "ssh_finalized"; then
     exit 0
 fi
 
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-ubuntu}}"
+target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
 target_home="$(getent passwd "$target_user" | cut -d: -f6 || true)"
 [[ -n "$target_home" ]] || die "35-ssh-finalize: cannot resolve home for $target_user"
 

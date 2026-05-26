@@ -17,7 +17,7 @@ if phase_is_done "gh_done"; then
 fi
 
 # Resolve the unprivileged user that will own credentials. Defaults to SUDO_USER.
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-ubuntu}}"
+target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
 
 # Short-circuit if gh is already authed for the target user.
 if su - "$target_user" -c "gh auth status" >/dev/null 2>&1; then

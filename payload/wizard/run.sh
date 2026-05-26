@@ -42,6 +42,7 @@ run_step() {
     "$full"
 }
 
+run_step "01-set-password.sh"
 run_step "05-choose-cli.sh"
 run_step "10-tailscale-up.sh"
 run_step "20-gh-login.sh"

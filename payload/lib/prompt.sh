@@ -147,6 +147,40 @@ prompt_text() {
     done
 }
 
+# prompt_password asks for a password twice (hidden) and writes the value
+# to BIB_PROMPT_VALUE on success. Reads directly from /dev/tty regardless of
+# BIB_PROMPT_INPUT — passwords should never come from a heredoc.
+prompt_password() {
+    local question="$1"
+    local min_len="${2:-8}"
+    BIB_PROMPT_VALUE=""
+    while true; do
+        printf '%s\n' "$question"
+        printf 'Password (minimum %d characters, not shown as you type): ' "$min_len"
+        local pw1=""
+        if ! IFS= read -rs pw1 < /dev/tty; then
+            printf '\n' >&2
+            warn "prompt_password: no tty available"
+            return 1
+        fi
+        printf '\n'
+        if [[ ${#pw1} -lt $min_len ]]; then
+            printf 'Too short (got %d chars, need at least %d). Try again.\n\n' "${#pw1}" "$min_len" >&2
+            continue
+        fi
+        printf 'Confirm: '
+        local pw2=""
+        IFS= read -rs pw2 < /dev/tty || { printf '\n' >&2; return 1; }
+        printf '\n\n'
+        if [[ "$pw1" != "$pw2" ]]; then
+            printf "Passwords don't match. Try again.\n\n" >&2
+            continue
+        fi
+        BIB_PROMPT_VALUE="$pw1"
+        return 0
+    done
+}
+
 # Reserved project names that conflict with workspace folders.
 BIB_RESERVED_PROJECT_NAMES=("platform" "stratops" "projects")
 
