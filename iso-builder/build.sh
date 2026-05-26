@@ -9,23 +9,10 @@
 #   3. Embeds the buildersinabox repo at /opt/buildersinabox/ on the
 #      installed system, so the wizard runs on first boot.
 #
-# What this script does:
-#   - Runs the personal-refs guard before doing anything (bail if dirty).
-#   - Produces a clean tarball of the repo via `git archive` (respects
-#     .gitattributes export-ignore, so gift/ never leaks).
-#   - Mounts the stock ISO read-only and rsyncs its contents to a staging
-#     directory we can modify.
-#   - Adds the cloud-init cidata/ (user-data + meta-data) so the
-#     installer runs autoinstall non-interactively.
-#   - Adds the repo tarball at biab/repo.tar.gz inside the ISO.
-#   - Patches the GRUB config to pass `autoinstall ds=nocloud\;s=/cdrom/cidata/`
-#     on the kernel cmdline and auto-select that entry.
-#   - Uses `xorriso ... -boot_image any replay` to repack the image
-#     preserving the original ISO's BIOS+UEFI boot configuration.
-#
-# Output: out/biab-ubuntu-24.04.iso ready to flash with:
-#   sudo dd if=out/biab-ubuntu-24.04.iso of=/dev/sdX bs=4M status=progress conv=fsync
-# (Replace /dev/sdX with the real USB stick path. Check with `lsblk`.)
+# Uses xorriso indev/outdev with `-boot_image any replay` so the boot
+# configuration of the source ISO is preserved exactly (BIOS + UEFI
+# hybrid). We only add/replace specific files: the cidata seed, the
+# repo tarball, and the GRUB menu config.
 
 set -euo pipefail
 
@@ -34,7 +21,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SOURCE_ISO="${SCRIPT_DIR}/sources/ubuntu-24.04-live-server-amd64.iso"
 OUT_DIR="${SCRIPT_DIR}/out"
 OUT_ISO="${OUT_DIR}/biab-ubuntu-24.04.iso"
-STAGING="${SCRIPT_DIR}/.staging"
+WORK="${SCRIPT_DIR}/.staging"
 
 # --- preflight ---------------------------------------------------------------
 
@@ -45,7 +32,6 @@ require() {
     }
 }
 require xorriso
-require rsync
 require git
 require tar
 require gzip
@@ -62,41 +48,21 @@ bash "${REPO_ROOT}/tools/check-no-personal-refs.sh" || {
     exit 1
 }
 
-# --- stage the source ISO ----------------------------------------------------
+# --- build staging files (not the whole ISO contents) ------------------------
 
-echo "==> Staging from $SOURCE_ISO"
-rm -rf "$STAGING"
-mkdir -p "$STAGING" "$OUT_DIR"
+echo "==> Preparing seed files"
+rm -rf "$WORK"
+mkdir -p "$WORK/cidata" "$WORK/biab" "$WORK/boot/grub" "$OUT_DIR"
 
-# Use xorriso to extract the contents (works without root, unlike mount).
-xorriso -osirrox on -indev "$SOURCE_ISO" -extract / "$STAGING" 2>&1 | tail -5
-chmod -R u+w "$STAGING"
+cp "$SCRIPT_DIR/user-data" "$WORK/cidata/user-data"
+cp "$SCRIPT_DIR/meta-data" "$WORK/cidata/meta-data"
 
-# --- bake in cloud-init cidata/ ----------------------------------------------
+echo "==> Bundling buildersinabox payload (git archive, respects export-ignore)"
+(cd "$REPO_ROOT" && git archive --format=tar.gz HEAD -o "$WORK/biab/repo.tar.gz")
+ls -la "$WORK/biab/repo.tar.gz"
 
-echo "==> Bundling cloud-init seed"
-mkdir -p "$STAGING/cidata"
-cp "$SCRIPT_DIR/user-data" "$STAGING/cidata/user-data"
-cp "$SCRIPT_DIR/meta-data" "$STAGING/cidata/meta-data"
-
-# --- bake in the buildersinabox repo as a tarball ----------------------------
-
-echo "==> Bundling buildersinabox payload (via git archive)"
-mkdir -p "$STAGING/biab"
-# git archive respects .gitattributes export-ignore — gift/ never lands here.
-(cd "$REPO_ROOT" && git archive --format=tar.gz HEAD -o "$STAGING/biab/repo.tar.gz")
-ls -la "$STAGING/biab/repo.tar.gz"
-
-# --- patch GRUB for autoinstall + non-interactive boot -----------------------
-
-echo "==> Patching GRUB for unattended autoinstall"
-GRUB_CFG="$STAGING/boot/grub/grub.cfg"
-[[ -f "$GRUB_CFG" ]] || { echo "ERROR: $GRUB_CFG not found in source ISO" >&2; exit 1; }
-
-# Force GRUB to auto-select the first entry after 1 second, with our
-# autoinstall kernel parameters. We replace the entire menu with a
-# single Autoinstall entry to remove any "Try or Install" choice screen.
-cat > "$GRUB_CFG" <<'GRUB'
+echo "==> Generating GRUB autoinstall menu"
+cat > "$WORK/boot/grub/grub.cfg" <<'GRUB'
 set timeout=3
 set default=0
 
@@ -105,42 +71,44 @@ menuentry "Builders in a Box — Autoinstall Ubuntu Server 24.04" {
     linux  /casper/vmlinuz autoinstall "ds=nocloud;s=/cdrom/cidata/" ---
     initrd /casper/initrd
 }
+
+menuentry "Try or install Ubuntu Server (manual)" {
+    set gfxpayload=keep
+    linux  /casper/vmlinuz quiet ---
+    initrd /casper/initrd
+}
 GRUB
+cp "$WORK/boot/grub/grub.cfg" "$WORK/boot/grub/loopback.cfg"
 
-# Patch the loopback variant too (used by UEFI).
-LOOP_CFG="$STAGING/boot/grub/loopback.cfg"
-if [[ -f "$LOOP_CFG" ]]; then
-    cp "$GRUB_CFG" "$LOOP_CFG"
-fi
+# --- repack ISO using indev/outdev + replay boot config ----------------------
+#
+# This pattern: open the source ISO read-only as the input, the new ISO as
+# the output, replay the source's boot config (preserves BIOS + UEFI), then
+# overlay our specific files. Everything we DON'T mention is copied as-is
+# from the source, which is exactly what we want.
 
-# --- repack into a bootable ISO ----------------------------------------------
-
-echo "==> Repacking ISO (this preserves BIOS+UEFI boot from the source)"
-# `-boot_image any replay` replays the boot config from the original ISO,
-# which is the safest way to keep both BIOS (isolinux) and UEFI (EFI/BOOT)
-# boot paths working.
-xorriso -as mkisofs -r \
-    -V "BIAB Ubuntu 24.04" \
-    -J -joliet-long \
-    -iso-level 3 \
-    -partition_offset 16 \
-    --grub2-mbr "$STAGING/boot/grub/i386-pc/boot_hybrid.img" \
-    -append_partition 2 0xef "$STAGING/EFI/boot/efiboot.img" \
-    -appended_part_as_gpt \
-    -c '/boot.catalog' \
-    -b '/boot/grub/i386-pc/eltorito.img' \
-        -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info \
-    -eltorito-alt-boot \
-    -e '--interval:appended_partition_2:::' \
-        -no-emul-boot \
-    -o "$OUT_ISO" \
-    "$STAGING" 2>&1 | tail -5
+echo "==> Repacking ISO with cloud-init + payload + custom GRUB"
+xorriso \
+    -indev "$SOURCE_ISO" \
+    -outdev "$OUT_ISO" \
+    -boot_image any replay \
+    -compliance no_emul_toc \
+    -volid "BIAB Ubuntu 24.04" \
+    -pathspecs on \
+    -map "$WORK/cidata" /cidata \
+    -map "$WORK/biab"   /biab \
+    -update "$WORK/boot/grub/grub.cfg"     /boot/grub/grub.cfg \
+    -update "$WORK/boot/grub/loopback.cfg" /boot/grub/loopback.cfg \
+    -commit_eject all 2>&1 | tail -10
 
 # --- summary -----------------------------------------------------------------
 
 echo
 echo "==> Done."
 ls -la "$OUT_ISO"
+echo
+echo "Verify the ISO is bootable hybrid:"
+echo "    file '$OUT_ISO'"
 echo
 echo "Flash to a USB stick with:"
 echo "    sudo dd if='$OUT_ISO' of=/dev/sdX bs=4M status=progress conv=fsync"
