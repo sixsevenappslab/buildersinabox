@@ -93,7 +93,7 @@ xorriso \
     -outdev "$OUT_ISO" \
     -boot_image any replay \
     -compliance no_emul_toc \
-    -volid "BIAB Ubuntu 24.04" \
+    -volid "BIABPACO" \
     -pathspecs on \
     -map "$WORK/cidata" /cidata \
     -map "$WORK/biab"   /biab \
