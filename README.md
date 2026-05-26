@@ -105,4 +105,4 @@ TBD. Likely **AGPL-3.0** for the pairing backend and **MIT** for everything else
 
 ## Contact
 
-This project is currently a solo effort by [@hezumartin](https://github.com/hezumartin). Reach out if you want to follow progress, contribute, or pilot the first hardware.
+Open an issue on this repository to follow progress, propose improvements, or report problems.

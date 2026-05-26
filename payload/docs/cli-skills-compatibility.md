@@ -88,7 +88,7 @@ Claude Code behaves the same way (the skill body is injected into the system pro
 | `payload/skills/sdd-growth/` | 🚧 Same. |
 | `payload/skills/sdd-docs/` | 🚧 Same. |
 
-The bundled `~/.claude/skills/sdd-base/SKILL.md` on the developer host (Jesus's personal Claude install) is **not** a candidate for shipping — it references his personal agent personas (Elena/Laura/Pablo/Andrea), virtualdev.company email domain, hardcoded project paths (Sofi/Ganga24/Chordna/Hezu). Treat it as developer scaffolding only.
+A maintainer's local `~/.claude/skills/sdd-base/SKILL.md` may contain personalised agent personas, internal email domains, and hardcoded project paths from the maintainer's own workflow. **Those are not candidates for shipping.** Only the generic versions in `payload/skills/` ship to recipient devices. `tools/check-no-personal-refs.sh` guards the boundary.
 
 ## Empirical test recipe (reproducible)
 

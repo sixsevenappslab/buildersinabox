@@ -1,0 +1,12 @@
+# Files and folders that must NEVER end up in a shipped image.
+# `git archive` honours `export-ignore`, so the iso-builder will use
+# `git archive` (not raw clone) to produce the tree it copies onto the USB.
+#
+# If the iso-builder ever switches back to `git clone`, run
+# `tools/check-no-personal-refs.sh` post-clone to verify the tree is clean,
+# and delete the gift/ folder explicitly.
+
+gift/ export-ignore
+
+# Internal-only docs that are useful for the maintainer but shouldn't
+# pollute the recipient's device (none right now, add here as needed).
