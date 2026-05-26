@@ -34,6 +34,8 @@ Discarded as soon as it's delivered.
 
 Goal: a `build.sh` that takes a stock Ubuntu Server 24.04 ISO and produces a writable image with autoinstall + payload embedded.
 
+> **Decision baked in 2026-05-26:** instead of copying a flat `payload/` directory into the ISO, the iso-builder must include the **full buildersinabox git repo (with `.git/`)** at `/opt/buildersinabox/` on the installed device. This lets Paco (and any future BIAB recipient) run `git pull` to fetch upstream improvements, `git checkout` a different branch to test something, and fork+PR back from the device itself. The `/extend-yourself` skill assumes this layout. The autoinstall late-commands should do roughly: `git clone --depth 1 https://github.com/jesusmartincalvo/buildersinabox /opt/buildersinabox && ln -s /opt/buildersinabox/payload /opt/buildersinabox/payload` (or just leave payload/ in place). Pin the depth-1 clone to a known-good commit/tag so the deliverable is reproducible.
+
 Minimum viable autoinstall (`user-data` for cloud-init):
 - locale, keyboard, timezone (UTC for now)
 - one user: `biab`, sudo NOPASSWD, no password set yet (boss sets it on first login? or pre-set known throwaway like `biab` and wizard prompts to change)

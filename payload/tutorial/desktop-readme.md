@@ -29,7 +29,7 @@ GCP) if you don't have one yet.
 If you want the bigger picture first, type `/whats-ahead` instead — it's a
 5-minute narrative tour of the system.
 
-## How you connect from your phone
+## How you connect from your phone (or laptop)
 
 The simple, default way:
 
@@ -42,6 +42,13 @@ The simple, default way:
 No SSH key paste. No host configuration. No "did I attach to the right
 session". The app does it for you because /remote-control was activated
 in every window automatically during setup.
+
+**Also works on your laptop.** Claude Code has a Mac/Windows/Linux app
+too — install it, sign in with the same account, and you'll see the
+exact same three sessions there. Same conversation, same context, just
+on a bigger screen with a real keyboard. Use the phone for quick
+checks; switch to the laptop for deep work. The session doesn't care
+where you are.
 
 ### Why no Termius / no SSH?
 
@@ -81,7 +88,7 @@ Try:
 
 ## Skills — Claude with specific expertise
 
-This device ships with **18 pre-loaded skills**. Type `/` inside any
+This device ships with **19 pre-loaded skills**. Type `/` inside any
 Claude Code window and start typing the name. A few you might want:
 
 ### Guided onboarding
@@ -92,6 +99,9 @@ Claude Code window and start typing the name. A few you might want:
   domain, and starting FEAT-003 (a personal finance app that ships to
   production).
 - `/whats-ahead` — 5-minute narrative tour of the system.
+- `/extend-yourself` — when you want to teach the device a new trick
+  (a new skill, a new shell helper, a new wizard step, a new bundled
+  FEAT). Walks you through where to put what.
 
 ### Building digital products end-to-end
 - `/sdd-base` — read this first to understand the workflow this device
@@ -210,4 +220,11 @@ explicitly enabled.
 It's **not** a managed service. There's no support team. If a Claude
 update changes a CLI flag and something breaks, you (or the person who
 gave it to you) need to fix it. The whole thing is open code under
-`~/ai-platform/payload/` — read it, change it, make it yours.
+`/opt/buildersinabox/` (the full git repo) and `~/ai-platform/payload/`
+(your live copy) — read it, change it, make it yours.
+
+When you want to teach the device a new trick — a new skill, a shell
+helper, a wizard step, a bundled FEAT — type `/extend-yourself` in any
+Claude Code window. It's an interactive guide for everything you can
+add. The whole system is designed to be modified by its owner; nothing
+is meant to stay frozen.

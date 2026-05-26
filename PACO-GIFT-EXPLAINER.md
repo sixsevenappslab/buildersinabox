@@ -176,7 +176,7 @@ Pick a name for your first project:
 >
 ```
 
-Paco escribe algo, por ejemplo `paco-app`. El wizard crea la estructura de carpetas, instala los archivos de contexto para la IA, copia 18 habilidades pre-cargadas (volvemos a esto en un momento), y pone dos proyectos guiados esperándole.
+Paco escribe algo, por ejemplo `paco-app`. El wizard crea la estructura de carpetas, instala los archivos de contexto para la IA, copia 19 habilidades pre-cargadas (volvemos a esto en un momento), y pone dos proyectos guiados esperándole.
 
 ### Minuto 21 — la sesión persistente con Remote Control
 
@@ -261,6 +261,8 @@ Esto es lo que más nos importa que entiendas, porque es lo que hace al regalo r
 Mañana por la mañana, Paco va en el metro. Saca el móvil. Abre la app de **Claude Code**. **No hay paso intermedio.** Las tres sesiones de su mini PC siguen ahí, vivas, exactamente donde las dejó anoche. Tap en `paco-app`. Está dentro, hablando con Claude.
 
 No abre Termius. No hace SSH. No escribe `tmux attach`. No se acuerda de ningún comando. **Solo abre la app y hace tap.**
+
+**Y lo mismo funciona desde el portátil.** Claude Code también tiene app de Mac/Windows/Linux. Paco la instala con la misma cuenta y ve las mismas tres sesiones — misma conversación, mismo contexto, otra pantalla. Móvil para una idea rápida en el metro, portátil para profundizar el sábado por la tarde. La sesión no se entera de qué pantalla está mirando: es siempre la misma, viva en su mini PC.
 
 Esto pasa porque:
 
@@ -358,7 +360,7 @@ Abre su app de finanzas en el dominio que compró. La que él construyó. Ve sus
 
 ### Cuando quiere construir otra cosa
 
-Tipea `/sdd-coordinator` en cualquier ventana de Claude. La habilidad le habla como un Product Lead y le ayuda a definir la nueva feature. Después `/sdd-spec-writer` actúa como Tech Lead, etc. Hay 18 habilidades pre-cargadas, cada una con su voz y su rol, todas funcionando con la misma IA.
+Tipea `/sdd-coordinator` en cualquier ventana de Claude. La habilidad le habla como un Product Lead y le ayuda a definir la nueva feature. Después `/sdd-spec-writer` actúa como Tech Lead, etc. Hay 19 habilidades pre-cargadas, cada una con su voz y su rol, todas funcionando con la misma IA.
 
 ---
 
@@ -386,10 +388,10 @@ No le estamos regalando solo un mini PC. Le estamos regalando:
 | Sistema operativo | Ubuntu Server 24.04 LTS |
 | Conexión | Ethernet por cable (WiFi en v2) |
 | Red privada | Tailscale (cuenta de Paco) |
-| Acceso desde móvil — primario | App oficial de Claude Code + Remote Control activado en cada sesión |
+| Acceso primario (móvil + portátil) | App oficial de Claude Code (iOS / Android / Mac / Windows / Linux) + Remote Control activado en cada sesión |
 | Acceso desde móvil — respaldo | Termius o cualquier cliente SSH, vía Tailscale SSH |
 | Asistente de IA | Claude Code (cuenta de Paco) |
-| Habilidades pre-cargadas | 18 (SDD workflow, consultores backend/UX/exec/product-marketing, herramientas code-review/qa/docs, onboarding first-project/second-project/whats-ahead) |
+| Habilidades pre-cargadas | 19 (SDD workflow, consultores backend/UX/exec/product-marketing, herramientas code-review/qa/docs, onboarding first-project/second-project/whats-ahead, extend-yourself) |
 | Proyectos pre-cargados | 2 FEATs (coach Slack + app finanzas) |
 | Sesión persistente | tmux (sobrevive a desconexiones y reinicios de la app) |
 | Comparte sesión live | `/remote-control` (slash command) genera enlace para invitar a terceros |
@@ -412,7 +414,42 @@ No hay punto único de fallo del que no se pueda recuperar. Esto es importante: 
 
 ---
 
-## 11 · Cierre
+## 11 · Que Paco pueda modificar y extender todo
+
+Esto es una pieza importante del regalo que es fácil pasar por alto. **El sistema entero está diseñado para que Paco lo modifique a su gusto, no para que se quede congelado en la versión que le entregamos.**
+
+Concretamente:
+
+- **El código completo está en su mini PC.** Todos los scripts del wizard, todas las habilidades, todas las configuraciones — todo vive en `/opt/buildersinabox/` y `~/ai-platform/payload/`. Paco puede leerlo, copiarlo, modificarlo. Nada está oculto.
+
+- **Tiene una habilidad específica para esto: `/extend-yourself`.** Cuando Paco quiera teach al sistema un truco nuevo (una nueva habilidad de Claude, un atajo de shell, un nuevo paso del wizard, un servicio en background), tipea `/extend-yourself` y Claude le guía paso a paso por la convención: dónde poner el archivo, qué frontmatter llevar, cómo hacer que tmux/Claude lo descubra.
+
+- **Los patrones son uniformes y aprendibles.** Las 19 habilidades pre-cargadas son ellas mismas la documentación: cuando Paco quiera crear la suya, Claude le enseña la estructura del archivo copiando una de las existentes. No tiene que aprenderse un framework — solo imitar un patrón que ya conoce.
+
+- **Sin sudo lockdown.** La contraseña es suya, los archivos son suyos, las decisiones son suyas. Si quiere romper algo y aprender de ello, puede.
+
+El mensaje subyacente es: *este no es un electrodoméstico que se compra y se usa hasta que deja de funcionar. Es un punto de partida que crece contigo*. Cuanto más lo use Paco, más suyo va a ser.
+
+---
+
+## 12 · Devolver el regalo: Paco puede contribuir mejoras
+
+Builders in a Box es **código abierto**. El repositorio público vive en GitHub, y cualquier mejora que Paco haga en su mini PC — una habilidad nueva útil, un fix de un bug, un nuevo proyecto pre-cargado que él haya escrito y crea que otros podrían disfrutar — puede subirla de vuelta al repo.
+
+El flujo es estándar (Paco va a aprenderlo de todas formas con FEAT-002 y FEAT-003):
+
+1. Fork del repo en su GitHub.
+2. Hacer la mejora en su mini PC.
+3. Push a su fork.
+4. `gh pr create` desde el terminal.
+
+Y esa mejora pasa a estar disponible para todas las personas que reciban un Builders in a Box en el futuro. Su trabajo se queda como parte del regalo que otros van a recibir.
+
+No es obligatorio — está perfectamente bien que Paco use su mini PC como caja personal y nunca mande un PR. Pero la puerta está abierta, y la habilidad `/extend-yourself` le enseña explícitamente cómo cruzarla.
+
+---
+
+## 13 · Cierre
 
 Lo que le damos a Paco no es un producto. Es un punto de partida. Es la diferencia entre *"quiero ponerme a construir cosas"* y *"estoy construyendo cosas, ahora mismo, desde el sofá, con mi café al lado y la voz de mi coach diciéndome que vaya a dormir".*
 
