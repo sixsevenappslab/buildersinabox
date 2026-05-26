@@ -16,6 +16,11 @@ project on GitHub for the first time, and hand you off to FEAT-002 —
 the spec for your AI Slack coach that ships pre-written in your project.
 You build the coach as your first real piece of work, with Claude helping.
 
+When the coach is shipped, type `/second-project` for the next arc — a
+personal finance app (FEAT-003) that you ship to a real domain. That
+walkthrough also helps you open cloud accounts (Cloudflare, Firebase or
+GCP) if you don't have one yet.
+
 If you want the bigger picture first, type `/whats-ahead` instead — it's a
 5-minute narrative tour of the system.
 
@@ -70,7 +75,11 @@ Claude Code window and start typing the name. A few you might want:
 
 ### Guided onboarding
 - `/first-project` — your guided first-day walkthrough (Git, GitHub, your
-  first commit, hand-off to FEAT-002).
+  first commit, hand-off to FEAT-002, the bundled coach spec).
+- `/second-project` — your second guided project: walks you through
+  picking a cloud platform (Cloudflare, Firebase or GCP), buying a
+  domain, and starting FEAT-003 (a personal finance app that ships to
+  production).
 - `/whats-ahead` — 5-minute narrative tour of the system.
 
 ### Building digital products end-to-end

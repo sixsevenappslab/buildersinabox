@@ -114,17 +114,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Bundle the FEAT-002 (Slack coach) spec into the user's project so they
-# have a real, written spec waiting as their first implementation work.
+# Bundle every spec under payload/bundled-feats/ into the user's project
+# so they have real, written specs waiting as starter implementation work.
 # ---------------------------------------------------------------------------
-feat_src="${PAYLOAD_DIR}/bundled-feats/FEAT-002-personal-slack-coach.md"
 feat_target_dir="${ws_root}/projects/${project_name}/specs/draft"
 mkdir -p "$feat_target_dir"
-feat_target="${feat_target_dir}/FEAT-002-personal-slack-coach.md"
-if [[ -f "$feat_src" && ! -f "$feat_target" ]]; then
-    cp "$feat_src" "$feat_target"
-    log "40-scaffold: bundled FEAT-002 → $feat_target"
-fi
+shopt -s nullglob
+for feat_src in "${PAYLOAD_DIR}/bundled-feats/"FEAT-*.md; do
+    feat_name="$(basename "$feat_src")"
+    feat_target="${feat_target_dir}/${feat_name}"
+    if [[ ! -f "$feat_target" ]]; then
+        cp "$feat_src" "$feat_target"
+        log "40-scaffold: bundled ${feat_name} → ${feat_target}"
+    fi
+done
+shopt -u nullglob
 
 # ---------------------------------------------------------------------------
 # Install the tmuxc helper into the user's bashrc.

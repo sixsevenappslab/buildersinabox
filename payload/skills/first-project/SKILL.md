@@ -79,6 +79,8 @@ Once the repo is live:
 > *I haven't built it. You're going to build it — with me. Together. That's how this whole system is meant to work: you describe what you want, I help write the spec, you validate it, I write the code, you ship it.*
 >
 > *To start, run `less ~/ai-platform/projects/<project_name>/specs/draft/FEAT-002-personal-slack-coach.md` and skim it. Then come back and say "let's build the coach" and we'll go.*
+>
+> *When you finish the coach, there's a second spec waiting (FEAT-003 — a personal finance app that ships to a real domain). Invoke `/second-project` when you're ready for that one.*
 
 End the walkthrough. Don't push them further — let them choose when to start FEAT-002.
 
