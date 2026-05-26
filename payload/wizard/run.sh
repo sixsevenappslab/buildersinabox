@@ -13,8 +13,12 @@ source "${SCRIPT_DIR}/../lib/prompt.sh"
 require_root
 state_init
 
-prompt_header "Builders in a Box — setup wizard"
+prompt_header "Hi Paco — let's set up your Builders in a Box"
 cat <<'EOF'
+We made this for you. In the next 15 minutes you'll have your own
+personal AI development environment — accessible from your phone, with
+two projects already waiting for you.
+
 We'll walk through a few quick steps. Each step gives you a URL to open
 on your phone (or laptop). Read the URL straight from this screen, type
 it into your phone's browser, complete the login, and come back here and
@@ -56,12 +60,15 @@ run_step "60-slack-bootstrap.sh"
 # doesn't relaunch the wizard on subsequent logins.
 rm -f "${BIB_STATE_DIR}/firstboot.pending"
 
-prompt_header "Setup complete"
+prompt_header "All set, Paco!"
 cat <<'EOF'
 Stack installed, logins done, workspace scaffolded, tmux session ready
 with Remote Control enabled in every window.
 
-To connect from your phone:
+You can unplug the monitor and keyboard now. From here on, everything
+happens from your phone.
+
+To connect:
   1. Install the Claude Code app from your phone's app store.
   2. Sign in with the same Claude account you just used in this wizard.
   3. The app will list your three sessions — platform / <your project> /
