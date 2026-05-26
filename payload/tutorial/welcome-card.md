@@ -8,8 +8,8 @@
 ## What you need
 
 - An Ethernet cable from this box to your router.
-- An HDMI monitor and a USB keyboard, just for the first 15 minutes.
-- Your phone, to complete a few logins.
+- An HDMI monitor and a USB keyboard, just for the first ~20 minutes.
+- Your phone, to complete a few logins and to install the Claude Code app.
 - An email you can check (for sign-ups if needed).
 
 ## What to do — 4 steps
@@ -19,13 +19,17 @@
 3. **Follow the wizard on screen.** It walks you through three logins
    (Tailscale, GitHub, Claude). Each one shows a URL — open it on your
    phone, complete the login, come back, press Enter. ~5 minutes.
-4. **Install Termius on your phone.** Open it, add a new host (the wizard
-   will tell you the name), connect, then run `tmux attach -t main`.
+   You'll also be asked to pick a sudo password — write it down somewhere
+   safe, you can't recover it.
+4. **Install the Claude Code app on your phone.** Open it, you should see
+   your three remote sessions (platform / your-project / stratops)
+   appear automatically. Tap any of them to start working.
 
 After step 4 you can unplug the monitor and keyboard. Everything else
-happens from your phone.
+happens from your phone via the Claude Code app — no SSH, no terminal
+client, no typing commands.
 
-## First thing to do when you're inside tmux
+## First thing to do when you're inside Claude
 
 Type:
 
@@ -37,6 +41,6 @@ coach whose spec already lives on the device, waiting for you to build it.
 
 ## Need more?
 
-`~/README.md` (in your home directory once you SSH in) has the longer
+`~/README.md` (in your home directory once you connect) has the longer
 guide, the list of installed skills, and what to type when something
 breaks.

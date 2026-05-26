@@ -58,21 +58,28 @@ rm -f "${BIB_STATE_DIR}/firstboot.pending"
 
 prompt_header "Setup complete"
 cat <<'EOF'
-Stack installed, logins done, workspace scaffolded, tmux session ready.
+Stack installed, logins done, workspace scaffolded, tmux session ready
+with Remote Control enabled in every window.
 
 To connect from your phone:
-  1. Install Termius (or any SSH client).
-  2. Add a new host: this device's name on your tailnet (run
-     `tailscale status` to see it).
-  3. Connect — Tailscale SSH handles auth, no key paste needed.
-  4. Once in, run: tmux attach -t main
+  1. Install the Claude Code app from your phone's app store.
+  2. Sign in with the same Claude account you just used in this wizard.
+  3. The app will list your three sessions — platform / <your project> /
+     stratops — automatically (they appear because Remote Control is on).
+  4. Tap any of them. You're inside.
 
-You'll land in a session with three windows: platform / <your project> / stratops,
-each already running your AI CLI.
+No SSH client. No keys. No host setup. Just the Claude Code app.
 
-Want a fuller guide? `~/README.md` has the list of installed skills,
-how to type /remote-control to share your session, and what to do when
-something feels off. Read it from any tmux window with `less ~/README.md`.
+You'll land in a session with three windows, each already running your
+AI CLI. The first thing to type is /first-project — that's your guided
+walkthrough.
+
+Want a fuller guide? `~/README.md` has the list of installed skills and
+what to do when something feels off. Read it from any window with
+`less ~/README.md`.
+
+(Fallback: if the Claude Code app ever can't reach the device, Termius +
+Tailscale SSH still works. See ~/README.md → "Backup access".)
 
 You can unplug the monitor and keyboard now. The device will keep working.
 EOF

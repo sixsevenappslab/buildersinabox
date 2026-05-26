@@ -1,11 +1,16 @@
 # Your Builders in a Box
 
 You made it. The device is configured. From now on, everything happens
-from your phone via SSH + tmux + Claude Code.
+through the **Claude Code mobile app** — no SSH client, no manual
+`tmux attach`, no typing commands to reconnect. The sessions are
+already running on this device and exposed via Claude Code's
+**Remote Control** feature, so the mobile app sees them and lets
+you jump straight in.
 
 ## Start here
 
-Open any of the three tmux windows and type:
+Open any of the three tmux windows on screen (or jump in from the
+Claude Code app, same thing) and type:
 
 ```
 /first-project
@@ -24,10 +29,31 @@ GCP) if you don't have one yet.
 If you want the bigger picture first, type `/whats-ahead` instead — it's a
 5-minute narrative tour of the system.
 
+## How you connect from your phone
+
+The simple, default way:
+
+1. Install **Claude Code** from the app store on your phone.
+2. Sign in with the same Claude account you used during setup.
+3. The app discovers your three remote-controlled sessions
+   (`platform`, `{{PROJECT_NAME}}`, `stratops`) and lists them.
+4. Tap any of them to attach. You're inside, exactly where you left off.
+
+No SSH key paste. No host configuration. No "did I attach to the right
+session". The app does it for you because /remote-control was activated
+in every window automatically during setup.
+
+### Why no Termius / no SSH?
+
+Because Claude Code app's remote control over your already-running
+sessions is the smoothest interface for the way you'll actually use
+this device — phone, café, sofa, in the car. SSH still works as a fallback
+(see "Backup access" below), but you shouldn't need it day to day.
+
 ## What's running right now
 
 A persistent tmux session called `main` with three windows, each running
-your AI CLI ({{AI_CLI}}):
+your AI CLI ({{AI_CLI}}) with `/remote-control` already enabled:
 
 - **`platform`** — for changes to your dev environment itself
   (`~/ai-platform/`).
@@ -36,30 +62,15 @@ your AI CLI ({{AI_CLI}}):
 - **`stratops`** — your personal strategy & ops space — OKRs, roadmap,
   notes (`~/ai-platform/stratops/`).
 
-If you ever close the session by accident:
-
-```
-tmux attach -t main          # reattach to the existing session
-~/ai-platform/payload/tmux/launch-main.sh   # rebuild it from scratch
-```
-
-## Connecting from your phone
-
-You should already have Termius installed. Two ways to log in:
-
-**Easy (Tailscale SSH):** in Termius, add a new host using the name shown
-by `tailscale status`. No SSH key needed — Tailscale handles auth.
-
-**Backup (raw SSH):** if Tailscale SSH ever fails, your GitHub SSH keys
-are also in `~/.ssh/authorized_keys`. So `ssh biab@<tailscale-ip>` from
-any machine with your GitHub key works too.
-
-Once connected, run `tmux attach -t main`.
+If `/remote-control` ever needs to be re-enabled (after a daemon restart,
+for example), open a fresh session via Termius and type `/remote-control`
+in each window — or just rerun `~/ai-platform/payload/tmux/launch-main.sh`
+which does it for you.
 
 ## Talking to Claude
 
-When you're inside any of the three tmux windows, just type. Claude
-listens. Try:
+When you're inside any of the three sessions, just type. Claude listens.
+Try:
 
 > *"Help me sketch what a slack scheduler would look like"*
 
@@ -70,7 +81,7 @@ listens. Try:
 
 ## Skills — Claude with specific expertise
 
-This device ships with **15 pre-loaded skills**. Type `/` inside any
+This device ships with **18 pre-loaded skills**. Type `/` inside any
 Claude Code window and start typing the name. A few you might want:
 
 ### Guided onboarding
@@ -111,24 +122,10 @@ Want more skills later? Drop a folder under `~/.agents/skills/<name>/`
 containing a `SKILL.md`. Both Claude Code and Gemini CLI find it
 automatically.
 
-## Sharing a session — `/remote-control`
-
-If you want someone else (a friend, a teammate, the person who gave you
-this device) to see your Claude Code session live and even take over,
-type:
-
-```
-/remote-control
-```
-
-inside any Claude Code window. It generates a link you can share. The
-other person can read along, jump in, hand control back. Use it for pair
-programming, demos, or when you want help and "here's my screen" beats
-explaining.
-
 ## Switching contexts with tmuxc
 
-You have a function called `tmuxc` available everywhere:
+Inside the device you also have a function called `tmuxc` available
+everywhere:
 
 ```
 tmuxc                 # list sessions, pick one
@@ -142,6 +139,29 @@ tmuxa                 # shortcut: attach to 'main'
 Use it when you want a side context — e.g. `tmuxc scratch ~/tmp` for a
 throwaway poke at something, while your `main` session keeps running.
 
+## Sharing a session live
+
+You can also share any active session with someone else (a friend, a
+teammate, the person who gave you this device). They get a link, they
+see your screen live, they can take over to help. The remote-control
+machinery is already on by default in your three windows, so any of them
+is shareable — ask Claude in-session and it'll generate the link.
+
+## Backup access — Termius / SSH
+
+If the Claude Code app ever can't reach a session (Anthropic outage,
+your account locked, anything weird), there's a fallback:
+
+1. Install Termius (or any SSH client) on your phone.
+2. Add a host with the name shown by `tailscale status` on the device
+   (it's the device's name on your tailnet).
+3. Tailscale SSH handles auth — no key paste needed.
+4. Once in, run `tmux attach -t main`.
+
+Your GitHub SSH keys are also in `~/.ssh/authorized_keys` so a raw
+`ssh paco@<tailscale-ip>` works too. Both are belt-and-suspenders for
+the rare day when the primary path is down.
+
 ## Where things live
 
 ```
@@ -152,6 +172,7 @@ throwaway poke at something, while your `main` session keeps running.
 │       ├── CLAUDE.md / GEMINI.md / AGENTS.md
 │       └── specs/
 │           ├── draft/FEAT-002-personal-slack-coach.md   <- your first work
+│           ├── draft/FEAT-003-personal-finance-app.md   <- your second
 │           ├── active/      (when you start implementing)
 │           └── completed/   (when you ship)
 └── stratops/
@@ -168,12 +189,14 @@ throwaway poke at something, while your `main` session keeps running.
 
 ## When something feels off
 
-- **Claude says "please login" or refuses to start:** SSH in, run
-  `claude` once interactively, do the login again. It happens when the
-  device-flow token expires.
-- **Termius can't connect:** check `tailscale status` from another
-  device on your tailnet. If the mini PC is offline there, power-cycle
-  it.
+- **Claude Code app doesn't see your sessions:** confirm `/remote-control`
+  is active in each window. The launcher script
+  `~/ai-platform/payload/tmux/launch-main.sh` re-applies it.
+- **Claude says "please login" or refuses to start:** SSH in (fallback
+  path above), run `claude` once interactively, do the login again.
+- **Mobile app can't reach the device at all:** check `tailscale status`
+  from another device on your tailnet. If the mini PC is offline there,
+  power-cycle it.
 - **Wizard didn't finish and you want to restart it:** as root, run
   `touch /var/lib/buildersinabox/firstboot.pending` and reboot.
 
@@ -181,7 +204,8 @@ throwaway poke at something, while your `main` session keeps running.
 
 It's **yours**. You own the hardware, the data, the keys. Nothing here
 phones home except the Claude/Gemini API calls *you* make on *your*
-account.
+account, plus the Claude Code app's remote-control channel that *you*
+explicitly enabled.
 
 It's **not** a managed service. There's no support team. If a Claude
 update changes a CLI flag and something breaks, you (or the person who

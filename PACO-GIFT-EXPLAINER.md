@@ -16,7 +16,7 @@ Este documento explica qué hay en la caja, qué experiencia va a vivir Paco des
 
 ## 1 · La idea grande, en una frase
 
-> *Un mini PC vacío + un USB = en 25 minutos, Paco tiene su propio servidor de desarrollo personal en casa, con un asistente de inteligencia artificial dentro, accesible desde el móvil, y dos proyectos reales esperándole para empezar.*
+> *Un mini PC vacío + un USB = en 25 minutos, Paco tiene su propio servidor de desarrollo personal en casa, con un asistente de inteligencia artificial dentro, accesible desde el móvil con un solo tap, y dos proyectos reales esperándole para empezar.*
 
 No es un servicio en la nube. No es una suscripción. Es **hardware suyo, datos suyos, claves suyas**. Lo controla, lo apaga, lo cambia. Le dura años.
 
@@ -26,7 +26,7 @@ No es un servicio en la nube. No es una suscripción. Es **hardware suyo, datos 
 
 Paco quiere construir cosas. Tiene ideas. Tiene tiempo aquí y allá: el metro, una tarde de fin de semana, las dos horas después de cenar. Pero hoy esas ventanas de tiempo se le escapan porque para "ponerse" necesita ir al ordenador, abrir cosas, recordar dónde dejó el contexto.
 
-Nuestro regalo es eliminar esa fricción. Paco abre Termius en el móvil, hace tap en un host, y está dentro de su entorno de trabajo, con Claude esperándole, en la ventana exacta donde lo dejó. Si tiene 15 minutos, son 15 minutos productivos. Si tiene 3 horas, son 3 horas productivas.
+Nuestro regalo es eliminar esa fricción. Paco abre la **app de Claude Code** en su móvil, hace tap en una de sus sesiones, y está dentro de su entorno de trabajo, con Claude esperándole, en la ventana exacta donde lo dejó. **Cero comandos, cero SSH, cero "configurar el cliente".** Si tiene 15 minutos, son 15 minutos productivos. Si tiene 3 horas, son 3 horas productivas.
 
 También le quitamos el miedo de "no sé montar nada". El USB se encarga de todo. Paco enchufa, sigue 4 pasos en pantalla, y está listo.
 
@@ -52,7 +52,7 @@ Abre la caja, ve el mini PC, el USB y la tarjeta. Lee la tarjeta:
 1. Plug everything in. Ethernet, monitor, keyboard, USB stick. Power on.
 2. Wait ~10 minutes. Ubuntu installs by itself.
 3. Follow the wizard on screen. ~5 minutes of logins.
-4. Install Termius on your phone, connect, type tmux attach -t main.
+4. Install the Claude Code app on your phone. Your sessions appear there.
 ```
 
 Conecta cable Ethernet, monitor HDMI, teclado USB (los necesita una sola vez, los desconecta para siempre después de los primeros 25 minutos). Conecta el USB. Pulsa el botón de encendido.
@@ -115,9 +115,6 @@ Paco escribe una contraseña (no se ve en pantalla mientras escribe). La confirm
 ```
 Choose your AI coding CLI
 
-This is the CLI that will run in your three tmux windows after setup,
-and the one your coach (if you set it up later) will invoke headlessly.
-
 Pick one:
   1) claude [default]
   2) gemini
@@ -141,7 +138,7 @@ Open this URL on your phone or laptop to complete Tailscale login:
 Press Enter once you have completed the Tailscale login.
 ```
 
-**Qué es Tailscale:** una red privada que conecta los dispositivos de Paco entre sí, donde quiera que estén. Aunque su móvil esté en una cafetería y el mini PC en su casa, ven el uno al otro como si estuvieran en la misma red local. Es lo que va a permitirle conectarse al mini PC desde el móvil sin abrir puertos en el router ni hacer nada peligroso.
+**Qué es Tailscale:** una red privada que conecta los dispositivos de Paco entre sí, donde quiera que estén. Aunque su móvil esté en una cafetería y el mini PC en su casa, ven el uno al otro como si estuvieran en la misma red local. Le da privacidad y seguridad sin tener que abrir puertos en el router. Tailscale es la red por la que viaja todo el tráfico que hace falta para que la app de Claude Code llegue al mini PC.
 
 Paco no tiene cuenta de Tailscale. Abre la URL en su móvil, la página le ofrece crear cuenta gratis (20 segundos), aprueba que el mini PC se una a su red. Vuelve al teclado del mini PC, pulsa Enter.
 
@@ -167,11 +164,9 @@ Paco no tiene cuenta de GitHub. Misma historia: abre la URL, sign-up rápido, me
 
 Login a Claude Code, también vía URL. Esta vez Paco sí tiene cuenta. Sesión iniciada en 30 segundos.
 
-### Minuto 19 — SSH preparado para el móvil
+### Minuto 19 — SSH preparado como respaldo
 
-El wizard hace algo automático aquí (sin que Paco tenga que hacer nada): configura el mini PC para que **solo se pueda acceder por SSH desde la red privada de Tailscale**. Es decir: nadie en el mundo puede intentar conectarse al mini PC excepto los dispositivos que Paco tiene en su tailnet. Es muy seguro y no requiere pegar claves SSH.
-
-Además importa las claves SSH públicas que Paco tenga en GitHub, por si quiere conectarse de forma tradicional algún día. Defensa en profundidad.
+El wizard configura SSH como fallback por si algún día el camino principal (la app de Claude Code) no funciona: bindea el servicio SSH solo a la red de Tailscale, importa las claves públicas de Paco desde GitHub. Todo sin que Paco tenga que hacer nada. **En el día a día Paco no usará SSH** — solo está ahí por si acaso.
 
 ### Minuto 20 — el nombre del primer proyecto
 
@@ -181,9 +176,9 @@ Pick a name for your first project:
 >
 ```
 
-Paco escribe algo, por ejemplo `paco-app`. El wizard crea la estructura de carpetas, instala los archivos de contexto para la IA, copia 17 habilidades pre-cargadas (volvemos a esto en un momento), y pone dos proyectos guiados esperándole.
+Paco escribe algo, por ejemplo `paco-app`. El wizard crea la estructura de carpetas, instala los archivos de contexto para la IA, copia 18 habilidades pre-cargadas (volvemos a esto en un momento), y pone dos proyectos guiados esperándole.
 
-### Minuto 21 — la sesión de tmux
+### Minuto 21 — la sesión persistente con Remote Control
 
 El wizard lanza una **sesión de tmux** llamada `main`. tmux es un programa que mantiene varias ventanas de terminal abiertas a la vez, y **sobrevive a desconexiones**. Esto es clave: aunque Paco cierre el móvil, la sesión sigue viva en el mini PC, esperándole donde la dejó.
 
@@ -193,7 +188,9 @@ La sesión tiene **tres ventanas**:
 - `paco-app` — el proyecto principal de Paco
 - `stratops` — su espacio personal de estrategia y operaciones (OKRs, notas, roadmap)
 
-En cada ventana se lanza Claude Code automáticamente.
+En cada ventana se lanza Claude Code automáticamente. Y aquí viene la pieza clave: **el wizard activa Remote Control en cada ventana automáticamente**, sin que Paco tenga que hacer nada.
+
+Remote Control es una feature nativa de Claude Code. Lo que hace: la sesión de Claude que está corriendo en el mini PC queda "expuesta" para que la app de Claude Code (móvil, tablet o desktop) la encuentre y permita conectarse. Es como si las tres ventanas del mini PC quedaran visibles para Paco desde cualquier dispositivo donde tenga la app instalada con su cuenta de Claude.
 
 ### Minuto 22 — opcional: preparar Slack
 
@@ -220,29 +217,24 @@ Si Paco prefiere ir a esto luego, el wizard sigue sin más.
   Setup complete
 ======================================================================
 
-Stack installed, logins done, workspace scaffolded, tmux session ready.
+Stack installed, logins done, workspace scaffolded, tmux session ready
+with Remote Control enabled in every window.
 
 To connect from your phone:
-  1. Install Termius (or any SSH client).
-  2. Add a new host: this device's name on your tailnet.
-  3. Connect — Tailscale SSH handles auth, no key paste needed.
-  4. Once in, run: tmux attach -t main
+  1. Install the Claude Code app from your phone's app store.
+  2. Sign in with the same Claude account you just used in this wizard.
+  3. The app will list your three sessions — platform / paco-app /
+     stratops — automatically.
+  4. Tap any of them. You're inside.
 
-You'll land in a session with three windows: platform / paco-app / stratops,
-each already running your AI CLI.
-
-Want a fuller guide? `~/README.md` has the list of installed skills,
-how to type /remote-control to share your session, and what to do when
-something feels off.
-
-You can unplug the monitor and keyboard now. The device will keep working.
+No SSH client. No keys. No host setup. Just the Claude Code app.
 ```
 
-Y aquí pasa la magia final: el wizard termina, y automáticamente entra en la sesión de tmux que acaba de crear. Paco está ahora **dentro de Claude Code**, en la ventana de su proyecto, listo para empezar.
+El wizard termina. Paco saca el móvil, abre el App Store o Google Play, instala **Claude Code**. Lo abre. Hace login con su cuenta de Claude. La app le muestra las tres sesiones en una lista. Tap en `paco-app`. **Está dentro.**
 
-### Minuto 26 — primera conversación
+### Minuto 26 — primera conversación, ya desde el móvil
 
-Paco escribe en la ventana de Claude:
+Paco está mirando la pantalla de su móvil. Ve la ventana de Claude Code, esperándole en su proyecto. Escribe:
 
 ```
 /first-project
@@ -258,9 +250,30 @@ Y Claude le responde con una conversación guiada:
 
 Y Claude ejecuta los comandos uno por uno, explicándole qué hace cada cosa, esperando confirmación. En 4 minutos, el proyecto está en GitHub, hay un primer commit, y Claude le presenta el siguiente paso.
 
+Y todo eso lo está haciendo Paco con el móvil en la mano, sin haberse conectado a "nada", sin escribir un solo comando de Linux. La app es el cliente. El mini PC es el servidor. Pero Paco no tiene que pensar en esa distinción.
+
 ---
 
-## 5 · Los dos proyectos que vienen pre-cargados
+## 5 · Cómo se reconecta Paco al día siguiente (y al siguiente)
+
+Esto es lo que más nos importa que entiendas, porque es lo que hace al regalo realmente útil.
+
+Mañana por la mañana, Paco va en el metro. Saca el móvil. Abre la app de **Claude Code**. **No hay paso intermedio.** Las tres sesiones de su mini PC siguen ahí, vivas, exactamente donde las dejó anoche. Tap en `paco-app`. Está dentro, hablando con Claude.
+
+No abre Termius. No hace SSH. No escribe `tmux attach`. No se acuerda de ningún comando. **Solo abre la app y hace tap.**
+
+Esto pasa porque:
+
+1. El mini PC nunca se apaga (o si lo apaga, arranca solo y vuelve a montar las sesiones).
+2. tmux mantiene las tres ventanas vivas en el mini PC indefinidamente.
+3. Claude Code corre dentro de cada ventana con Remote Control activado.
+4. La app de Claude Code en el móvil de Paco descubre esas sesiones porque están registradas con su cuenta de Claude.
+
+**Es la diferencia entre "abro el ordenador y me pongo" y "continúo donde estaba".** Para alguien que solo tiene 15 minutos sueltos en el día, esa diferencia es enorme: 15 minutos productivos contra 15 minutos perdidos en "preparar el setup".
+
+---
+
+## 6 · Los dos proyectos que vienen pre-cargados
 
 Aquí está la parte bonita del regalo. No solo le damos un servidor — le damos **dos proyectos reales para construir**, con sus especificaciones ya escritas. Paco no se queda mirando una terminal vacía pensando "y ahora qué". Tiene cosas concretas que hacer, en orden, con Claude ayudándole en cada paso.
 
@@ -286,7 +299,7 @@ Es un detalle humano que transforma el mini PC de "un servidor" en "un entorno q
 
 Cuando termine, no solo tiene su coach — sabe construir cosas así.
 
-**Tiempo estimado:** un par de tardes con Claude guiándole.
+**Tiempo estimado:** un par de tardes con Claude guiándole desde el móvil.
 
 ### Proyecto 2 — Una app de finanzas personales en producción (FEAT-003)
 
@@ -302,7 +315,7 @@ Cuando termine, no solo tiene su coach — sabe construir cosas así.
 
 **¿Qué aprende Paco construyéndolo?**
 
-- Abrir una cuenta en Cloudflare (el wizard `/second-project` le guía)
+- Abrir una cuenta en Cloudflare (la habilidad `/second-project` le guía)
 - Comprar un dominio (Cloudflare lo hace en 2 minutos sin comisiones absurdas)
 - Desplegar una app real con un comando (`wrangler deploy`)
 - Conectar varios servicios: bases de datos, almacenamiento, IA
@@ -315,15 +328,13 @@ Cuando termine este proyecto, Paco tiene una experiencia real de "he tenido una 
 
 ---
 
-## 6 · Cómo es la vida normal de Paco con el mini PC
+## 7 · Cómo es la vida normal de Paco con el mini PC
 
 Después del primer día, así trabaja Paco:
 
 ### Por la mañana, en el metro
 
-Paco abre Termius en el móvil. Hace tap en el host del mini PC (lo configuró el primer día). Tailscale autentica solo, sin contraseñas. Está conectado.
-
-Tipea: `tmux attach -t main`. Aterriza en su sesión, ventana `paco-app`, exactamente donde la dejó anoche. Si dejó una conversación con Claude a medias, sigue viva.
+Paco abre la **app de Claude Code** en el móvil. La app le muestra sus tres sesiones. Tap en `paco-app`. Está dentro, exactamente donde lo dejó anoche. Si dejó una conversación con Claude a medias, sigue viva.
 
 Le pregunta a Claude: *"¿Qué iba a hacer hoy?"* y Claude le responde con el contexto que tiene del último día.
 
@@ -331,13 +342,13 @@ Trabaja 25 minutos. Cierra el móvil. La sesión sigue corriendo en el mini PC.
 
 ### Después de cenar
 
-Vuelve. `tmux attach -t main`. Sigue donde lo dejó.
+Vuelve. Tap en la app. Sigue donde lo dejó.
 
-Cambia entre ventanas con `Ctrl-b 1` (platform), `Ctrl-b 2` (paco-app), `Ctrl-b 3` (stratops). Cada ventana es un contexto distinto con su propia conversación.
+Cambia entre ventanas dentro de la app (las tres aparecen como pestañas). Cada ventana es un contexto distinto con su propia conversación.
 
 ### Cuando se atasca
 
-Tipea `/remote-control` dentro de Claude Code. Eso genera un enlace que puede compartir por WhatsApp con un amigo desarrollador. Esa otra persona se conecta, ve su sesión live, puede tomar control y arreglar lo que esté roto.
+Tipea `/remote-control` dentro de Claude Code para generar un enlace de compartir (la sesión ya está en modo remote-control, pero esto genera un enlace específico para invitar a otra persona). Lo manda por WhatsApp. Esa otra persona se conecta, ve su sesión live, puede tomar control y arreglar lo que esté roto.
 
 O simplemente envía un mensaje a su coach en `#coach` de Slack: *"estoy atascado con el wizard de Cloudflare, ¿alguna pista?"* y el coach (que sabe en qué proyecto está y qué intentó la última vez) le da contexto.
 
@@ -347,27 +358,27 @@ Abre su app de finanzas en el dominio que compró. La que él construyó. Ve sus
 
 ### Cuando quiere construir otra cosa
 
-Tipea `/sdd-coordinator` en cualquier ventana de Claude. La habilidad le habla como un Product Lead y le ayuda a definir la nueva feature. Después `/sdd-spec-writer` actúa como Tech Lead, etc. Hay 17 habilidades pre-cargadas, cada una con su voz y su rol, todas funcionando con la misma IA.
+Tipea `/sdd-coordinator` en cualquier ventana de Claude. La habilidad le habla como un Product Lead y le ayuda a definir la nueva feature. Después `/sdd-spec-writer` actúa como Tech Lead, etc. Hay 18 habilidades pre-cargadas, cada una con su voz y su rol, todas funcionando con la misma IA.
 
 ---
 
-## 7 · La filosofía del regalo
+## 8 · La filosofía del regalo
 
 No le estamos regalando solo un mini PC. Le estamos regalando:
 
 1. **Soberanía** — el hardware es suyo, los datos son suyos, las claves son suyas. Nada depende de un servicio que pueda subir precio mañana, cerrar, o cambiar términos. Si Paco quiere mudar todo a otra máquina, lo hace en una tarde porque todo está en su GitHub.
 
-2. **Cero fricción** — desde que enchufa hasta que está construyendo, son 25 minutos. La pieza más mágica es que la sesión persiste: Paco no "abre el ordenador y se pone" — Paco continúa donde lo dejó.
+2. **Cero fricción** — desde que enchufa hasta que está construyendo, son 25 minutos. La pieza más mágica viene después: cada día siguiente Paco no "abre el ordenador y se pone", sino que **abre una app y continúa**. Esa diferencia hace que ratos sueltos del día se conviertan en trabajo real.
 
 3. **Acompañamiento real** — el coach de Slack es la versión humana de "un sistema que cuida". No es notificaciones automatizadas. Es un asistente con personalidad, que sabe contexto, que escribe con empatía.
 
 4. **Aprendizaje haciendo** — los dos proyectos pre-cargados son una mini-curriculum. Cuando termine el segundo, Paco sabe construir y desplegar productos digitales completos, en producción, en su propio dominio.
 
-5. **Compartibilidad** — `/remote-control` significa que cualquiera de nosotros puede ayudarle en directo cuando se atasque, viendo su pantalla, tomando control si hace falta. El regalo no termina cuando se lo entregamos.
+5. **Compartibilidad** — Remote Control significa que cualquiera de nosotros puede ayudarle en directo cuando se atasque, viendo su pantalla, tomando control si hace falta. El regalo no termina cuando se lo entregamos.
 
 ---
 
-## 8 · Datos técnicos para los curiosos
+## 9 · Datos técnicos para los curiosos
 
 | Cosa | Especificación |
 |---|---|
@@ -375,31 +386,33 @@ No le estamos regalando solo un mini PC. Le estamos regalando:
 | Sistema operativo | Ubuntu Server 24.04 LTS |
 | Conexión | Ethernet por cable (WiFi en v2) |
 | Red privada | Tailscale (cuenta de Paco) |
-| Acceso desde móvil | Termius o cualquier cliente SSH, vía Tailscale SSH |
+| Acceso desde móvil — primario | App oficial de Claude Code + Remote Control activado en cada sesión |
+| Acceso desde móvil — respaldo | Termius o cualquier cliente SSH, vía Tailscale SSH |
 | Asistente de IA | Claude Code (cuenta de Paco) |
-| Habilidades pre-cargadas | 17 (SDD workflow, consultores backend/UX/exec/product-marketing, herramientas code-review/qa/docs, onboarding) |
+| Habilidades pre-cargadas | 18 (SDD workflow, consultores backend/UX/exec/product-marketing, herramientas code-review/qa/docs, onboarding first-project/second-project/whats-ahead) |
 | Proyectos pre-cargados | 2 FEATs (coach Slack + app finanzas) |
-| Sesión persistente | tmux (sobrevive a desconexiones) |
-| Comparte sesión | `/remote-control` slash command |
+| Sesión persistente | tmux (sobrevive a desconexiones y reinicios de la app) |
+| Comparte sesión live | `/remote-control` (slash command) genera enlace para invitar a terceros |
 | Backup del código | GitHub (privado por defecto) |
 | Coste mensual de Paco | 0€ (Claude Max si ya lo tiene; servicios cloud en tier gratuito; dominio ~10€/año cuando llegue a FEAT-003) |
 
 ---
 
-## 9 · Qué pasa si algo va mal
+## 10 · Qué pasa si algo va mal
 
 Cosas que pueden fallar y cómo se recupera:
 
 - **Paco olvida su contraseña sudo:** re-flashea el USB, instala de nuevo. Pierde lo local; el código sigue en GitHub. ~30 minutos de molestia.
 - **El mini PC se rompe físicamente:** Paco compra otro mini PC (cualquier x86 con UEFI vale). Enchufa el USB. En 25 minutos vuelve a estar donde estaba. El código sigue en GitHub.
-- **Cae la conexión a internet:** el mini PC sigue funcionando localmente. Tailscale se reconecta solo cuando vuelve la red.
+- **La app de Claude Code no encuentra las sesiones del mini PC:** Paco usa el respaldo SSH (Termius + Tailscale), entra al mini PC, reactiva `/remote-control` en cada ventana, y la app las vuelve a ver.
+- **Cae la conexión a internet:** el mini PC sigue funcionando localmente. Tailscale se reconecta solo cuando vuelve la red. Las sesiones tmux quedan intactas.
 - **Anthropic / Tailscale / GitHub cambia algo:** los scripts del USB son código abierto, los puede editar él o pedirle a Claude que los actualice.
 
 No hay punto único de fallo del que no se pueda recuperar. Esto es importante: **el regalo está diseñado para durar años**.
 
 ---
 
-## 10 · Cierre
+## 11 · Cierre
 
 Lo que le damos a Paco no es un producto. Es un punto de partida. Es la diferencia entre *"quiero ponerme a construir cosas"* y *"estoy construyendo cosas, ahora mismo, desde el sofá, con mi café al lado y la voz de mi coach diciéndome que vaya a dormir".*
 

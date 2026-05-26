@@ -54,6 +54,15 @@ fi
 
 log "launch-main: creating session '$SESSION_NAME' (ai_cli=$ai_cli, project=$project_name)"
 
+# Whether to auto-enable Claude Code's /remote-control in each window so the
+# Claude Code mobile app can connect to these sessions without SSH. Disable
+# by setting BIB_TMUX_AUTO_REMOTE_CONTROL=0. Only applies when the launch
+# command actually starts the AI CLI (skipped in mock/dryrun mode).
+auto_rc="${BIB_TMUX_AUTO_REMOTE_CONTROL:-1}"
+if [[ "$launch_cmd" != "$ai_cli" ]]; then
+    auto_rc=0
+fi
+
 # Detached session; first window starts at index 1 due to base-index in tmux.conf,
 # but we explicitly use names + cwd to avoid surprises.
 tmux new-session -d -s "$SESSION_NAME" -n "platform" -c "${target_home}/ai-platform"
@@ -64,6 +73,16 @@ tmux send-keys -t "${SESSION_NAME}:${project_name}" "$launch_cmd" C-m
 
 tmux new-window -t "$SESSION_NAME:" -n "stratops" -c "${target_home}/ai-platform/stratops"
 tmux send-keys -t "${SESSION_NAME}:stratops" "$launch_cmd" C-m
+
+# Give the CLI ~4s to finish booting, then activate Remote Control in every
+# window so the mobile Claude Code app can attach to any of them.
+if [[ "$auto_rc" == "1" ]]; then
+    log "launch-main: enabling /remote-control in each window"
+    sleep 4
+    for win in "platform" "$project_name" "stratops"; do
+        tmux send-keys -t "${SESSION_NAME}:${win}" "/remote-control" C-m
+    done
+fi
 
 # Default selection: the project window (middle one — the one the user will use most).
 tmux select-window -t "${SESSION_NAME}:${project_name}"
