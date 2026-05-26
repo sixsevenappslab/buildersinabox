@@ -8,3 +8,5 @@ build/
 .env.local
 .wrangler/
 secrets/
+iso-builder/out/
+iso-builder/.staging/

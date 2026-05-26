@@ -1,0 +1,81 @@
+#cloud-config
+# Builders in a Box — Ubuntu 24.04 Server unattended autoinstall.
+# This file is consumed by subiquity (the Ubuntu Server installer) when
+# the ISO is booted with the `autoinstall ds=nocloud;s=/cdrom/cidata/`
+# kernel parameter (the build.sh script wires that up in GRUB).
+
+autoinstall:
+  version: 1
+
+  # No interactive prompts at all.
+  interactive-sections: []
+
+  # Refresh the installer to the latest before running (catches bug fixes).
+  refresh-installer:
+    update: yes
+
+  # Locale + keyboard. Defaults that work for most of Europe; user can change
+  # later. Keep this generic — we're shipping to people we don't know yet.
+  locale: en_US.UTF-8
+  keyboard:
+    layout: es
+
+  identity:
+    realname: "Paco"
+    username: paco
+    hostname: biab
+    # Required by subiquity but never used: we add NOPASSWD via sudoers
+    # in late-commands and the wizard's 01-set-password.sh will be the
+    # first thing that puts a real password on the account. This hash is
+    # for the literal string "this-will-be-replaced-by-the-wizard" but the
+    # account is sudo-NOPASSWD so the value never gates anything.
+    # crypt(this-will-be-replaced-by-the-wizard, $6$saltsaltsalt)
+    password: "$6$saltsaltsalt$5l6BdWQOWxbRk5xJUS5UEABZk8sFGwS1mn/iZ2BHHN.AcEVfDc9TLkrtTjpiozaIJaQg9KOH/o/HpRfDPHCcF1"
+
+  ssh:
+    install-server: yes
+    allow-pw: no
+
+  # Wipe the entire disk and use a single ext4 root. No LUKS.
+  storage:
+    layout:
+      name: direct
+
+  # Extra packages installed during the install phase (before reboot).
+  # Bootstrap will install the bulk; these are just the absolute baseline.
+  packages:
+    - git
+    - curl
+    - ca-certificates
+    - jq
+
+  # Skip the final "press a key to reboot" prompt.
+  shutdown: reboot
+
+  # Run on the target system before reboot. Each command runs in the
+  # installer environment; use `curtin in-target -- <cmd>` to run inside
+  # the new root (/target). We keep this minimal: stage the repo, install
+  # the first-boot machinery, and mark the wizard as pending. The actual
+  # stack install (Tailscale, gh, Claude/Gemini, tmux, ssh hardening) is
+  # deferred to the first-boot script so the user sees progress on screen.
+  late-commands:
+    # 1. Extract the embedded buildersinabox repo into /opt.
+    - mkdir -p /target/opt/buildersinabox
+    - tar -xzf /cdrom/biab/repo.tar.gz -C /target/opt/buildersinabox/
+    # 2. Install the systemd autologin drop-in for tty1.
+    - mkdir -p /target/etc/systemd/system/getty@tty1.service.d
+    - cp /target/opt/buildersinabox/payload/systemd/getty@tty1.service.d/autologin.conf
+        /target/etc/systemd/system/getty@tty1.service.d/autologin.conf
+    # 3. Install the /etc/profile.d trigger that runs the first-boot script.
+    - cp /target/opt/buildersinabox/payload/profile.d/biab-firstboot.sh
+        /target/etc/profile.d/biab-firstboot.sh
+    - chmod 0644 /target/etc/profile.d/biab-firstboot.sh
+    # 4. Mark first-boot as pending so the trigger fires on next login.
+    - mkdir -p /target/var/lib/buildersinabox
+    - touch /target/var/lib/buildersinabox/firstboot.pending
+    # 5. Sudo NOPASSWD for paco until the wizard sets a real password.
+    - 'echo "paco ALL=(ALL) NOPASSWD: ALL" > /target/etc/sudoers.d/90-paco-nopasswd'
+    - chmod 0440 /target/etc/sudoers.d/90-paco-nopasswd
+    # 6. Ensure linger is enabled for paco so user-level systemd units
+    #    survive logout (the wizard's tmux session needs this).
+    - curtin in-target --target=/target -- loginctl enable-linger paco
