@@ -105,8 +105,9 @@ prompt_header() {
     printf '%s%s%s\n\n' "$BIB_BRIGHT_CYAN" "$line" "$BIB_RESET"
 }
 
-# Print an URL in isolation, highlighted so the user immediately spots it
-# among the surrounding text.
+# Print an URL prominently, plus a scannable QR code below it when
+# `qrencode` is available. Paco can either type the URL on his phone OR
+# point the camera at the QR — whatever's faster for him.
 prompt_url() {
     local label="${1:-Open this URL on your phone:}"
     local url="$2"
@@ -115,6 +116,13 @@ prompt_url() {
     printf '\n'
     printf '    %s>%s  %s%s%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_YELLOW" "$url" "$BIB_RESET"
     printf '\n'
+    if command -v qrencode >/dev/null 2>&1; then
+        printf '  %s...or point your phone camera at this QR:%s\n\n' "$BIB_DIM" "$BIB_RESET"
+        # -m 2 = 2-module quiet zone (helps phone cameras lock on)
+        # -t UTF8 = compact half-block rendering, fits in ~11 console rows
+        qrencode -t UTF8 -m 2 "$url" 2>/dev/null | sed 's/^/    /'
+        printf '\n'
+    fi
 }
 
 # Wait for the user to confirm a step is done. Blocks until Enter is pressed.

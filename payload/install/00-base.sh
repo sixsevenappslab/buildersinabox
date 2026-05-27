@@ -12,7 +12,7 @@ require_root
 
 log "00-base: installing base packages"
 apt_update_once
-apt_install ca-certificates curl gnupg jq build-essential git
+apt_install ca-certificates curl gnupg jq build-essential git qrencode
 
 # Node.js 20.x via NodeSource if not already at >= 20.
 need_node20=1
