@@ -27,7 +27,7 @@ fi
 
 oauth_step \
     --label "Tailscale" \
-    --url-cmd "tailscale up --ssh --hostname=\$(hostname)" \
+    --url-cmd "tailscale up --hostname=\$(hostname)" \
     --verify "tailscale status"
 
 phase_done "tailscale_done"
