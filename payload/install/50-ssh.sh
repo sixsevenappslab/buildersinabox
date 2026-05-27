@@ -21,6 +21,15 @@ if ! dpkg -s openssh-server >/dev/null 2>&1; then
     apt_install openssh-server
 fi
 
+# Make sure host keys exist before running sshd -t. On fresh autoinstall
+# environments the postinst doesn't always run ssh-keygen -A, leaving
+# sshd unable to validate its config. ssh-keygen -A is idempotent: it
+# only generates missing key types.
+if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
+    log "50-ssh: generating missing SSH host keys"
+    ssh-keygen -A
+fi
+
 # Apply our settings via a drop-in. Idempotent: we overwrite the file each run
 # but its contents are deterministic, so reruns produce no real change.
 mkdir -p "$SSHD_DROPIN_DIR"
