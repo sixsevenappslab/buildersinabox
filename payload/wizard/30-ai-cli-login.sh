@@ -77,8 +77,19 @@ and you'll do three small things:
      (or press Ctrl+D)
 
 You'll come back here automatically and the wizard will verify and continue.
+
+PRO TIP — the URL is long. If it's hard to type on your phone or your
+phone's OCR can't capture it cleanly from this screen, the easiest
+workaround is to SSH into this device from a laptop. Tailscale is
+already up (we did that step), so from any computer on your tailnet:
+
+    ssh ${target_user}@\$(hostname)
+
+…and run \`claude\` there instead. The URL appears in your laptop's
+terminal where copy-paste works normally. Just press Ctrl+C here to
+cancel, do the login from the laptop, then rerun bootstrap.sh.
 EOF
-prompt_confirm "Press Enter to launch $cli."
+prompt_confirm "Press Enter to launch $cli (or Ctrl+C if you want the SSH route)."
 
 # Hand the terminal to the CLI, running as the target user (not root).
 # sudo -u with explicit shell so HOME/PATH resolve correctly for the CLI's

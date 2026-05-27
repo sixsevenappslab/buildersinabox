@@ -197,6 +197,38 @@ the rare day when the primary path is down.
 /var/log/buildersinabox/         <- bootstrap + wizard logs
 ```
 
+## The Claude login URL is too long for OCR — what to do
+
+The wizard's third login is Claude Code itself. Inside Claude's UI you
+type `/login` and it prints a very long OAuth URL that's painful to
+type by hand and often too long for your phone's text-recognition to
+capture reliably from a monitor.
+
+Three ways, easiest first:
+
+1. **SSH into this device from your laptop** (recommended). By the time
+   you reach the Claude step, Tailscale is already active and SSH is
+   ready. From any computer on your tailnet:
+       ssh {{TARGET_USER}}@{{HOSTNAME}}
+   (the hostname is what `tailscale status` shows on this device.)
+   Run `claude` in that SSH session — the long URL now appears in
+   your laptop's terminal where copy-paste actually works.
+
+2. **Use the Claude Code app on your laptop**. Install it, sign in to
+   your Claude account through its built-in browser. Then SSH into
+   this device (as above) and run `claude`. The device picks up the
+   auth from your Anthropic account if you signed in with the same one.
+
+3. **Skip Claude here, come back later**. From the wizard's bash
+   prompt, run:
+       sudo jq '.phases.ai_cli_done = true' \
+         /var/lib/buildersinabox/state.json > /tmp/s.json && \
+       sudo mv /tmp/s.json /var/lib/buildersinabox/state.json && \
+       sudo chmod 644 /var/lib/buildersinabox/state.json && \
+       sudo /opt/buildersinabox/payload/bootstrap.sh
+   The wizard moves on without Claude authentication. When you're ready
+   (with your laptop nearby, SSH'd in), run `claude` and `/login` then.
+
 ## When something feels off
 
 - **Claude Code app doesn't see your sessions:** confirm `/remote-control`

@@ -170,6 +170,8 @@ if [[ -f "$readme_src" && ! -f "$readme_target" ]]; then
     ai_cli="$(state_get '.ai_cli')"
     sed -e "s|{{PROJECT_NAME}}|${project_name}|g" \
         -e "s|{{AI_CLI}}|${ai_cli}|g" \
+        -e "s|{{TARGET_USER}}|${target_user}|g" \
+        -e "s|{{HOSTNAME}}|$(hostname)|g" \
         "$readme_src" > "$readme_target"
     log "40-scaffold: wrote $readme_target"
 fi
