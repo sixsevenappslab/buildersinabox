@@ -22,6 +22,17 @@ if phase_is_done "slack_bootstrap_done"; then
     exit 0
 fi
 
+# Only relevant when the user picked the Slack coach as their starter
+# project. For finance-dashboard or any custom project, the Slack tokens
+# aren't useful at install time — skip cleanly. The user can always run
+# this step manually later if they decide to build the coach.
+project_name="$(state_get '.project_name')"
+if [[ "$project_name" != "personal-coach" ]]; then
+    log "60-slack-bootstrap: starter project is '${project_name:-unset}', not 'personal-coach'; skipping Slack setup"
+    phase_done "slack_bootstrap_done"
+    exit 0
+fi
+
 target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
 target_home="$(getent passwd "$target_user" | cut -d: -f6 || true)"
 [[ -n "$target_home" ]] || die "60-slack-bootstrap: cannot resolve home for $target_user"
