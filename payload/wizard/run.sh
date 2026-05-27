@@ -58,7 +58,13 @@ run_step "30-ai-cli-login.sh"
 run_step "35-ssh-finalize.sh"
 run_step "40-scaffold.sh"
 run_step "50-tmux.sh"
-run_step "60-slack-bootstrap.sh"
+
+# Note: 60-slack-bootstrap.sh deliberately NOT in the wizard chain.
+# Pasting long Slack tokens on a console keyboard is awful. The Slack
+# setup is done later via the Claude Code app on the phone (much better
+# clipboard), as part of implementing the coach project (FEAT-002 Wave 1).
+# The script remains available for power users who prefer the console:
+#   sudo /opt/buildersinabox/payload/wizard/60-slack-bootstrap.sh
 
 # Clear the first-boot pending marker so /etc/profile.d/biab-firstboot.sh
 # doesn't relaunch the wizard on subsequent logins.
@@ -69,28 +75,85 @@ cat <<'EOF'
 Stack installed, logins done, workspace scaffolded, tmux session ready
 with Remote Control enabled in every window.
 
-You can unplug the monitor and keyboard now. From here on, everything
-happens from your phone.
+You're done with the keyboard and monitor on this device. From now on,
+everything happens on your phone. There are 3 apps to install and one
+sequence to remember. Take it slow, do them in order.
+EOF
 
-To connect:
-  1. Install the Claude Code app from your phone's app store.
-  2. Sign in with the same Claude account you just used in this wizard.
-  3. The app will list your three sessions — platform / <your project> /
-     stratops — automatically (they appear because Remote Control is on).
-  4. Tap any of them. You're inside.
+# --- App 1: Claude Code (primary path) ---
+printf '\n%s[1/3]%s  %sInstall the Claude Code app on your phone%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}"
+cat <<EOF
+       App Store: search "Claude" by Anthropic
+       Google Play: search "Claude" by Anthropic
+       Sign in with the SAME Claude account you just used in this wizard.
 
-No SSH client. No keys. No host setup. Just the Claude Code app.
+       Once signed in, the app discovers this device's three sessions
+       automatically (because Remote Control is on in each tmux window):
+         - platform
+         - $(state_get '.project_name')
+         - stratops
+       Tap any of them. You are now inside Claude on this device.
+EOF
+if command -v qrencode >/dev/null 2>&1; then
+    printf '\n       %s...or scan to open the app store:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+    qrencode -t UTF8 -m 1 "https://claude.ai/download" 2>/dev/null | sed 's/^/         /'
+fi
 
-You'll land in a session with three windows, each already running your
-AI CLI. The first thing to type is /first-project — that's your guided
-walkthrough.
+# --- App 2: Tailscale (network for SSH fallback) ---
+printf '\n%s[2/3]%s  %sInstall Tailscale on your phone%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}"
+cat <<'EOF'
+       App Store / Google Play: search "Tailscale"
+       Sign in with the SAME Tailscale account you used earlier.
+       This puts your phone on the same private network as this device.
 
-Want a fuller guide? `~/README.md` has the list of installed skills and
-what to do when something feels off. Read it from any window with
-`less ~/README.md`.
+       Why: it is the foundation of the SSH fallback (step 3) and lets
+       you reach the device from anywhere in the world securely.
+EOF
+if command -v qrencode >/dev/null 2>&1; then
+    printf '\n       %s...or scan to install Tailscale:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+    qrencode -t UTF8 -m 1 "https://tailscale.com/download" 2>/dev/null | sed 's/^/         /'
+fi
 
-(Fallback: if the Claude Code app ever can't reach the device, Termius +
-Tailscale SSH still works. See ~/README.md → "Backup access".)
+# --- App 3: Termius (SSH fallback) ---
+printf '\n%s[3/3]%s  %sInstall Termius on your phone%s   %s(fallback only)%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_DIM:-}" "${BIB_RESET:-}"
+cat <<EOF
+       App Store / Google Play: search "Termius"
+       This is your backup if the Claude Code app ever cannot reach
+       the device. You will rarely need it but it is good to have.
 
-You can unplug the monitor and keyboard now. The device will keep working.
+       Setup in Termius:
+         - Add a new host
+         - Hostname: $(hostname)
+         - Username: ${BIB_TARGET_USER:-${SUDO_USER:-paco}}
+         - No password / no key — Tailscale SSH handles auth
+       Once connected: run \`tmux attach -t main\`
+EOF
+if command -v qrencode >/dev/null 2>&1; then
+    printf '\n       %s...or scan to install Termius:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+    qrencode -t UTF8 -m 1 "https://termius.com/download" 2>/dev/null | sed 's/^/         /'
+fi
+
+# --- First thing to do once inside Claude Code ---
+printf '\n%s+----------------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+printf '%s|%s  %sOnce inside the Claude Code app on your phone:%s         %s|%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+printf '%s+----------------------------------------------------------+%s\n\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+cat <<EOF
+       Type:   /first-project
+
+       That is your guided first-day walkthrough. I explain GitHub,
+       help you put this project on GitHub, and then we open the
+       spec that's already waiting in your project's specs/draft/ folder
+       and start building it together.
+
+       For the bigger picture first, type /whats-ahead instead.
+
+The full guide is at ~/README.md on this device. To read it later
+from inside any session: less ~/README.md
+
+You can now unplug the monitor and keyboard. Your Builders in a Box
+is alive, on your tailnet, waiting for your phone to connect.
 EOF
