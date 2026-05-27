@@ -88,13 +88,17 @@ run_step() {
     fi
 }
 
+# PHASE A (console): minimum needed to get the user onto their phone.
 run_step "01-set-password.sh"
 run_step "05-choose-cli.sh"
 run_step "10-tailscale-up.sh"
-run_step "20-gh-login.sh"
 run_step "35-ssh-finalize.sh"
-run_step "36-phone-bridge.sh"      # pauses here on console
-run_step "38-ai-cli-login.sh"      # runs in SSH context
+run_step "36-phone-bridge.sh"      # pauses here on console (exit 78)
+
+# PHASE B (SSH from phone): the heavy OAuth steps land here, where the
+# Termius terminal supports copy-paste between SSH and the mobile browser.
+run_step "20-gh-login.sh"          # short URL + device code, easy in Termius
+run_step "38-ai-cli-login.sh"      # long Claude URL, copy-paste in Termius
 run_step "40-scaffold.sh"
 run_step "50-tmux.sh"
 

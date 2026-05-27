@@ -25,7 +25,10 @@ target_home="$(getent passwd "$target_user" | cut -d: -f6 || true)"
 [[ -n "$target_home" ]] || die "35-ssh-finalize: cannot resolve home for $target_user"
 
 # ---------------------------------------------------------------------------
-# 1. Import GitHub SSH keys.
+# 1. Prepare ~/.ssh and an empty authorized_keys with safe perms.
+#    GitHub key import has moved to 20-gh-login (runs in SSH phase, after
+#    gh is actually authenticated). Here we only set up the directory so
+#    the import has somewhere to write.
 # ---------------------------------------------------------------------------
 ssh_dir="${target_home}/.ssh"
 auth_keys="${ssh_dir}/authorized_keys"
@@ -34,27 +37,6 @@ chmod 700 "$ssh_dir"
 touch "$auth_keys"
 chmod 600 "$auth_keys"
 chown -R "$target_user:$target_user" "$ssh_dir"
-
-if [[ "${BIB_OAUTH_MOCK:-0}" == "1" ]]; then
-    log "35-ssh-finalize: mock mode, skipping GitHub key import"
-else
-    log "35-ssh-finalize: importing GitHub SSH keys for $target_user"
-    # gh requires auth context of the right user. Read keys via the API and
-    # append only those not already present.
-    if keys_json="$(su - "$target_user" -c 'gh api /user/keys --jq ".[].key"' 2>/dev/null)"; then
-        added=0
-        while IFS= read -r key; do
-            [[ -z "$key" ]] && continue
-            if ! grep -Fqx "$key" "$auth_keys"; then
-                printf '%s\n' "$key" >> "$auth_keys"
-                added=$((added + 1))
-            fi
-        done <<< "$keys_json"
-        log "35-ssh-finalize: imported $added new GitHub key(s)"
-    else
-        warn "35-ssh-finalize: could not fetch GitHub keys (gh may be unauthenticated). Skipping."
-    fi
-fi
 
 # ---------------------------------------------------------------------------
 # 2. Bind sshd to the Tailscale interface only.
