@@ -21,14 +21,20 @@ if ! dpkg -s openssh-server >/dev/null 2>&1; then
     apt_install openssh-server
 fi
 
-# Make sure host keys exist before running sshd -t. On fresh autoinstall
-# environments the postinst doesn't always run ssh-keygen -A, leaving
-# sshd unable to validate its config. ssh-keygen -A is idempotent: it
-# only generates missing key types.
+# Defensive setup before running `sshd -t`. On fresh autoinstall environments,
+# two things can be missing:
+#  1. Host keys — if openssh-server's postinst didn't run ssh-keygen -A,
+#     sshd -t fails with "could not load host key".
+#  2. /run/sshd — the privilege separation directory, normally created by
+#     systemd-tmpfiles/sshd at first start. sshd -t fails with
+#     "Missing privilege separation directory: /run/sshd" if absent.
+# Both fixes are idempotent.
 if ! ls /etc/ssh/ssh_host_*_key >/dev/null 2>&1; then
     log "50-ssh: generating missing SSH host keys"
     ssh-keygen -A
 fi
+mkdir -p /run/sshd
+chmod 0755 /run/sshd
 
 # Apply our settings via a drop-in. Idempotent: we overwrite the file each run
 # but its contents are deterministic, so reruns produce no real change.
