@@ -27,17 +27,19 @@ validated_by: null
 
 ### What it does
 
-A small web app you (the boss) host on a domain you own. From your phone or laptop you can:
+A small web app you host on a domain you own. From your phone or laptop you can:
 
 1. **Upload a CSV** (bank statement) via a web form, or drop one in a dedicated Slack channel.
-2. **Trigger a scraper** for at least one bank/card the boss uses (Playwright-driven) so transactions arrive without manual export.
-3. **See the data** in a dashboard:
+2. **Track funds and ETFs** — a Playwright scraper runs daily against your chosen sources (Morningstar, Google Finance, your bank's fund page, etc.) and records the closing price of each ticker. You see the daily evolution in a chart, with your cost basis overlaid.
+3. **Trigger a bank scraper** for at least one bank/card you use (Playwright-driven) so transactions arrive without manual export.
+4. **See everything in a dashboard**:
    - Monthly spending by category (bar chart).
    - Top 10 merchants this month.
    - Cashflow over the last 6 months (line chart).
-   - Drill-down: tap a category → see the transactions in it.
-4. **AI auto-categorises** new transactions on import. Manual override is one tap.
-5. **Search** the full transaction history in plain language ("how much did I spend on coffee last quarter?") — answered by an LLM with the database as context.
+   - **Fund / ETF tracker**: line chart per ticker, with daily prices, % change, and your position value.
+   - Drill-down: tap a category → see the transactions in it; tap a ticker → see all daily prices + your buys/sells.
+5. **AI auto-categorises** new transactions on import. Manual override is one tap.
+6. **Search** the full history in plain language ("how much did I spend on coffee last quarter?", "what's the YTD return on my MSCI World ETF?") — answered by an LLM with the database as context.
 
 ### Boundaries
 

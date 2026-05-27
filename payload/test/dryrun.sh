@@ -16,9 +16,10 @@ sudo -u ubuntu tmux kill-server 2>/dev/null || true
 #   1. prompt_confirm "Press Enter to begin" (run.sh)
 #   2. prompt_project_name (40-scaffold.sh)
 # Two lines: one for prompt_confirm "Press Enter to begin",
-# one for prompt_project_name.
+# one for the project picker (empty = accept default = finance dashboard,
+# project_name auto-resolves to "finance-dashboard").
 # $'...' preserves the trailing \n that command substitution would strip.
-ANSWERS=$'\nmyapp\n'
+ANSWERS=$'\n\n'
 
 export BIB_OAUTH_MOCK=1
 export BIB_TARGET_USER=ubuntu

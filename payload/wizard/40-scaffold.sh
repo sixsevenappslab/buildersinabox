@@ -35,12 +35,58 @@ It will have:
     platform/   <- the workspace itself (for changes to the dev environment)
     stratops/   <- your personal strategy & ops folder
     projects/<your-project-name>/   <- your first project
-EOF
-printf '\n'
 
-prompt_project_name || die "40-scaffold: aborted (no project name)"
-project_name="$BIB_PROMPT_VALUE"
-log "40-scaffold: project_name=$project_name"
+EOF
+
+# Visual project picker. Two starter projects ship with a fully-written
+# spec already in the project's specs/draft/ folder; the third option
+# lets the user start blank with any name.
+printf '\n%s+----------------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+printf '%s|%s  %sPick your first project%s                                  %s|%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+printf '%s+----------------------------------------------------------+%s\n\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+
+printf '  %s1) Personal finance dashboard%s   %s(recommended)%s\n' \
+    "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_DIM:-}" "${BIB_RESET:-}"
+printf '       Upload your bank CSV. Scrape fund/ETF daily prices.\n'
+printf '       AI auto-categorises every transaction. Mobile dashboard\n'
+printf '       at a domain you own. ~4-8 evenings, full SDD spec ready.\n'
+printf '       Project folder: %sfinance-dashboard/%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+
+printf '  %s2) Personal Slack coach%s\n' "${BIB_BOLD:-}" "${BIB_RESET:-}"
+printf '       An empathic AI in your Slack channel that knows what is\n'
+printf '       happening on this device and chats with you about your\n'
+printf '       work. ~2 evenings, full SDD spec ready.\n'
+printf '       Project folder: %spersonal-coach/%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+
+printf '  %s3) Something else%s\n' "${BIB_BOLD:-}" "${BIB_RESET:-}"
+printf '       Start with an empty project and a name of your choice.\n\n'
+
+prompt_choice "Your choice:" \
+    "1) finance dashboard" \
+    "2) Slack coach" \
+    "3) something else" \
+    || die "40-scaffold: aborted (no project choice)"
+
+case "$BIB_PROMPT_VALUE" in
+    "1) finance dashboard")
+        project_name="finance-dashboard"
+        log "40-scaffold: starter project = personal finance dashboard"
+        ;;
+    "2) Slack coach")
+        project_name="personal-coach"
+        log "40-scaffold: starter project = personal Slack coach"
+        ;;
+    "3) something else")
+        printf '\n'
+        prompt_project_name || die "40-scaffold: aborted (no project name)"
+        project_name="$BIB_PROMPT_VALUE"
+        log "40-scaffold: custom project name = $project_name"
+        ;;
+    *)
+        die "40-scaffold: unexpected choice value: $BIB_PROMPT_VALUE"
+        ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Copy skeleton
