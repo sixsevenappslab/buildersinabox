@@ -28,12 +28,27 @@ _bib_log_init() {
     fi
 }
 
+# Color helpers. We can't `source` lib/prompt.sh from here (circular dep risk
+# during sourcing order), so we redefine the tty-detection inline. These are
+# zeroed out automatically when stdout isn't a tty.
+if [[ -t 1 ]] && [[ "${BIB_NO_COLOR:-0}" != "1" ]]; then
+    _C_DIM=$'\e[2m'
+    _C_GREEN=$'\e[32m'
+    _C_YELLOW=$'\e[33m'
+    _C_RED=$'\e[31m'
+    _C_RESET=$'\e[0m'
+else
+    _C_DIM="" _C_GREEN="" _C_YELLOW="" _C_RED="" _C_RESET=""
+fi
+
 log() {
     local msg="$*"
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     _bib_log_init
-    printf '[%s] %s\n' "$ts" "$msg" | tee -a "$BIB_LOG_FILE"
+    # Tinted timestamp + plain message to the console; raw plain to the log file.
+    printf '%s[%s]%s %s\n' "$_C_DIM" "$ts" "$_C_RESET" "$msg"
+    printf '[%s] %s\n' "$ts" "$msg" >> "$BIB_LOG_FILE"
 }
 
 warn() {
@@ -41,7 +56,8 @@ warn() {
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     _bib_log_init
-    printf '[%s] WARN: %s\n' "$ts" "$msg" | tee -a "$BIB_LOG_FILE" >&2
+    printf '%s[%s]%s %sWARN:%s %s\n' "$_C_DIM" "$ts" "$_C_RESET" "$_C_YELLOW" "$_C_RESET" "$msg" >&2
+    printf '[%s] WARN: %s\n' "$ts" "$msg" >> "$BIB_LOG_FILE"
 }
 
 die() {
@@ -49,7 +65,8 @@ die() {
     local ts
     ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     _bib_log_init
-    printf '[%s] ERROR: %s\n' "$ts" "$msg" | tee -a "$BIB_LOG_FILE" >&2
+    printf '%s[%s]%s %sERROR:%s %s\n' "$_C_DIM" "$ts" "$_C_RESET" "$_C_RED" "$_C_RESET" "$msg" >&2
+    printf '[%s] ERROR: %s\n' "$ts" "$msg" >> "$BIB_LOG_FILE"
     exit 1
 }
 

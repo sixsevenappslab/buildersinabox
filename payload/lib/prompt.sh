@@ -10,6 +10,37 @@ set -euo pipefail
 # Tests can set BIB_PROMPT_INPUT=/dev/stdin to drive the wizard from a heredoc.
 BIB_PROMPT_INPUT="${BIB_PROMPT_INPUT:-/dev/tty}"
 
+# Color palette. Disabled automatically when stdout isn't a tty (so dryrun
+# tests, log pipes, redirections, etc. stay clean ASCII).
+# shellcheck disable=SC2034  # palette declared for use across sourcing scripts
+if [[ -t 1 ]] && [[ "${BIB_NO_COLOR:-0}" != "1" ]]; then
+    BIB_BOLD=$'\e[1m'
+    BIB_DIM=$'\e[2m'
+    BIB_RED=$'\e[31m'
+    BIB_GREEN=$'\e[32m'
+    BIB_YELLOW=$'\e[33m'
+    BIB_BLUE=$'\e[34m'
+    BIB_MAGENTA=$'\e[35m'
+    BIB_CYAN=$'\e[36m'
+    BIB_BRIGHT_YELLOW=$'\e[93m'
+    BIB_BRIGHT_CYAN=$'\e[96m'
+    BIB_BRIGHT_MAGENTA=$'\e[95m'
+    BIB_RESET=$'\e[0m'
+else
+    BIB_BOLD=""
+    BIB_DIM=""
+    BIB_RED=""
+    BIB_GREEN=""
+    BIB_YELLOW=""
+    BIB_BLUE=""
+    BIB_MAGENTA=""
+    BIB_CYAN=""
+    BIB_BRIGHT_YELLOW=""
+    BIB_BRIGHT_CYAN=""
+    BIB_BRIGHT_MAGENTA=""
+    BIB_RESET=""
+fi
+
 _bib_read_line() {
     local __varname="$1"
     local __line=""
@@ -47,41 +78,42 @@ apply_wizard_font() {
     fi
 }
 
-# Print the personalised PACO welcome banner. ASCII-only so it renders
-# in any console font.
+# Print the personalised PACO welcome banner with color. ASCII art so it
+# renders in any console font; the colors degrade gracefully on terminals
+# without ANSI support (the helper above zeros them out).
 wizard_banner() {
-    cat <<'BANNER'
-
-  +==============================================+
-  |                                              |
-  |          ____   _    ____ ___                |
-  |         |  _ \ / \  / ___/ _ \               |
-  |         | |_) / _ \| |  | | | |              |
-  |         |  __/ ___ \ |__| |_| |              |
-  |         |_| /_/   \_\____\___/               |
-  |                                              |
-  |     Welcome to your Builders in a Box        |
-  |                                              |
-  +==============================================+
-
-BANNER
+    printf '\n'
+    printf '  %s+==============================================+%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|                                              |%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|%s          %s ____   _    ____ ___ %s              %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|%s          %s|  _ \ / \  / ___/ _ \%s              %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|%s          %s| |_) / _ \| |  | | | |%s             %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|%s          %s|  __/ ___ \ |__| |_| |%s             %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|%s          %s|_| /_/   \_\____\___/%s              %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|                                              |%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|%s     %sWelcome to your Builders in a Box%s        %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s|                                              |%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '  %s+==============================================+%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    printf '\n'
 }
 
-# Print a header for a wizard step.
+# Print a header for a wizard step, framed in bright cyan with a bold title.
 prompt_header() {
-    printf '\n\n======================================================================\n'
-    printf '  %s\n' "$*"
-    printf '======================================================================\n\n'
+    local line='======================================================================'
+    printf '\n\n%s%s%s\n' "$BIB_BRIGHT_CYAN" "$line" "$BIB_RESET"
+    printf '  %s%s%s\n' "$BIB_BOLD" "$*" "$BIB_RESET"
+    printf '%s%s%s\n\n' "$BIB_BRIGHT_CYAN" "$line" "$BIB_RESET"
 }
 
-# Print an URL in isolation so it's easy to read off the screen.
+# Print an URL in isolation, highlighted so the user immediately spots it
+# among the surrounding text.
 prompt_url() {
     local label="${1:-Open this URL on your phone:}"
     local url="$2"
     printf '\n'
-    printf '%s\n' "$label"
+    printf '%s%s%s\n' "$BIB_DIM" "$label" "$BIB_RESET"
     printf '\n'
-    printf '    %s\n' "$url"
+    printf '    %s>%s  %s%s%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_YELLOW" "$url" "$BIB_RESET"
     printf '\n'
 }
 
