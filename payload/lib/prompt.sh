@@ -118,9 +118,14 @@ prompt_url() {
     printf '\n'
     if command -v qrencode >/dev/null 2>&1; then
         printf '  %s...or point your phone camera at this QR:%s\n\n' "$BIB_DIM" "$BIB_RESET"
-        # -m 2 = 2-module quiet zone (helps phone cameras lock on)
-        # -t UTF8 = compact half-block rendering, fits in ~11 console rows
-        qrencode -t UTF8 -m 2 "$url" 2>/dev/null | sed 's/^/    /'
+        # -t ANSI256 = solid square modules via background colors (way
+        #              easier for phone cameras than half-block Unicode,
+        #              and works even when the console font lacks block
+        #              glyphs and falls back to diamonds).
+        # -l L       = Low error correction → fewer modules → each one is
+        #              bigger on screen → easier to focus.
+        # -m 2       = 2-cell quiet zone so the camera locks the corners.
+        qrencode -t ANSI256 -l L -m 2 "$url" 2>/dev/null | sed 's/^/    /'
         printf '\n'
     fi
 }
