@@ -242,6 +242,54 @@ Three ways, easiest first:
 - **Wizard didn't finish and you want to restart it:** as root, run
   `touch /var/lib/buildersinabox/firstboot.pending` and reboot.
 
+## Recovery — starting over from scratch
+
+You own this hardware. If you ever need to wipe everything and start
+fresh — either back to a clean Builders in a Box, or all the way back
+to Windows — both paths are open.
+
+### Option A: clean reinstall of Builders in a Box
+
+This is the easy path. The USB stick that came with this gift is also
+the recovery image — it always does the same thing:
+
+1. Plug the USB stick into this device.
+2. Power off the device. Power on again.
+3. Press F7 (or F11/F12 depending on the mini PC brand) at the boot
+   logo, pick "UEFI: Flash, Partition 2".
+4. GRUB auto-selects "Builders in a Box — Autoinstall" after 3 seconds.
+5. The disk gets wiped and Ubuntu reinstalls in ~10 minutes.
+6. The wizard fires on first boot. You walk through it again.
+
+Your code is safe — it lives on GitHub. Reinstalling only loses local
+state (logs, the local Claude session, anything you haven't pushed).
+
+### Option B: go back to Windows
+
+The mini PC came with Windows 11 OEM. **That licence is permanently
+baked into the UEFI firmware** — you didn't lose it when we wiped the
+disk for Builders in a Box. To get Windows back:
+
+1. On any other computer, download the Windows 11 installer ISO from:
+       https://www.microsoft.com/software-download/windows11
+   (Microsoft offers it free as a direct download.)
+
+2. Flash that ISO onto a USB stick (at least 8 GB):
+   - On Windows: use Microsoft's "Media Creation Tool" from the same page.
+   - On Mac / Linux: use Balena Etcher (https://etcher.balena.io/) or Rufus.
+
+3. Plug that Windows USB into the mini PC. Power on, press F7, pick the
+   Windows installer USB.
+
+4. Run through the Windows installer. Pick "Custom Install" and delete
+   all partitions, then install onto the unallocated space.
+
+5. When Windows boots and connects to the internet, the OEM licence
+   activates itself. No product key to type, no purchase.
+
+Whole process: ~30 minutes. You can come back to Builders in a Box any
+time — just plug in the original USB stick and reinstall.
+
 ## What this box is — and isn't
 
 It's **yours**. You own the hardware, the data, the keys. Nothing here
