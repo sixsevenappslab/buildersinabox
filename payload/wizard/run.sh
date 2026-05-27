@@ -13,6 +13,10 @@ source "${SCRIPT_DIR}/../lib/prompt.sh"
 require_root
 state_init
 
+# FEAT-004 Wave 1: comfortable visual welcome before any text.
+apply_wizard_font
+wizard_banner
+
 prompt_header "Hi Paco — let's set up your Builders in a Box"
 cat <<'EOF'
 We made this for you. In the next 15 minutes you'll have your own

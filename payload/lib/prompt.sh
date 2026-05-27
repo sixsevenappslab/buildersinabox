@@ -32,6 +32,41 @@ _bib_read_line() {
     return "$__rc"
 }
 
+# Apply a bigger, readable console font to tty1 so the wizard is legible
+# from a couch. Silently no-ops if setfont or the font file aren't present.
+# Also persists the change so future console sessions keep the bigger font.
+apply_wizard_font() {
+    local font="/usr/share/consolefonts/Lat15-TerminusBold24x12.psf.gz"
+    if [[ -f "$font" ]] && command -v setfont >/dev/null 2>&1; then
+        setfont "$font" 2>/dev/null || true
+    fi
+    if [[ -w /etc/default/console-setup ]]; then
+        sed -i 's|^FONTFACE=.*|FONTFACE="TerminusBold"|; s|^FONTSIZE=.*|FONTSIZE="24x12"|' \
+            /etc/default/console-setup 2>/dev/null || true
+        command -v setupcon >/dev/null 2>&1 && setupcon 2>/dev/null || true
+    fi
+}
+
+# Print the personalised PACO welcome banner. ASCII-only so it renders
+# in any console font.
+wizard_banner() {
+    cat <<'BANNER'
+
+  +==============================================+
+  |                                              |
+  |          ____   _    ____ ___                |
+  |         |  _ \ / \  / ___/ _ \               |
+  |         | |_) / _ \| |  | | | |              |
+  |         |  __/ ___ \ |__| |_| |              |
+  |         |_| /_/   \_\____\___/               |
+  |                                              |
+  |     Welcome to your Builders in a Box        |
+  |                                              |
+  +==============================================+
+
+BANNER
+}
+
 # Print a header for a wizard step.
 prompt_header() {
     printf '\n\n======================================================================\n'

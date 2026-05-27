@@ -17,11 +17,14 @@ _biab_firstboot() {
         *) return 0 ;;
     esac
 
-    # Run the wizard.
-    if [ -x /opt/buildersinabox/payload/wizard/run.sh ]; then
-        sudo /opt/buildersinabox/payload/wizard/run.sh
+    # Run bootstrap.sh — it installs the stack (Tailscale, gh, Claude Code,
+    # tmux, sshd hardening) if not already done, then runs the wizard.
+    # Running wizard/run.sh directly here would skip the install phase
+    # entirely and the OAuth steps would fail with "command not found".
+    if [ -x /opt/buildersinabox/payload/bootstrap.sh ]; then
+        sudo /opt/buildersinabox/payload/bootstrap.sh
     else
-        echo "WARN: /opt/buildersinabox/payload/wizard/run.sh not found." >&2
+        echo "WARN: /opt/buildersinabox/payload/bootstrap.sh not found." >&2
         return 0
     fi
 
