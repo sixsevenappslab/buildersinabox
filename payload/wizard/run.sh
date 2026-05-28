@@ -151,13 +151,18 @@ printf '%s|%s  %sOnce inside the Claude Code app on your phone:%s         %s|%s\
     "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
 printf '%s+----------------------------------------------------------+%s\n\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
 cat <<'EOF'
-       Type:   /first-project
+       Type:   /welcome
 
-       That's your guided first-day walkthrough. Claude explains GitHub,
-       puts your project on GitHub, and opens the spec already waiting
-       in your project's specs/draft/ folder — and you start building.
+       That's a short conversational tour: 4-5 turns, no info dump.
+       Claude greets you, shows you the two bundled project specs,
+       and explains the slash-command skills system. When you're
+       ready to actually build, you can switch to:
 
-       For the bigger picture first, type /whats-ahead instead.
+           /first-project     guided GitHub setup + opens FEAT-002 or -003
+           /whats-ahead       narrative tour of the system
+           /sdd-coordinator   "help me describe what I want to build"
+           /backend-engineer  senior backend perspective on demand
+           ... and 14 more (type / to see all)
 
 The full guide is at ~/README.md on this device. Read it from any
 session with: less ~/README.md
