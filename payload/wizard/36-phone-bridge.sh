@@ -1,18 +1,29 @@
 #!/usr/bin/env bash
-# Wizard step: pause the console flow so the user moves to their phone.
+# Wizard step: pause the console flow so the user moves to a second
+# device (phone OR laptop) and SSHs into this mini PC. Claude Code's
+# /login generates a 500+ char OAuth URL that's impractical to copy
+# from a console screen — but trivial from a real terminal where
+# copy-paste works.
 #
-# This is the BIG MOMENT where Paco switches from the mini PC console
-# to his phone. Done well, it's the moment the gift starts feeling real
-# ("oh, I can use this from my pocket"). Done poorly, it's where setup
-# stalls. So this step is patient: it walks through each phone-side
-# task and waits for confirmation before moving to the next.
+# This step offers TWO paths and lets the user pick whichever they
+# have handy:
+#
+#   Path A — Laptop (easier if you have one)
+#     install Tailscale app for Mac/Windows/Linux, open Terminal,
+#     `ssh paco@biab`. Done.
+#
+#   Path B — Phone
+#     install Tailscale + Termius/ConnectBot apps, configure host,
+#     connect.
+#
+# Both paths end with the same command:
+#     sudo /opt/buildersinabox/payload/bootstrap.sh
+# …and the wizard resumes from where it paused.
 #
 # Behavior depends on the controlling TTY:
-#   - /dev/tty1 (console autologin)  -> walk through the 3-step phone
-#                                       setup with confirmations,
-#                                       then exit 78 to pause the chain.
-#   - /dev/pts/N (SSH session)       -> log + exit 0, continue.
-#   - BIB_OAUTH_MOCK=1               -> skip entirely (tests).
+#   - /dev/tty1 (console autologin)  -> walk through both paths, exit 78
+#   - /dev/pts/N (SSH session)       -> log + exit 0 (continue chain)
+#   - BIB_OAUTH_MOCK=1               -> skip entirely (tests)
 
 set -euo pipefail
 
@@ -34,7 +45,9 @@ if [[ "${BIB_OAUTH_MOCK:-0}" == "1" ]]; then
     exit 0
 fi
 
+# Log the TTY we resolved for post-mortem debugging.
 current_tty="$(tty 2>/dev/null || echo unknown)"
+log "36-phone-bridge: tty=$current_tty"
 case "$current_tty" in
     /dev/pts/*)
         log "36-phone-bridge: running via SSH ($current_tty), continuing"
@@ -42,119 +55,106 @@ case "$current_tty" in
         ;;
 esac
 
-# --- We're on console. Walk through the 3 phone setup steps. ---------------
+# --- We're on the console. Walk through both bridge paths. ----------------
 
 target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
 hostname_val="$(hostname)"
 ts_ip="$(tailscale ip -4 2>/dev/null | head -1 || echo '')"
 
-prompt_header "Switch to your phone"
+prompt_header "Continue from your phone or your laptop"
 cat <<'EOF'
-Now the fun part. We're going to move you to your phone, where the
-rest of setup is easier (copy-paste actually works on a phone keyboard).
+The remaining steps (Claude login, project setup, tmux) are easier on a
+device where copy-paste actually works — Claude's OAuth URL is too long
+to type from a phone keyboard or scan from this monitor.
 
-Two apps to install, then you SSH back into this device from your phone.
-Five minutes, give or take. Take your phone now — we'll go step by step.
+You have TWO ways forward. Pick whichever you have handy:
+
 EOF
 
-# ---- Step 1 of 3: Tailscale -----------------------------------------------
-printf '\n%s+---------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s|%s  %sStep 1 of 3 — Install Tailscale on your phone%s    %s|%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s+---------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-cat <<'EOF'
+# ---- PATH A — Laptop -----------------------------------------------------
+printf '%s+----- Path A — From your laptop (recommended if you have one) -----+%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+cat <<EOF
 
-  What it is: a small free app that puts your phone on a private
-  network with this device. Like a Wi-Fi just for your gadgets.
+  Works on Mac, Windows 10+, or any Linux. Faster than the phone path
+  because nothing to install except Tailscale.
 
-  Do this on your phone:
-    1. Open the App Store / Google Play
-    2. Search "Tailscale" — by Tailscale Inc.
-    3. Install. Open the app.
-    4. Tap "Get started", sign in with the SAME account you used
-       earlier in this wizard (when you authorised this device).
-       (If you signed in with Google, use Google. If GitHub, GitHub. Same one.)
-    5. The app shows your devices. You should see one called "biab"
-       — that's this mini PC.
+  Do this on your laptop:
+    1. Open https://tailscale.com/download in any browser
+       Install the Tailscale app for your OS. Sign in with the SAME
+       Tailscale account you used in this wizard.
 
+    2. Open a terminal:
+         - Mac      : Terminal.app  (Cmd-Space, type "terminal")
+         - Windows  : PowerShell or Windows Terminal
+         - Linux    : your usual terminal
+
+    3. In that terminal run:
+
+EOF
+printf '         %sssh %s@%s%s\n\n' "${BIB_BOLD:-}${BIB_BRIGHT_YELLOW:-}" "$target_user" "$hostname_val" "${BIB_RESET:-}"
+cat <<EOF
+       (If "$hostname_val" doesn't resolve, use the IP: $ts_ip)
+
+       It asks for a password — that's the sudo password you just set.
+       Once in, you'll see: ${target_user}@${hostname_val}:~\$
+EOF
+
+# ---- PATH B — Phone ------------------------------------------------------
+printf '\n%s+----- Path B — From your phone (if no laptop nearby) -----+%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+cat <<EOF
+
+  Two apps to install, slightly more setup. Take your phone now.
+
+  Step B.1 — Install Tailscale on your phone:
+    - App Store / Google Play: search "Tailscale"
+    - Sign in with the SAME account you used earlier
 EOF
 if command -v qrencode >/dev/null 2>&1; then
-    printf '  %s...or scan to open the Tailscale download page:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
-    qrencode -t UTF8 -m 1 "https://tailscale.com/download" 2>/dev/null | sed 's/^/    /'
+    printf '\n    %s...or scan to install Tailscale:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+    qrencode -t ANSI256 -l L -m 2 "https://tailscale.com/download" 2>/dev/null | sed 's/^/      /'
 fi
-printf '\n'
-prompt_confirm "Press Enter once Tailscale is installed AND you see 'biab' in your tailnet."
 
-# ---- Step 2 of 3: Termius + host config -----------------------------------
-printf '\n%s+---------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s|%s  %sStep 2 of 3 — Install Termius and connect%s        %s|%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s+---------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
 cat <<EOF
 
-  What it is: an SSH terminal app for your phone. We'll use it to log
-  into this device's command line from your phone.
+  Step B.2 — Install an SSH app on your phone:
+    - We recommend ConnectBot (Android) or Termius (iOS/Android).
+    - ConnectBot is free, no account needed.
+    - Termius needs a free account but has a nicer UI.
 
-  Do this on your phone:
-    1. Open the App Store / Google Play
-    2. Search "Termius" — by Termius Corporation
-    3. Install. Open it. (You can skip "Create a Termius account" — tap "Skip".)
-    4. Tap the "+" button, then "New Host". Fill in:
-
-         Alias     : biab
-         Hostname  : ${hostname_val}
+  Step B.3 — Configure the host inside the SSH app:
 EOF
-if [[ -n "$ts_ip" ]]; then
-    printf '                     %s(if "biab" does not connect, try: %s)%s\n' \
-        "${BIB_DIM:-}" "$ts_ip" "${BIB_RESET:-}"
-fi
+printf '       %sHostname%s : %s   %s(or %s if hostname does not resolve)%s\n' \
+    "${BIB_DIM:-}" "${BIB_RESET:-}" "$hostname_val" "${BIB_DIM:-}" "${ts_ip:-100.x.x.x}" "${BIB_RESET:-}"
+printf '       %sUsername%s : %s\n' "${BIB_DIM:-}" "${BIB_RESET:-}" "$target_user"
+printf '       %sPassword%s : your sudo password (just set)\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
 cat <<EOF
-         Username  : ${target_user}
-         Password  : (leave blank)
-         SSH Key   : (leave blank)
 
-    5. Save the host. Tap it. After a 2-3 second pause you should see:
-
-         ${BIB_BOLD:-}${target_user}@${hostname_val}:~\$${BIB_RESET:-}
-
-  If you see a "host key fingerprint" prompt, tap "Accept" / "Yes".
-  If the connection times out, the most common cause is Tailscale on
-  the phone is still connecting — wait 30s and try again.
-
+  Connect, accept the host key fingerprint when prompted.
+  You should land at: ${target_user}@${hostname_val}:~\$
 EOF
 if command -v qrencode >/dev/null 2>&1; then
-    printf '  %s...or scan to open the Termius download page:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
-    qrencode -t UTF8 -m 1 "https://termius.com/download" 2>/dev/null | sed 's/^/    /'
+    printf '\n    %s...QR for Termius:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+    qrencode -t ANSI256 -l L -m 2 "https://termius.com/download" 2>/dev/null | sed 's/^/      /'
 fi
-printf '\n'
-prompt_confirm "Press Enter when you see the ${target_user}@${hostname_val}:~\$ prompt in Termius."
 
-# ---- Step 3 of 3: Resume from SSH -----------------------------------------
-printf '\n%s+---------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s|%s  %sStep 3 of 3 — Resume this wizard from Termius%s    %s|%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s+---------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-cat <<EOF
+# ---- BOTH PATHS — Resume the wizard --------------------------------------
+printf '\n%s+----- Once you are SSH'\''d in (either path) -----+%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+cat <<'EOF'
 
-  You're now in Termius, looking at ${target_user}@${hostname_val}:~\$ on your phone.
-
-  In that Termius prompt, type this command (long-press to paste also works):
+  In your SSH session, run exactly:
 EOF
 printf '\n       %ssudo /opt/buildersinabox/payload/bootstrap.sh%s\n\n' \
     "${BIB_BOLD:-}${BIB_BRIGHT_YELLOW:-}" "${BIB_RESET:-}"
 cat <<'EOF'
-  The wizard picks up from where we paused. The remaining steps:
-    - GitHub login  (short URL + 8-char code, easy in Termius)
-    - Claude login  (long URL — long-press to copy into your browser)
-    - Workspace setup + tmux session (no input needed)
-    - Final 'All set' message with the Claude Code app QR
+  The wizard picks up from where we paused: GitHub login (short URL in
+  your terminal, easy), Claude login (long URL — paste from terminal to
+  browser, works fine), workspace scaffold, tmux session. ~5 minutes.
 
-  When that's done, you install the Claude Code app from the QR, sign
-  in with the same Claude account, and your three sessions appear.
-  Tap any of them — you're inside Claude, talking to it from your phone.
-
-  You can unplug the monitor and keyboard from this device now,
-  or leave them as they are. We're done with the console.
+  When the wizard says "All set, Paco!" you're done. You can unplug the
+  monitor and keyboard from this device and forget they exist.
 EOF
 
 echo
