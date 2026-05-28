@@ -120,23 +120,29 @@ You're already on your phone in Termius — Tailscale and Termius are
 done. One more app to install and then you're in:
 EOF
 
-# --- Final step: install the Claude Code app ------------------------------
-printf '\n%s[final step]%s  %sInstall the Claude Code app on your phone%s\n' \
+# --- Final step: install the Claude Code app on phone OR laptop -----------
+printf '\n%s[final step]%s  %sInstall the Claude Code app%s\n' \
     "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}"
 cat <<EOF
-       App Store / Google Play: search "Claude" by Anthropic
-       Sign in with the SAME Claude account you used in this wizard.
 
-       The app discovers this device's three sessions automatically
-       (Remote Control is on in each tmux window):
-         - platform
-         - $(state_get '.project_name')
-         - stratops
-       Tap any of them. You are now inside Claude on this device.
+  The Claude Code app exists for both your phone AND your laptop. Pick
+  one — or both, they share the same sessions because they sign in to
+  the same Claude account.
+
+    - Phone:   App Store / Google Play, search "Claude" by Anthropic
+    - Laptop:  https://claude.ai/download  (Mac / Windows / Linux)
+
+  Sign in with the SAME Claude account you used in this wizard. The
+  app discovers this device's three sessions automatically (Remote
+  Control is on in each tmux window):
+    - platform
+    - $(state_get '.project_name')
+    - stratops
+  Tap any of them. You are now inside Claude on this device.
 EOF
 if command -v qrencode >/dev/null 2>&1; then
-    printf '\n       %s...or scan to open the app store:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
-    qrencode -t UTF8 -m 1 "https://claude.ai/download" 2>/dev/null | sed 's/^/         /'
+    printf '\n       %s...or scan to open the download page:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+    qrencode -t ANSI256 -l L -m 2 "https://claude.ai/download" 2>/dev/null | sed 's/^/         /'
 fi
 
 # --- What to do first in the app ------------------------------------------
