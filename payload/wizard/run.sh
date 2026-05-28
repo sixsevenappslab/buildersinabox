@@ -61,11 +61,15 @@ EOF
     prompt_confirm "Press Enter to begin."
 else
     wizard_banner
-    prompt_header "Welcome back, Paco — resuming setup"
-    cat <<'EOF'
-We paused on the console so you could move to your phone via SSH. You
-should be reading this in Termius now. Let's finish where we left off:
-Claude login, then your workspace, then tmux. Two minutes.
+    prompt_header "Welcome back, Paco — resuming setup from SSH"
+    _bib_ssh_tty="$(tty 2>/dev/null || echo unknown)"
+    cat <<EOF
+You are now in an SSH session ($_bib_ssh_tty). The console on the mini
+PC is paused waiting; everything from here happens in this terminal
+where copy-paste works.
+
+Let's finish where we left off: GitHub login, then Claude login, then
+your workspace, then tmux. About 5 minutes total.
 EOF
     prompt_confirm "Press Enter to continue."
 fi
