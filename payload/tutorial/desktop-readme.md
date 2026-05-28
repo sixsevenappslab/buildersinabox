@@ -211,16 +211,15 @@ copy (phone) or click-and-drag (laptop), then paste straight into your
 browser.
 
 If you somehow ended up trying to do the Claude login on the device's
-own monitor and you're stuck:
+own monitor and you're stuck, SSH in from your phone or laptop:
 
-- **Easiest workaround**: SSH into this device from your laptop. From
-  any computer on your tailnet:
+- **From your phone**: open ConnectBot or Termius (configure host with
+  your sudo password as the credential), connect, then `claude` and
+  `/login`. Long-press the URL to copy.
+
+- **From your laptop**: from any computer on your tailnet:
       ssh {{TARGET_USER}}@{{HOSTNAME}}
-  Run `claude` there. Copy-paste works normally on a laptop terminal.
-
-- **From your phone**: SSH in via ConnectBot or Termius (configure host
-  with your sudo password as the credential), then `claude`. Long-press
-  the URL to copy.
+  Run `claude` and `/login`. Copy-paste in the terminal.
 
 - **Skip Claude here, come back later**:
       sudo jq '.phases.ai_cli_done = true' \

@@ -65,19 +65,20 @@ prompt_header "Continue from your phone or your laptop"
 cat <<'EOF'
 The remaining steps (Claude login, project setup, tmux) are easier on a
 device where copy-paste actually works — Claude's OAuth URL is too long
-to type from a phone keyboard or scan from this monitor.
+to type or scan from this monitor.
 
-You have TWO ways forward. Pick whichever you have handy:
+Both paths below work equally well. Phone is what this device is built
+for day-to-day; laptop is just as valid here. Pick whichever you have
+handy right now.
 
 EOF
 
 # ---- PATH A — Laptop -----------------------------------------------------
-printf '%s+----- Path A — From your laptop (recommended if you have one) -----+%s\n' \
+printf '%s+----- Path A — From your laptop -----+%s\n' \
     "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
 cat <<EOF
 
-  Works on Mac, Windows 10+, or any Linux. Faster than the phone path
-  because nothing to install except Tailscale.
+  Works on Mac, Windows 10+, or any Linux.
 
   Do this on your laptop:
     1. Open https://tailscale.com/download in any browser
@@ -101,11 +102,11 @@ cat <<EOF
 EOF
 
 # ---- PATH B — Phone ------------------------------------------------------
-printf '\n%s+----- Path B — From your phone (if no laptop nearby) -----+%s\n' \
+printf '\n%s+----- Path B — From your phone -----+%s\n' \
     "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
 cat <<EOF
 
-  Two apps to install, slightly more setup. Take your phone now.
+  Works on iOS or Android. Take your phone now.
 
   Step B.1 — Install Tailscale on your phone:
     - App Store / Google Play: search "Tailscale"
