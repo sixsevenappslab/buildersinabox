@@ -1,0 +1,28 @@
+# BIAB skills manifest — which bundled skills install by default.
+# Format: <skill-dir-name>\t<core|optional>
+#   core     → installed on every box during scaffold.
+#   optional → shipped in the repo but NOT installed by default;
+#              the user opts in with `biab add <group>` (e.g. `biab add sdd`).
+# Override for testing/maintenance: BIB_INSTALL_SKILLS=all installs everything.
+backend-engineer	core
+code-review	core
+code-simplifier	core
+documentator	core
+executive	core
+extend-yourself	core
+first-project	core
+morning-check	core
+product-marketing	core
+qa-testing	core
+second-project	core
+tutorial	core
+ui-ux-consultant	core
+ux-review	core
+welcome	core
+whats-ahead	core
+sdd-base	optional
+sdd-coordinator	optional
+sdd-docs	optional
+sdd-growth	optional
+sdd-qa	optional
+sdd-spec-writer	optional
