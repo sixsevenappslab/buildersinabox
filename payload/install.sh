@@ -129,6 +129,10 @@ do_uninstall() {
     fi
 
     # BIB-owned dirs and files. Order: smallest blast radius first.
+    # NOTE: we print progress with plain printf to stdout, NOT log(), because
+    # log() re-creates BIB_LOG_DIR (via _bib_log_init) every call — which would
+    # resurrect /var/log/buildersinabox right after we remove it. Uninstall is
+    # tearing the logging infra down, so it must not write into it.
     local paths_to_remove=(
         /usr/local/bin/biab
         /usr/local/bin/bd
@@ -141,7 +145,7 @@ do_uninstall() {
     local p
     for p in "${paths_to_remove[@]}"; do
         if [[ -e "$p" ]]; then
-            log "uninstall: removing $p"
+            printf 'uninstall: removing %s\n' "$p"
             rm -rf -- "$p"
             found_anything=1
         fi
@@ -155,7 +159,7 @@ do_uninstall() {
             local snippet
             for snippet in "${home}/.bashrc.d"/biab-*; do
                 [[ -e "$snippet" ]] || continue
-                log "uninstall: removing $snippet"
+                printf 'uninstall: removing %s\n' "$snippet"
                 rm -f -- "$snippet"
                 found_anything=1
             done
@@ -163,9 +167,9 @@ do_uninstall() {
     fi
 
     if [[ "$found_anything" -eq 0 ]]; then
-        log "uninstall: nothing to remove — no BIAB state found"
+        printf 'uninstall: nothing to remove — no BIAB state found\n'
     else
-        log "uninstall: complete. User home, Tailscale, gh, and Claude auth untouched."
+        printf 'uninstall: complete. User home, Tailscale, gh, and Claude auth untouched.\n'
     fi
     exit 0
 }
