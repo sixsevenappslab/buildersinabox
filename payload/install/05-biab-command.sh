@@ -34,6 +34,39 @@ exec_bootstrap() {
         /opt/buildersinabox/payload/install.sh "$@"
 }
 
+do_add() {
+    # biab add sdd — install the optional Spec-Driven Development skills
+    # (sdd-base, sdd-coordinator, sdd-docs, sdd-growth, sdd-qa, sdd-spec-writer)
+    # that are shipped but not installed by default.
+    local group="${1:-}"
+    if [[ "$group" != "sdd" ]]; then
+        echo "biab add: unknown group '${group}'. Available: sdd" >&2
+        echo "Usage: biab add sdd" >&2
+        exit 1
+    fi
+    local skills_src=/opt/buildersinabox/payload/skills
+    local manifest="${skills_src}/manifest.tsv"
+    local home agents_dir claude_dir
+    home="$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)"
+    agents_dir="${home}/.agents/skills"
+    claude_dir="${home}/.claude/skills"
+    mkdir -p "$agents_dir" "$claude_dir"
+    local added=0
+    while IFS=$'\t' read -r name tier; do
+        [[ -z "$name" || "$name" == \#* ]] && continue
+        [[ "$tier" == "optional" && "$name" == sdd-* ]] || continue
+        if [[ -e "${agents_dir}/${name}" || -L "${agents_dir}/${name}" ]]; then
+            echo "biab add: ${name} already installed, skipping"
+        else
+            cp -r "${skills_src}/${name}" "${agents_dir}/${name}"
+            [[ -e "${claude_dir}/${name}" || -L "${claude_dir}/${name}" ]] || ln -s "${agents_dir}/${name}" "${claude_dir}/${name}"
+            echo "biab add: installed ${name}"
+            added=$((added+1))
+        fi
+    done < "$manifest"
+    echo "==> Added ${added} SDD skill(s). Type / in Claude Code to see them."
+}
+
 do_update() {
     set -e
     repo=/opt/buildersinabox
@@ -63,6 +96,7 @@ case "${1:-}" in
     status)    sudo cat /var/lib/buildersinabox/state.json | jq . ;;
     logs)      sudo tail -f /var/log/buildersinabox/bootstrap.log ;;
     update)    do_update ;;
+    add)       shift; do_add "$@" ;;
     help|-h|--help)
         cat <<EOF
 biab — Builders in a Box CLI
@@ -70,6 +104,7 @@ biab — Builders in a Box CLI
   biab status    print state.json
   biab logs      follow the bootstrap log
   biab update    pull latest BIAB + re-run install scripts (no re-flash needed)
+  biab add sdd   install the optional spec-driven-development skills
   biab help      this message
 EOF
         ;;

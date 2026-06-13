@@ -13,7 +13,7 @@ Read the current state and the bundled specs:
 
 ```bash
 cat /var/lib/buildersinabox/state.json
-ls /opt/buildersinabox/payload/bundled-feats/
+ls /opt/buildersinabox/payload/examples/
 ls ~/ai-platform/projects/ 2>/dev/null || true
 ```
 
@@ -29,7 +29,7 @@ Open warm:
 
 > *Time to give your first project a name. You can either pick one of the two specs we shipped with — both are fully written, ready to build — or you can describe something else you'd rather make, and I'll help you scope it.*
 
-Show the two bundled options with one-paragraph summaries. They live at `/opt/buildersinabox/payload/bundled-feats/`. Open and skim them yourself if you need detail.
+Show the two bundled options with one-paragraph summaries. They live at `/opt/buildersinabox/payload/examples/`. Open and skim them yourself if you need detail.
 
 > *Option 1 — `FEAT-002` Personal Slack coach. Empathic AI that lives in your Slack and chats with you about how your work is going. Knows what's happening on this device. ~2 evenings to ship. Folder name we'd use: `personal-coach`.*
 >
@@ -69,10 +69,10 @@ done
 
 # Copy the chosen bundled FEAT spec (skip if option 3 / custom).
 if [[ "$PROJECT" == "personal-coach" ]]; then
-    cp /opt/buildersinabox/payload/bundled-feats/FEAT-002-personal-slack-coach.md \
+    cp /opt/buildersinabox/payload/examples/FEAT-002-personal-slack-coach.md \
        "$PDIR/specs/draft/"
 elif [[ "$PROJECT" == "finance-dashboard" ]]; then
-    cp /opt/buildersinabox/payload/bundled-feats/FEAT-003-personal-finance-app.md \
+    cp /opt/buildersinabox/payload/examples/FEAT-003-personal-finance-app.md \
        "$PDIR/specs/draft/"
 fi
 

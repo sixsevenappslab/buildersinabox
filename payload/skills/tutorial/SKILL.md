@@ -1,6 +1,6 @@
 ---
 name: tutorial
-description: The post-install conversational onboarding for a brand-new Builders in a Box. Runs as the initial prompt of the 'ai-platform' tmux session and walks the user through 8 beats — orient, GitHub auth, pitch the two bundled FEATs, create the first project (via /first-project), teach folder-context, optional second project, demo tmuxc, and a tour of the SDD skills with a live /sdd-coordinator demo. Designed to be resumable, skippable, and idempotent.
+description: The post-install conversational onboarding for a brand-new Builders in a Box. Runs as the initial prompt of the 'ai-platform' tmux session and walks the user through 8 beats — orient, GitHub auth, decide a first project (own idea or an example), create it (via /first-project), teach folder-context, optional second project, demo tmuxc, and a tour of the installed skills plus how to opt into the SDD workflow. Designed to be resumable, skippable, and idempotent.
 ---
 
 # /tutorial — guided onboarding inside Claude Code
@@ -121,25 +121,24 @@ If green: mark Beat 2 done. If not green: surface the actual gh error and offer 
 
 Mark Beat 2 skipped (not done) and move on.
 
-### Beat 3 — Pitch the two bundled specs (2 min, mandatory but no commitment yet)
+### Beat 3 — Your first project (2 min, mandatory but no commitment yet)
 
-Tell the user what's available:
+The point of this device is to build *your* thing. Lead with that:
+
+> *So — what do you want to build? Describe anything: an app, a script, a bot, a website, a tool you wish existed. I'll help you turn it into a real project on this device, with its own folder and its own git repo.*
+>
+> *Not sure yet? That's fine too. This box ships with two worked examples you can read for inspiration or copy as a starting point:*
 
 ```bash
-ls /opt/buildersinabox/payload/bundled-feats/
+ls /opt/buildersinabox/payload/examples/
 ```
 
-> *Your device shipped with two specs already written. We can build either one, both, or you can describe something else and I'll help write a fresh spec for it.*
+> *  - **A personal Slack coach** — an empathic AI that lives in your Slack and knows what's running on this device. (`examples/FEAT-002-personal-slack-coach.md`)*
+> *  - **A personal finance dashboard** — bank CSV → AI categorisation → fund/ETF prices → shipped to a domain you own. (`examples/FEAT-003-personal-finance-app.md`)*
 >
-> *  - **FEAT-002 — Personal Slack coach.** Empathic AI that lives in your Slack and chats with you about how your work's going. Knows what's running on this device. Two evenings to ship. Folder it'd live in: `personal-coach`.*
->
-> *  - **FEAT-003 — Personal finance dashboard.** Upload your bank CSV, scrape fund/ETF prices, AI auto-categorises every transaction, ship to a real domain you own. Four to eight evenings. Folder: `finance-dashboard`.*
->
-> *Or option 3: describe something else.*
->
-> *Which one do you want to set up FIRST? (You can do the other one later, or skip both for now.)*
+> *You can describe your own idea, base it on one of those, or skip the project for now and explore. What sounds good?*
 
-Wait for an answer. Record it for Beat 4. Mark Beat 3 done.
+Wait for an answer. Record whether it's a free-form idea, one of the examples, or skip. Pass that to Beat 4. Mark Beat 3 done.
 
 ### Beat 4 — Create the first project (3 min, delegates to /first-project)
 
@@ -149,9 +148,9 @@ You're going to invoke `/first-project` to do the actual scaffolding. Before del
 export BIB_TUTORIAL_PARENT=1
 ```
 
-Then invoke `/first-project`, passing the choice from Beat 3 as context. `/first-project` handles:
+Then invoke `/first-project`, passing the choice from Beat 3 as context (a free-form idea, one of the examples, or skip). `/first-project` handles:
 - creating `~/ai-platform/projects/<name>/` with seed CLAUDE.md
-- copying the chosen FEAT spec into `specs/draft/`
+- if the user picked an example, copying that spec into `specs/draft/`; if free-form, writing a short starter spec from their description
 - persisting `state.project_name` in `/var/lib/buildersinabox/state.json`
 - rewriting `~/README.md` placeholders
 - `git init`, first commit
@@ -195,7 +194,7 @@ Wait for them to confirm. Mark Beat 5 done.
 
 > *Want to set up the second project too while we're at it? You don't have to — it just creates another session, no obligation to actually build it yet. Skipping is fine, I'll remind you later if you forgot. Or "yes" and I'll do it now.*
 
-If they say yes: invoke `/first-project` again with the OTHER bundled FEAT. Same machinery as Beat 4.
+If they say yes: invoke `/first-project` again with another idea (or the other example). Same machinery as Beat 4.
 
 If they skip: note it and move on. Don't sell.
 
@@ -247,33 +246,19 @@ Mark Beat 7 done.
 
 ### Beat 8 — SDD skills tour + live demo (3 min, mandatory)
 
-> *Last beat. You have 19 skills pre-installed. The ones that matter most are the SDD team — Spec-Driven Development is the workflow this device is opinionated about. Five voices, each one specialised:*
+> *Last beat. You have a set of skills pre-installed — type `/` anywhere to see them. The everyday ones: `/code-review` and `/code-simplifier` for code quality, `/ux-review` and `/ui-ux-consultant` for interfaces, `/backend-engineer`, `/executive`, `/product-marketing` for on-demand expertise, `/documentator` for docs, `/morning-check` for a daily status. Plus `/first-project` and `/second-project` to spin up new work.*
+
+Then introduce the optional SDD workflow — but DON'T demo it live, it's not installed by default:
+
+> *There's also an opt-in workflow this device is opinionated about: SDD (Spec-Driven Development). It's a team of five "voices" — a product lead, a tech lead, a QA lead, a growth voice, and a docs voice — that take an idea from "I want to build X" all the way to a reviewed spec before you write code. It's powerful but heavier than you need on day one, so it's not pre-installed.*
 >
-> *  - `/sdd-coordinator` — Product Lead voice. "I want to build X" → conversational spec.*
-> *  - `/sdd-spec-writer` — Tech Lead voice. Researches your repo, drafts the technical spec.*
-> *  - `/sdd-qa` — QA Lead voice. Writes test plans.*
-> *  - `/sdd-growth` — Growth voice. Useful when the feature touches marketing/onboarding.*
-> *  - `/sdd-docs` — plans the doc work after a feature ships.*
->
-> *Plus a bunch of consultancy voices for on-demand expertise: `/backend-engineer`, `/ui-ux-consultant`, `/executive`, `/product-marketing`. And code-level tools: `/code-review`, `/code-simplifier`, `/ux-review`.*
->
-> *Easier to feel than describe. Let me show you `/sdd-coordinator` with a real example:*
+> *When you want it, one command adds it:*
 
-Now actually invoke it. Pick a small concrete fictional ask appropriate to the user's first project:
-
-- if they picked FEAT-002 (coach): "imagine you wanted the coach to remember your week and send you a Friday summary — let me ask /sdd-coordinator about that as a Wave 2 idea"
-- if they picked FEAT-003 (finance): "imagine you wanted to add a monthly burn chart to the dashboard — let me ask /sdd-coordinator about that"
-- if they picked custom: pick something resembling their custom idea
-
-Invoke:
-
-```
-/sdd-coordinator
+```bash
+biab add sdd
 ```
 
-with a prompt like "Hey — the user wants to add [X] to their project. Walk us through how you'd start thinking about it." Let the skill do its thing for ~3 turns. Then return to your own (tutorial) voice:
-
-> *That's a tiny taste — `/sdd-coordinator` is the entry door, the rest of the SDD voices come in when the spec gets serious. Type `/` anywhere to see all 19.*
+> *After that, `/sdd-coordinator` becomes your entry door — describe a feature and it walks you through turning it into a real spec. Try it whenever you're ready; no rush.*
 
 Mark Beat 8 done.
 
@@ -297,7 +282,7 @@ If `skipped` is empty (or they're done revisiting):
 jq '.current_beat = null' ~/.config/biab-tutorial/state.json > /tmp/s.json && mv /tmp/s.json ~/.config/biab-tutorial/state.json
 ```
 
-> *Done. You know how to attach, how to make new sessions, how to push to GitHub, how the folder-context thing works, and what the SDD skills are for. The next time you have an idea for a thing to build, the move is: `tmuxc <name> ~/some/folder` → `/sdd-coordinator` → describe it. I'll be here.*
+> *Done. You know how to attach, how to make new sessions, how to push to GitHub, how the folder-context thing works, and that the SDD workflow is one `biab add sdd` away when you want it. The next time you have an idea for a thing to build, the move is: `tmuxc <name> ~/some/folder` → open Claude there → describe it. I'll be here.*
 >
 > *I'm leaving you in the `ai-platform` session. The full guide is at `~/README.md` if you want to skim it later.*
 

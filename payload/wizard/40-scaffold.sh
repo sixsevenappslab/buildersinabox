@@ -91,32 +91,52 @@ claude_skills_dir="${target_home}/.claude/skills"
 
 mkdir -p "$agents_skills_dir" "$claude_skills_dir"
 
+# install_skill <skill-name> — copy one skill into ~/.agents/skills and
+# symlink it under ~/.claude/skills. Idempotent. Mirrored by `biab add`.
+install_skill() {
+    local skill_name="$1"
+    local skill_dir="${skills_src}/${skill_name}"
+    [[ -d "$skill_dir" ]] || { warn "40-scaffold: skill ${skill_name} not found in payload, skipping"; return 0; }
+    local target_dir="${agents_skills_dir}/${skill_name}"
+    if [[ -e "$target_dir" || -L "$target_dir" ]]; then
+        log "40-scaffold: skill ${skill_name} already present, skipping"
+    else
+        cp -r "$skill_dir" "$target_dir"
+        log "40-scaffold: installed skill ${skill_name} → $target_dir"
+    fi
+    local claude_link="${claude_skills_dir}/${skill_name}"
+    if [[ ! -e "$claude_link" && ! -L "$claude_link" ]]; then
+        ln -s "$target_dir" "$claude_link"
+        log "40-scaffold: symlinked $claude_link -> $target_dir"
+    fi
+}
+
+manifest="${skills_src}/manifest.tsv"
 if [[ -d "$skills_src" ]]; then
-    shopt -s nullglob
-    for skill_dir in "$skills_src"/*/; do
-        skill_name="$(basename "$skill_dir")"
-        target_dir="${agents_skills_dir}/${skill_name}"
-        if [[ -e "$target_dir" || -L "$target_dir" ]]; then
-            log "40-scaffold: skill ${skill_name} already present, skipping"
-        else
-            cp -r "$skill_dir" "$target_dir"
-            log "40-scaffold: installed skill ${skill_name} → $target_dir"
-        fi
-        # Mirror as a symlink under ~/.claude/skills/<name> so Claude Code
-        # finds it at its native path.
-        claude_link="${claude_skills_dir}/${skill_name}"
-        if [[ ! -e "$claude_link" && ! -L "$claude_link" ]]; then
-            ln -s "$target_dir" "$claude_link"
-            log "40-scaffold: symlinked $claude_link -> $target_dir"
-        fi
-    done
-    shopt -u nullglob
+    if [[ -f "$manifest" ]]; then
+        # Manifest-driven: core always, optional only when BIB_INSTALL_SKILLS=all.
+        while IFS=$'\t' read -r skill_name tier; do
+            [[ -z "$skill_name" || "$skill_name" == \#* ]] && continue
+            if [[ "$tier" == "core" || "${BIB_INSTALL_SKILLS:-}" == "all" ]]; then
+                install_skill "$skill_name"
+            else
+                log "40-scaffold: skill ${skill_name} optional, skipping (use 'biab add' to install)"
+            fi
+        done < "$manifest"
+    else
+        warn "40-scaffold: skills manifest missing, falling back to install-all"
+        shopt -s nullglob
+        for skill_dir in "$skills_src"/*/; do
+            install_skill "$(basename "$skill_dir")"
+        done
+        shopt -u nullglob
+    fi
 else
     warn "40-scaffold: payload/skills/ missing, skipping skill install"
 fi
 
 # Bundled FEAT specs do NOT get copied here — they live in
-# /opt/buildersinabox/payload/bundled-feats/ until /first-project
+# /opt/buildersinabox/payload/examples/ until /first-project
 # offers them to the user. Moving the choice into Claude lets the
 # user discuss them and decide conversationally.
 
