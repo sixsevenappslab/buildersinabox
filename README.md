@@ -38,7 +38,7 @@ curl -fsSL https://buildersinabox.com/install.sh | sudo bash
 **From source** (works today):
 
 ```bash
-git clone https://github.com/sixsevenapps/buildersinabox /opt/buildersinabox
+git clone https://github.com/sixsevenappslab/buildersinabox /opt/buildersinabox
 sudo /opt/buildersinabox/payload/install.sh
 ```
 

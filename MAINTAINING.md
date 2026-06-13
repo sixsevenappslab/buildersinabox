@@ -4,7 +4,7 @@ Maintainer-only notes. Not needed to *use* Builders in a Box.
 
 ## GitHub repo metadata
 
-When the public repo (`sixsevenapps/buildersinabox`) is set up, configure:
+When the public repo (`sixsevenappslab/buildersinabox`) is set up, configure:
 
 - **Description:** `Your own AI dev box. Plug in, code from your phone in 15 minutes. One-command install on any Ubuntu 24.04.`
 - **Topics:** `homelab`, `tailscale`, `claude-code`, `ai`, `ubuntu`, `self-hosted`, `installer`, `developer-tools`, `mini-pc`, `tmux`
@@ -22,7 +22,7 @@ The dev repo (`jesusmartincalvo/buildersinabox`) is the private workbench. The p
 
 `site/` is a static landing + the served installer. One-time setup in the Cloudflare dashboard:
 
-1. Pages → Create project → connect the public repo (`sixsevenapps/buildersinabox`).
+1. Pages → Create project → connect the public repo (`sixsevenappslab/buildersinabox`).
 2. Build command: `bash site/build.sh`. Output directory: `site`.
 3. Custom domain: bind `buildersinabox.com` (apex). DNS is already on Cloudflare.
 4. Enable Web Analytics (cookieless) if you want install-attempt counts.

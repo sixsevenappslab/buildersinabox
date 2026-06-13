@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-REPO_URL="${BIB_REPO_URL:-https://github.com/sixsevenapps/buildersinabox}"
+REPO_URL="${BIB_REPO_URL:-https://github.com/sixsevenappslab/buildersinabox}"
 REF="${BIB_REF:-main}"
 DEST="${BIB_DEST:-/opt/buildersinabox}"
 
