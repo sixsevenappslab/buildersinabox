@@ -1,0 +1,39 @@
+name: Bug report
+description: Something went wrong during install or use
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: dropdown
+    id: install-path
+    attributes:
+      label: Install path
+      options:
+        - curl | bash (hosted)
+        - git clone + install.sh
+        - USB / ISO autoinstall
+    validations:
+      required: true
+  - type: input
+    id: ubuntu
+    attributes:
+      label: Ubuntu version
+      placeholder: "24.04.x (output of: lsb_release -d)"
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      placeholder: "e.g. Beelink SER5, a VPS, Multipass VM"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: "Paste from /var/log/buildersinabox/bootstrap.log if available. Redact anything sensitive."
+      render: shell
