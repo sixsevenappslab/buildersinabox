@@ -50,7 +50,7 @@ where you are.
 
 Because Claude Code app's remote control over your already-running
 sessions is the smoothest interface for the way you'll actually use
-this device — phone, café, sofa, in the car. SSH still works as a fallback
+this device — phone, coffee shop, sofa, in the car. SSH still works as a fallback
 (see "Backup access" below), but you shouldn't need it day to day.
 
 ## What's running right now
