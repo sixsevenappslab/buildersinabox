@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Builders in a Box — your own AI dev box</title>
+<meta name="description" content="Plug in, code from your phone in 15 minutes. One-command install on any Ubuntu 24.04.">
+<meta property="og:title" content="Builders in a Box">
+<meta property="og:description" content="Your own AI dev box. Plug in, code from your phone in 15 minutes.">
+<style>
+  :root { color-scheme: light dark; --fg:#111; --dim:#666; --bg:#fafafa; --card:#fff; --accent:#1769ff; --code:#0b1020; }
+  @media (prefers-color-scheme: dark){ :root{ --fg:#eee; --dim:#999; --bg:#0d0d10; --card:#16161c; --accent:#5b9bff; --code:#06080f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
+  main { max-width:680px; margin:0 auto; padding:14vh 24px 8vh; }
+  h1 { font-size:2.1rem; line-height:1.15; margin:0 0 .4em; letter-spacing:-.02em; }
+  .tag { color:var(--dim); font-size:1.15rem; margin:0 0 2em; }
+  .cmd { display:flex; align-items:center; gap:.5em; background:var(--code); color:#e6e6e6; border-radius:10px; padding:14px 16px; font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow-x:auto; }
+  .cmd code { white-space:nowrap; }
+  .cmd button { margin-left:auto; flex:none; background:#23304d; color:#cfe0ff; border:0; border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
+  .cmd button:hover { background:#2c3c63; }
+  .btns { margin:1.6em 0 2.4em; }
+  .btn { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:11px 18px; border-radius:8px; font-weight:600; }
+  .btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); margin-left:.5em; }
+  ul { padding-left:1.2em; } li { margin:.3em 0; }
+  .note { color:var(--dim); font-size:.95rem; }
+  footer { margin-top:3em; color:var(--dim); font-size:.9rem; border-top:1px solid rgba(128,128,128,.2); padding-top:1.4em; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Your own AI dev box.</h1>
+  <p class="tag">Plug in, code from your phone in 15 minutes — on any Ubuntu 24.04 machine you own.</p>
+
+  <div class="cmd">
+    <code id="oneliner">curl -fsSL https://buildersinabox.com/install.sh | sudo bash</code>
+    <button onclick="navigator.clipboard.writeText(document.getElementById('oneliner').textContent);this.textContent='copied'">copy</button>
+  </div>
+
+  <div class="btns">
+    <a class="btn" href="https://github.com/sixsevenapps/buildersinabox-installer">View on GitHub</a>
+    <a class="btn ghost" href="https://buildersinabox.com/install.sh">Read the script</a>
+  </div>
+
+  <p><strong>What you get:</strong></p>
+  <ul>
+    <li>Claude Code (or another AI CLI) reachable from your phone over Tailscale — no port forwarding, no public IP.</li>
+    <li>A <code>tmux</code> session that survives disconnects. Pick up from the couch, a café, a flight.</li>
+    <li>A scaffolded workspace and a guided tutorial that gets you building your first project.</li>
+  </ul>
+
+  <p class="note">Bring your own Ubuntu 24.04 box — a mini PC, a homelab VM, or a VPS. Open source, MIT.</p>
+
+  <footer>
+    Builders in a Box, by SixSeven Apps. Modules coming: Conerator, Observio, Pathtrip.
+    <br>Run <code>curl -fsSL https://buildersinabox.com/install.sh</code> (without the pipe) to read it before you run it.
+  </footer>
+</main>
+</body>
+</html>
