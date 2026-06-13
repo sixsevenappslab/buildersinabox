@@ -2,8 +2,8 @@
 id: FEAT-006
 title: de-personalize-installer
 project: buildersinabox
-status: active
-phase: implementacion
+status: completed
+phase: completada
 priority: high
 complexity: medium
 created: 2026-06-09
