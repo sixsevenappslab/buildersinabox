@@ -20,7 +20,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-PUBLIC_REMOTE="${PUBLIC_REMOTE:-git@github.com:sixsevenapps/buildersinabox-installer.git}"
+PUBLIC_REMOTE="${PUBLIC_REMOTE:-git@github.com:sixsevenapps/buildersinabox.git}"
 DRY_RUN=0
 TAG=""
 FORCE=0
@@ -88,7 +88,7 @@ fi
       git push public main 2>/dev/null || {
           echo "publish: could not push to $PUBLIC_REMOTE." >&2
           echo "publish: create the repo first, e.g.:" >&2
-          echo "  gh repo create sixsevenapps/buildersinabox-installer --private" >&2
+          echo "  gh repo create sixsevenapps/buildersinabox --private" >&2
           exit 1
       }
   fi
