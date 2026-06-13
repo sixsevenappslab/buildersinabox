@@ -307,6 +307,8 @@ if phase_is_done "stack_installed"; then
     log "install: stack already installed, skipping (use --force to re-run wizard, or remove state.json to fully reinstall)"
 else
     run_install "install/00-base.sh"
+    run_install "install/05-biab-command.sh"
+    run_install "install/06-bd-cli.sh"
     run_install "install/10-tmux.sh"
     run_install "install/20-tailscale.sh"
     run_install "install/30-gh.sh"

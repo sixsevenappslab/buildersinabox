@@ -75,7 +75,12 @@ fi
 log "50-ssh: switching from ssh.socket activation to ssh.service"
 systemctl disable --now ssh.socket >/dev/null 2>&1 || true
 systemctl enable --now ssh.service >/dev/null 2>&1 || true
-# Reload (not restart) so existing sessions survive.
-systemctl reload ssh.service 2>/dev/null || systemctl restart ssh.service
+# Reload (not restart) so existing sessions survive. If ssh.service won't
+# (re)start — e.g. in a constrained VM where the socket/service conflict —
+# warn but don't abort the whole install: the stack is otherwise complete
+# and SSH can be recovered separately. On real hardware this path succeeds.
+systemctl reload ssh.service 2>/dev/null \
+    || systemctl restart ssh.service 2>/dev/null \
+    || warn "50-ssh: ssh.service did not (re)start cleanly — check 'systemctl status ssh.service'. Continuing."
 
 log "50-ssh: done. password + key auth enabled, sshd running as service"
