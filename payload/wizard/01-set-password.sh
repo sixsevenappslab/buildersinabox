@@ -6,7 +6,7 @@
 # password so anything later that needs sudo prompts the user.
 #
 # Critically: we hammer on the "WRITE THIS DOWN" warning. There's no
-# recovery — if Paco loses this password he has to reinstall from USB.
+# recovery — if the operator loses this password they have to reinstall from USB.
 
 set -euo pipefail
 
@@ -23,7 +23,7 @@ if phase_is_done "password_set"; then
     exit 0
 fi
 
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
+target_user="${BIB_TARGET_USER:-$(bib_user_resolve)}"
 
 # In mock / dry-run mode skip cleanly so automated tests don't hang on
 # the hidden password prompt.

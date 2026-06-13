@@ -85,7 +85,7 @@ This is for changes you want to run on every fresh install (rare for personal us
 6. Test with the dryrun rig:
    ```bash
    sudo rm /var/lib/buildersinabox/state.json
-   sudo BIB_OAUTH_MOCK=1 BIB_PROMPT_INPUT=/dev/stdin /opt/buildersinabox/payload/bootstrap.sh
+   sudo BIB_OAUTH_MOCK=1 BIB_PROMPT_INPUT=/dev/stdin /opt/buildersinabox/payload/install.sh
    ```
 
 If you only want to RUN the step on this device (not bake it into a future ISO), just `sudo bash /opt/buildersinabox/payload/wizard/NN-name.sh` once.
@@ -106,7 +106,7 @@ User-level systemd unit, so it runs without root.
 1. Write `~/.config/systemd/user/<name>.service`. Use `Type=simple`, `ExecStart=/path/to/your/binary`, `Restart=on-failure`.
 2. `systemctl --user daemon-reload`
 3. `systemctl --user enable --now <name>.service`
-4. Make sure linger is enabled so the unit survives logout: `loginctl enable-linger paco` (already enabled at first boot).
+4. Make sure linger is enabled so the unit survives logout: `loginctl enable-linger "$USER"` (already enabled at first boot).
 5. Logs via `journalctl --user -u <name>.service`.
 
 ### Pulling upstream updates
@@ -127,7 +127,7 @@ sudo BIB_OAUTH_MOCK=0 /opt/buildersinabox/payload/wizard/NN-name.sh
 Or just `--force` the whole wizard to reapply settings without reinstalling the stack:
 
 ```bash
-sudo /opt/buildersinabox/payload/bootstrap.sh --force
+sudo /opt/buildersinabox/payload/install.sh --force
 ```
 
 ## Contributing back

@@ -17,7 +17,7 @@ if phase_is_done "gh_done"; then
 fi
 
 # Resolve the unprivileged user that will own credentials. Defaults to SUDO_USER.
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
+target_user="${BIB_TARGET_USER:-$(bib_user_resolve)}"
 
 # Short-circuit if gh is already authed for the target user.
 if su - "$target_user" -c "gh auth status" >/dev/null 2>&1; then
@@ -31,10 +31,23 @@ oauth_step \
     --url-cmd "su - $target_user -c 'gh auth login --hostname github.com --git-protocol https --web'" \
     --verify "su - $target_user -c 'gh auth status'"
 
+# gh emits "credentials saved in plain text" as a security warning. On a
+# headless Ubuntu Server without a desktop keyring that's expected, and
+# the file is protected by Unix permissions. Soften the impression so a
+# non-technical reader doesn't think something went wrong.
+target_home="$(getent passwd "$target_user" | cut -d: -f6)"
+chmod 600 "${target_home}/.config/gh/hosts.yml" 2>/dev/null || true
+printf '\n  %sNote:%s gh stored your token in ~/.config/gh/hosts.yml.\n' \
+    "${BIB_DIM:-}" "${BIB_RESET:-}"
+printf '  %sThe "plain text" warning above is normal on a headless server%s\n' \
+    "${BIB_DIM:-}" "${BIB_RESET:-}"
+printf '  %s(no desktop keyring). The file is mode 600, owner-only.%s\n\n' \
+    "${BIB_DIM:-}" "${BIB_RESET:-}"
+
 # Belt-and-suspenders: import the user's GitHub SSH keys into
 # ~/.ssh/authorized_keys. Tailscale SSH is the primary access path
 # (we set it up in 35-ssh-finalize), but if Tailscale is ever
-# unreachable, raw `ssh paco@<tailscale-ip>` from any machine with
+# unreachable, raw `ssh <username>@<tailscale-ip>` from any machine with
 # the user's GitHub key still works. 35-ssh-finalize couldn't do
 # this earlier because gh wasn't authenticated yet.
 ssh_dir="$(getent passwd "$target_user" | cut -d: -f6)/.ssh"

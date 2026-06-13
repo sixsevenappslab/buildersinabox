@@ -17,7 +17,7 @@ if phase_is_done "tmux_done"; then
     exit 0
 fi
 
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
+target_user="${BIB_TARGET_USER:-$(bib_user_resolve)}"
 
 # In mock/dry-run mode the AI CLI isn't logged in, so launching it in tmux
 # would just crash. Use a placeholder command that keeps the window open.

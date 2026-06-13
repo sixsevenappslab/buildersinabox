@@ -27,7 +27,7 @@ if phase_is_done "ai_cli_done"; then
 fi
 
 cli="$(ai_cli_resolve "")"
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
+target_user="${BIB_TARGET_USER:-$(bib_user_resolve)}"
 
 # Mock mode: short-circuit without launching the CLI.
 if [[ "${BIB_OAUTH_MOCK:-0}" == "1" ]]; then
@@ -36,13 +36,18 @@ if [[ "${BIB_OAUTH_MOCK:-0}" == "1" ]]; then
     exit 0
 fi
 
-# Verification command — runs after the user reports they finished login.
-# Heuristic: if the CLI's status check contains the phrase "Logged in"
-# (case-sensitive on the capitalised L), we treat it as authenticated.
-# "Not logged in" uses lowercase "logged" so it correctly doesn't match.
+# Verification command — runs after the auth subcommand exits.
+# For claude: `claude auth status --text` prints lines like
+#     Login method: Claude Max account
+#     Organization: <name>'s Organization
+#     Email: <email>
+# when authed, and exits with an error / different output when not. We
+# grep for the unique "Login method:" prefix as the success marker.
+# For gemini: there's no headless auth subcommand, so we fall back to a
+#             round-trip prompt test.
 case "$cli" in
     claude)
-        verify_cmd="su - $target_user -c 'claude /status </dev/null' 2>&1 | grep -q 'Logged in'"
+        verify_cmd="su - $target_user -c 'claude auth status --text </dev/null' 2>&1 | grep -q '^Login method:'"
         ;;
     gemini)
         verify_cmd="su - $target_user -c 'echo health | gemini -p \"reply with the single word OK\"' 2>&1 | grep -qi 'OK'"
@@ -60,39 +65,53 @@ if bash -c "$verify_cmd"; then
 fi
 
 prompt_header "Login: $cli"
-cat <<EOF
-$cli's first login uses an interactive slash command. We'll hand the
-SSH session to $cli now. Four small things to do once it opens:
 
-  1. Type the slash command (leading slash is important):
-        /login
+if [[ "$cli" == "claude" ]]; then
+    # Headless OAuth via `claude auth login --claudeai`. Prints the URL
+    # and the short device code, then polls until the user authorises in
+    # the browser. Exits 0 on success. NO need for the user to type /exit
+    # afterwards — control returns to the wizard automatically.
+    cat <<EOF
+Claude has a one-shot login command. We're going to run it now:
 
-  2. $cli prints an OAuth URL. You're in Termius, so long-press the
-     URL to copy it, then paste into your phone's browser.
+  1. The terminal will print a URL and a short code.
 
-  3. Complete the OAuth login with your Claude account. The browser
-     shows a short auth code at the end.
+  2. Open the URL on your phone browser (long-press to copy it, then
+     paste — or scan if you see a QR), type the code, complete the
+     OAuth with your Claude account.
 
-  4. Copy that short code, switch back to Termius, paste it into the
-     $cli prompt. When $cli confirms you're logged in, exit with:
-        /exit
-     (or press Ctrl+D)
+  3. As soon as you approve in the browser, this terminal detects it
+     and the installer continues by itself. NOTHING to type back here.
 
-You'll come back here automatically; the wizard will verify and continue.
 EOF
-prompt_confirm "Press Enter to launch $cli."
+    prompt_confirm "Press Enter to start the Claude login."
+    # Run the headless auth subcommand as the target user.
+    sudo -u "$target_user" -H -- claude auth login --claudeai || true
+else
+    # Gemini still has to use the interactive TUI route — no headless
+    # auth subcommand exists today. Same "type /exit when done" caveat.
+    cat <<EOF
+$cli's first login is an interactive slash command. We'll hand the SSH
+session to $cli; four small things once it opens:
 
-# Hand the terminal to the CLI, running as the target user (not root).
-# sudo -u with -H so HOME resolves for the CLI's config files. The wizard
-# waits here until the user exits the CLI.
-sudo -u "$target_user" -H -- "$cli" || true
+  1. Type:  /login
+  2. $cli prints an OAuth URL — long-press it in Termius to copy, paste
+     into your phone's browser.
+  3. Complete the OAuth, paste the auth code back into $cli.
+  4. When $cli says you're logged in, type:  /exit  (or Ctrl+D).
+
+When you exit $cli the installer continues by itself.
+EOF
+    prompt_confirm "Press Enter to launch $cli."
+    sudo -u "$target_user" -H -- "$cli" || true
+fi
 
 # Verify with a 3-second retry to account for token-flush delays.
 if ! bash -c "$verify_cmd"; then
     warn "$cli verification failed on first attempt — waiting 3s and retrying"
     sleep 3
     if ! bash -c "$verify_cmd"; then
-        die "$cli verification failed. Re-run bootstrap.sh to retry the login."
+        die "$cli verification failed. Re-run install.sh to retry the login."
     fi
 fi
 

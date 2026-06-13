@@ -11,20 +11,28 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+cd "$REPO_ROOT" || exit 1
 
 # Folders and files that are EXEMPT from the check.
 # - .git: history is allowed to keep author names (git data, not content).
-# - gift/: explicitly maintainer-only, never ships (see .gitattributes).
+# - payload/flavors/gift/maintainer/: explicitly maintainer-only, never
+#   ships (see .gitattributes export-ignore).
+# - specs/: SDD process docs, also export-ignored.
 # - LICENSE: MIT requires a copyright holder; that's fine.
 # - tools/: this script itself documents the forbidden strings.
+# - BIZ-PLAN-LIFESTYLE.md, TODO-NEXT-ISO.md: maintainer notes, export-ignored.
 EXCLUDES=(
     --exclude-dir=.git
     --exclude-dir=node_modules
-    --exclude-dir=gift
+    --exclude-dir=.staging
+    --exclude-dir=out
+    --exclude-dir=specs
+    --exclude-dir=maintainer
     --exclude-dir=tools
     --exclude=LICENSE
     --exclude=ubuntu-*.iso
+    --exclude=BIZ-PLAN-LIFESTYLE.md
+    --exclude=TODO-NEXT-ISO.md
 )
 
 # Patterns we want to catch.
@@ -36,11 +44,13 @@ PATTERNS=(
     "virtualdev\.company"
     "@virtualdev"
     "\bJesus\b"
+    "\bpaco\b"
+    "\bPaco\b"
 )
 
 exit_code=0
 echo "Scanning the shippable tree for personal references..."
-echo "Excluded: gift/, tools/, .git/, LICENSE, ISO sources"
+echo "Excluded: specs/, maintainer/ flavor subdirs, tools/, .git/, LICENSE, ISO sources, maintainer notes"
 echo
 
 for pattern in "${PATTERNS[@]}"; do

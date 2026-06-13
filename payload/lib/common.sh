@@ -11,7 +11,10 @@ BIB_LOG_DIR="${BIB_LOG_DIR:-/var/log/buildersinabox}"
 BIB_LOG_FILE="${BIB_LOG_FILE:-${BIB_LOG_DIR}/bootstrap.log}"
 
 # State schema version. Bump when the JSON shape changes incompatibly.
-BIB_STATE_SCHEMA_VERSION=1
+BIB_STATE_SCHEMA_VERSION=2
+
+# Allowed values for ${BIB_FLAVOR}. Keep in sync with payload/flavors/.
+BIB_ALLOWED_FLAVORS=(default gift)
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -43,30 +46,34 @@ fi
 
 log() {
     local msg="$*"
-    local ts
-    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    local ts_short ts_full
+    ts_short="$(date +%H:%M:%S)"
+    ts_full="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     _bib_log_init
-    # Tinted timestamp + plain message to the console; raw plain to the log file.
-    printf '%s[%s]%s %s\n' "$_C_DIM" "$ts" "$_C_RESET" "$msg"
-    printf '[%s] %s\n' "$ts" "$msg" >> "$BIB_LOG_FILE"
+    # Short HH:MM:SS to the console (less noisy for a non-technical user),
+    # full ISO-8601 UTC to the persistent log for debugging.
+    printf '%s[%s]%s %s\n' "$_C_DIM" "$ts_short" "$_C_RESET" "$msg"
+    printf '[%s] %s\n' "$ts_full" "$msg" >> "$BIB_LOG_FILE"
 }
 
 warn() {
     local msg="$*"
-    local ts
-    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    local ts_short ts_full
+    ts_short="$(date +%H:%M:%S)"
+    ts_full="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     _bib_log_init
-    printf '%s[%s]%s %sWARN:%s %s\n' "$_C_DIM" "$ts" "$_C_RESET" "$_C_YELLOW" "$_C_RESET" "$msg" >&2
-    printf '[%s] WARN: %s\n' "$ts" "$msg" >> "$BIB_LOG_FILE"
+    printf '%s[%s]%s %sWARN:%s %s\n' "$_C_DIM" "$ts_short" "$_C_RESET" "$_C_YELLOW" "$_C_RESET" "$msg" >&2
+    printf '[%s] WARN: %s\n' "$ts_full" "$msg" >> "$BIB_LOG_FILE"
 }
 
 die() {
     local msg="$*"
-    local ts
-    ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    local ts_short ts_full
+    ts_short="$(date +%H:%M:%S)"
+    ts_full="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     _bib_log_init
-    printf '%s[%s]%s %sERROR:%s %s\n' "$_C_DIM" "$ts" "$_C_RESET" "$_C_RED" "$_C_RESET" "$msg" >&2
-    printf '[%s] ERROR: %s\n' "$ts" "$msg" >> "$BIB_LOG_FILE"
+    printf '%s[%s]%s %sERROR:%s %s\n' "$_C_DIM" "$ts_short" "$_C_RESET" "$_C_RED" "$_C_RESET" "$msg" >&2
+    printf '[%s] ERROR: %s\n' "$ts_full" "$msg" >> "$BIB_LOG_FILE"
     exit 1
 }
 
@@ -103,12 +110,57 @@ require_supported_os() {
 }
 
 # ---------------------------------------------------------------------------
+# Operator identity (resolved at runtime, persisted into state file)
+# ---------------------------------------------------------------------------
+
+# Resolve the operating system user. Precedence:
+#   1. BIB_USER env var (caller is explicit)
+#   2. SUDO_USER (whoever ran sudo install.sh)
+#   3. USER (running as a non-sudo user)
+# Dies if the result is empty or "root" — install.sh refuses to operate as
+# root since the workspace it scaffolds belongs to a human.
+bib_user_resolve() {
+    local u="${BIB_USER:-${SUDO_USER:-${USER:-}}}"
+    if [[ -z "$u" || "$u" == "root" ]]; then
+        die "BIB_USER could not be resolved. Set BIB_USER=<username> explicitly (the user account that will own ~/ai-platform)."
+    fi
+    if ! getent passwd "$u" >/dev/null; then
+        die "BIB_USER=$u does not exist on this system. Create the account first or pick a different BIB_USER."
+    fi
+    printf '%s' "$u"
+}
+
+# Resolve the display name shown in greetings and banners. Optional;
+# empty default is fine — banner copy must handle the empty case
+# (e.g. "Hi${BIB_NAME:+ ${BIB_NAME}}").
+bib_name_resolve() {
+    printf '%s' "${BIB_NAME:-}"
+}
+
+# Resolve the flavor (which copy/banner set to source). Defaults to
+# "default"; "gift" is the maintainer flavor with personalised welcome.
+bib_flavor_resolve() {
+    local f="${BIB_FLAVOR:-default}"
+    local allowed
+    for allowed in "${BIB_ALLOWED_FLAVORS[@]}"; do
+        if [[ "$f" == "$allowed" ]]; then
+            printf '%s' "$f"
+            return 0
+        fi
+    done
+    die "BIB_FLAVOR=$f is not a valid flavor. Allowed: ${BIB_ALLOWED_FLAVORS[*]}."
+}
+
+# ---------------------------------------------------------------------------
 # State file
 # ---------------------------------------------------------------------------
-# Schema (v1):
+# Schema (v2):
 # {
-#   "version": 1,
+#   "version": 2,
 #   "ai_cli": "claude" | "gemini" | null,
+#   "bib_user": "<resolved operator account>",
+#   "bib_name": "<display name, may be empty>",
+#   "flavor": "default" | "gift",
 #   "phases": {
 #     "stack_installed": false,
 #     "tailscale_done": false,
@@ -119,16 +171,60 @@ require_supported_os() {
 #   },
 #   "first_boot_at": "2026-05-25T22:00:00Z"
 # }
+#
+# Schema v1 lacked bib_user / bib_name / flavor. state_migrate_v1_to_v2
+# upgrades existing v1 files in place, backing up to state.json.v1.bak.
+
+# Migrate a v1 state file to v2 schema in place. No-op if already v2+.
+# Non-destructive: original phases are preserved verbatim; only the new
+# fields are added with sensible defaults. Backs up the original to
+# state.json.v1.bak before writing.
+state_migrate_v1_to_v2() {
+    [[ -f "$BIB_STATE_FILE" ]] || return 0
+    local current_version
+    current_version="$(jq -r '.version // 1' "$BIB_STATE_FILE")"
+    if [[ "$current_version" != "1" ]]; then
+        return 0
+    fi
+    log "state: migrating schema v1 → v2"
+    cp -p "$BIB_STATE_FILE" "${BIB_STATE_FILE}.v1.bak"
+    local u n f
+    u="$(bib_user_resolve)"
+    n="$(bib_name_resolve)"
+    f="$(bib_flavor_resolve)"
+    local tmp
+    tmp="$(mktemp --tmpdir="$BIB_STATE_DIR" state.XXXXXX.json)"
+    jq --arg u "$u" --arg n "$n" --arg f "$f" '
+        .version = 2 |
+        .bib_user = $u |
+        .bib_name = $n |
+        .flavor = $f
+    ' "$BIB_STATE_FILE" > "$tmp"
+    mv "$tmp" "$BIB_STATE_FILE"
+    chmod 0644 "$BIB_STATE_FILE"
+    log "state: v2 migration done (backup at ${BIB_STATE_FILE}.v1.bak)"
+}
 
 state_init() {
     mkdir -p "$BIB_STATE_DIR"
     if [[ ! -f "$BIB_STATE_FILE" ]]; then
-        local now
+        local now u n f
         now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        u="$(bib_user_resolve)"
+        n="$(bib_name_resolve)"
+        f="$(bib_flavor_resolve)"
         local empty
-        empty=$(jq -n --argjson v "$BIB_STATE_SCHEMA_VERSION" --arg now "$now" '{
+        empty=$(jq -n \
+            --argjson v "$BIB_STATE_SCHEMA_VERSION" \
+            --arg now "$now" \
+            --arg u "$u" \
+            --arg n "$n" \
+            --arg f "$f" '{
             version: $v,
             ai_cli: null,
+            bib_user: $u,
+            bib_name: $n,
+            flavor: $f,
             phases: {
                 stack_installed: false,
                 tailscale_done: false,
@@ -142,7 +238,10 @@ state_init() {
         printf '%s\n' "$empty" > "${BIB_STATE_FILE}.tmp"
         mv "${BIB_STATE_FILE}.tmp" "$BIB_STATE_FILE"
         chmod 0644 "$BIB_STATE_FILE"
-        log "state initialised at $BIB_STATE_FILE"
+        log "state initialised at $BIB_STATE_FILE (schema v${BIB_STATE_SCHEMA_VERSION})"
+    else
+        # Existing file: migrate if it's still v1.
+        state_migrate_v1_to_v2
     fi
     # Validate it parses
     if ! jq -e . "$BIB_STATE_FILE" >/dev/null 2>&1; then

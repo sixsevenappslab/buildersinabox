@@ -19,7 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 
-SESSION_NAME="main"
+SESSION_NAME="ai-platform"
 
 if ! command -v tmux >/dev/null 2>&1; then
     die "launch-main: tmux is not installed"
@@ -27,16 +27,39 @@ fi
 
 # Resolve state.
 ai_cli="$(state_get '.ai_cli')"
-project_name="$(state_get '.project_name')"
-[[ -n "$ai_cli" && "$ai_cli" != "null" ]]      || die "launch-main: state.ai_cli is not set"
-[[ -n "$project_name" && "$project_name" != "null" ]] || die "launch-main: state.project_name is not set"
+[[ -n "$ai_cli" && "$ai_cli" != "null" ]] || die "launch-main: state.ai_cli is not set"
 
 target_user="${USER:-$(whoami)}"
 target_home="$HOME"
 [[ -d "$target_home/ai-platform" ]] || die "launch-main: ~/ai-platform/ does not exist for $target_user"
 
-# What to run inside each window.
-launch_cmd="${BIB_TMUX_LAUNCH_CMD:-$ai_cli}"
+# Build the launch command for each window.
+#
+# Claude has a first-class --remote-control <name> flag (verified in
+# `claude --help` 2026-05-28) that boots the TUI with Remote Control
+# already active. No send-keys / sleep hack required, and the named
+# session shows up in the Claude Code mobile/desktop app instantly.
+#
+# Gemini has no equivalent feature, so we just run it plain.
+#
+# Dryrun: BIB_TMUX_LAUNCH_CMD overrides everything (used by tests).
+launch_cmd_for() {
+    local window_name="$1"
+    local initial_prompt="${2:-}"
+    if [[ -n "${BIB_TMUX_LAUNCH_CMD:-}" ]]; then
+        echo "$BIB_TMUX_LAUNCH_CMD"
+        return
+    fi
+    if [[ "$ai_cli" == "claude" ]]; then
+        if [[ -n "$initial_prompt" ]]; then
+            printf "claude --remote-control %q %q" "$window_name" "$initial_prompt"
+        else
+            printf "claude --remote-control %q" "$window_name"
+        fi
+    else
+        echo "$ai_cli"
+    fi
+}
 
 # Apply the tmux config the first time.
 tmux_conf_target="${target_home}/.tmux.conf"
@@ -54,37 +77,19 @@ fi
 
 log "launch-main: creating session '$SESSION_NAME' (ai_cli=$ai_cli, project=$project_name)"
 
-# Whether to auto-enable Claude Code's /remote-control in each window so the
-# Claude Code mobile app can connect to these sessions without SSH. Disable
-# by setting BIB_TMUX_AUTO_REMOTE_CONTROL=0. Only applies when the launch
-# command actually starts the AI CLI (skipped in mock/dryrun mode).
-auto_rc="${BIB_TMUX_AUTO_REMOTE_CONTROL:-1}"
-if [[ "$launch_cmd" != "$ai_cli" ]]; then
-    auto_rc=0
-fi
-
-# Detached session; first window starts at index 1 due to base-index in tmux.conf,
-# but we explicitly use names + cwd to avoid surprises.
-tmux new-session -d -s "$SESSION_NAME" -n "platform" -c "${target_home}/ai-platform"
-tmux send-keys -t "${SESSION_NAME}:platform" "$launch_cmd" C-m
-
-tmux new-window -t "$SESSION_NAME:" -n "$project_name" -c "${target_home}/ai-platform/projects/${project_name}"
-tmux send-keys -t "${SESSION_NAME}:${project_name}" "$launch_cmd" C-m
-
-tmux new-window -t "$SESSION_NAME:" -n "stratops" -c "${target_home}/ai-platform/stratops"
-tmux send-keys -t "${SESSION_NAME}:stratops" "$launch_cmd" C-m
-
-# Give the CLI ~4s to finish booting, then activate Remote Control in every
-# window so the mobile Claude Code app can attach to any of them.
-if [[ "$auto_rc" == "1" ]]; then
-    log "launch-main: enabling /remote-control in each window"
-    sleep 4
-    for win in "platform" "$project_name" "stratops"; do
-        tmux send-keys -t "${SESSION_NAME}:${win}" "/remote-control" C-m
-    done
-fi
-
-# Default selection: the project window (middle one — the one the user will use most).
-tmux select-window -t "${SESSION_NAME}:${project_name}"
+# FEAT-005: single-session model.
+#
+# The wizard creates exactly ONE tmux session called `ai-platform`,
+# cwd `~/ai-platform/`, single window, running Claude with the
+# /tutorial skill as the initial prompt. /tutorial owns the post-
+# install onboarding: GitHub login, picking the first project,
+# context teaching, SDD demo.
+#
+# /first-project (invoked from inside /tutorial Beat 4) creates an
+# INDEPENDENT tmux session per project — not a window inside this
+# one — so the Claude Code app shows each project as its own remote
+# session in the sidebar.
+tmux new-session -d -s "$SESSION_NAME" -c "${target_home}/ai-platform"
+tmux send-keys -t "$SESSION_NAME" "$(launch_cmd_for "$SESSION_NAME" '/tutorial')" C-m
 
 log "launch-main: session ready. Attach with: tmux attach -t $SESSION_NAME"

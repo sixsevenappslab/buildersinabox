@@ -91,7 +91,7 @@ oauth_step() {
     log "oauth_step($label): verifying"
     if ! bash -c "$verify_cmd" >/dev/null 2>&1; then
         rm -f "$out_log"
-        die "$label verification failed. Rerun bootstrap.sh to resume."
+        die "$label verification failed. Rerun install.sh to resume."
     fi
     rm -f "$out_log"
     log "oauth_step($label): verified"

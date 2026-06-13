@@ -6,7 +6,7 @@
 #   At step 36 the wizard pauses with a guide that tells the user to
 #   install Tailscale + Termius on their phone and SSH in.
 #
-#   PHASE B (SSH from phone): the user re-runs bootstrap.sh from the
+#   PHASE B (SSH from phone): the user re-runs install.sh from the
 #   Termius session. The wizard resumes from where it paused, completes
 #   Claude's OAuth (where copy-paste between Termius and the mobile
 #   browser is easy), scaffolds the workspace, launches tmux, and prints
@@ -19,6 +19,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BIB_INSTALL_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+export BIB_INSTALL_ROOT
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
 # shellcheck source=../lib/prompt.sh
@@ -27,49 +29,52 @@ source "${SCRIPT_DIR}/../lib/prompt.sh"
 require_root
 state_init
 
+# Hydrate BIB_NAME from state so display strings substitute consistently
+# even when the wizard is launched via the firstboot trigger (no env vars).
+: "${BIB_NAME:=$(state_get '.bib_name')}"
+export BIB_NAME
+
+# Source the flavor manifest (default | gift) so wizard_banner and
+# BIB_FLAVOR_COPY_DIR are wired to the right copy set. The flavor was
+# persisted by install.sh into state.json; fall back to default if state
+# doesn't have it yet (very early wizard launches).
+_flavor="$(state_get '.flavor')"
+: "${_flavor:=default}"
+_flavor_manifest="${SCRIPT_DIR}/../flavors/${_flavor}/manifest.sh"
+if [[ -f "$_flavor_manifest" ]]; then
+    # shellcheck source=/dev/null
+    source "$_flavor_manifest"
+fi
+unset _flavor _flavor_manifest
+
 # Intro: full welcome on first run, short greeting on resumption.
+# `clear` wipes the install-phase log noise above the banner so the
+# welcome screen is a clean, "this was made for me" first impression.
 if ! phase_is_done "password_set"; then
     apply_wizard_font
+    clear
     wizard_banner
-    prompt_header "Hi Paco — let's set up your Builders in a Box"
-    cat <<'EOF'
-We made this for you. In the next 15 minutes you'll have your own
-personal AI development environment — accessible from your phone, with
-two projects already waiting for you.
-
-We'll walk through a few quick steps. Each step gives you a URL to open
-on your phone (or laptop). Read the URL straight from this screen, type
-it into your phone's browser, complete the login, and come back here and
-press Enter.
-
-Heads up — this wizard will ask you to log into three services:
-
-  1. Tailscale  (https://tailscale.com)   <- private network for SSH from your phone
-  2. GitHub     (https://github.com)      <- so this device can clone/commit/push for you
-  3. Your AI CLI: Claude Code or Gemini   <- this is what you will be talking to
-
-About halfway through we'll pause briefly so you can install Tailscale
-and Termius on your phone and SSH in. The Claude login is much smoother
-from a phone-side terminal than from this monitor, so we wait until then.
-
-If you do not have a Tailscale or GitHub account yet, that's fine: the
-login page for each one lets you sign up in 30 seconds. Have your phone
-or laptop ready, and an email you can check.
-
-You can interrupt at any point with Ctrl+C and rerun the bootstrap to resume.
-EOF
+    prompt_header "Hi${BIB_NAME:+ ${BIB_NAME}} — let's set up your Builders in a Box"
+    if [[ -r "${BIB_FLAVOR_COPY_DIR:-}/welcome.txt" ]]; then
+        envsubst '${BIB_NAME}' < "${BIB_FLAVOR_COPY_DIR}/welcome.txt"
+    else
+        warn "wizard: welcome copy not found at ${BIB_FLAVOR_COPY_DIR:-<unset>}/welcome.txt"
+    fi
     prompt_confirm "Press Enter to begin."
 else
-    wizard_banner
-    prompt_header "Welcome back, Paco — resuming setup from SSH"
+    # SSH resume — DON'T show wizard_banner. Phone terminals (Termius on
+    # portrait phone) are narrow (~50 cols) and the 80-col banner wraps
+    # into unreadable ASCII soup. A simple header is enough.
+    clear
+    prompt_header "Welcome back${BIB_NAME:+ ${BIB_NAME}} — resuming from SSH"
     _bib_ssh_tty="$(tty 2>/dev/null || echo unknown)"
     cat <<EOF
-You are now in an SSH session ($_bib_ssh_tty). The console on the mini
-PC is paused waiting; everything from here happens in this terminal
-where copy-paste works.
+You're in an SSH session ($_bib_ssh_tty), on your phone or laptop.
+The console on the mini PC is paused waiting — everything from here
+happens in this terminal, where copy-paste actually works.
 
-Let's finish where we left off: GitHub login, then Claude login, then
-your workspace, then tmux. About 5 minutes total.
+Let's finish where we left off: Claude login, workspace setup, tmux.
+About 3 minutes total.
 EOF
     prompt_confirm "Press Enter to continue."
 fi
@@ -92,19 +97,24 @@ run_step() {
     fi
 }
 
-# PHASE A (console): minimum needed to get the user onto their phone.
+# PHASE A (console): bare minimum to get the user onto SSH.
 run_step "01-set-password.sh"
-run_step "05-choose-cli.sh"
 run_step "10-tailscale-up.sh"
 run_step "35-ssh-finalize.sh"
 run_step "36-phone-bridge.sh"      # pauses here on console (exit 78)
 
-# PHASE B (SSH from phone): the heavy OAuth steps land here, where the
-# Termius terminal supports copy-paste between SSH and the mobile browser.
-run_step "20-gh-login.sh"          # short URL + device code, easy in Termius
-run_step "38-ai-cli-login.sh"      # long Claude URL, copy-paste in Termius
-run_step "40-scaffold.sh"
-run_step "50-tmux.sh"
+# PHASE B (SSH from phone or laptop): the heavy OAuth steps land here.
+# Per FEAT-005:
+#  - 20-gh-login is intentionally NOT here. GitHub auth moves into the
+#    /tutorial skill (Beat 2), so the user does it inside Claude Code
+#    where copy-paste + Claude's reaction loop are available.
+#  - 40-scaffold builds the BASE workspace only. Project picker + FEAT
+#    spec copy + GitHub repo creation live inside Claude (/tutorial
+#    Beat 4 → /first-project).
+run_step "05-choose-cli.sh"        # claude (default) or gemini
+run_step "38-ai-cli-login.sh"      # long Claude URL, copy-paste in SSH
+run_step "40-scaffold.sh"          # base ai-platform/ skeleton, no project
+run_step "50-tmux.sh"              # single 'ai-platform' session, /tutorial
 
 # Note: 60-slack-bootstrap.sh deliberately NOT in the wizard chain.
 # Pasting long Slack tokens on a console keyboard is awful. The Slack
@@ -115,62 +125,47 @@ run_step "50-tmux.sh"
 # doesn't relaunch the wizard on subsequent logins.
 rm -f "${BIB_STATE_DIR}/firstboot.pending"
 
-prompt_header "All set, Paco!"
+prompt_header "All set${BIB_NAME:+, ${BIB_NAME}}!"
 cat <<EOF
-Stack installed, logins done, workspace scaffolded, tmux session ready
-with Remote Control enabled in every window.
+Stack installed. Claude logged in. Workspace scaffolded. A tmux
+session called 'ai-platform' is waiting with Remote Control active.
 
-You're already on your phone in Termius — Tailscale and Termius are
-done. One more app to install and then you're in:
+ONE MORE STEP — install the Claude Code app and attach.
 EOF
 
-# --- Final step: install the Claude Code app on phone OR laptop -----------
-printf '\n%s[final step]%s  %sInstall the Claude Code app%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}"
+# --- Single big CTA -------------------------------------------------------
+printf '\n%s+============================================================+%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+printf '%s|%s  %sInstall Claude Code, sign in, attach to "ai-platform".%s    %s|%s\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+printf '%s+============================================================+%s\n\n' \
+    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
 cat <<EOF
-
-  The Claude Code app exists for both your phone AND your laptop. Pick
-  one — or both, they share the same sessions because they sign in to
-  the same Claude account.
-
+  Where to get it:
     - Phone:   App Store / Google Play, search "Claude" by Anthropic
     - Laptop:  https://claude.ai/download  (Mac / Windows / Linux)
 
-  Sign in with the SAME Claude account you used in this wizard. The
-  app discovers this device's three sessions automatically (Remote
-  Control is on in each tmux window):
-    - platform
-    - $(state_get '.project_name')
-    - stratops
-  Tap any of them. You are now inside Claude on this device.
+  Sign in with the SAME Claude account you used here. The app
+  auto-discovers this device. You'll see one session in the sidebar:
+
+      ai-platform
+
+  Tap it. The /tutorial skill is already running — Claude greets you
+  the moment you attach and walks you through GitHub, your first
+  project, and the SDD skills. ~12 minutes, conversational, skippable.
+
+  (If you don't see the ai-platform session immediately, swipe down
+  to refresh the sidebar — sometimes takes a few seconds.)
 EOF
 if command -v qrencode >/dev/null 2>&1; then
-    printf '\n       %s...or scan to open the download page:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
-    qrencode -t ANSI256 -l L -m 2 "https://claude.ai/download" 2>/dev/null | sed 's/^/         /'
+    printf '\n     %sScan to open the download page:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+    qrencode -t ANSI256 -l L -m 2 "https://claude.ai/download" 2>/dev/null | sed 's/^/       /'
 fi
-
-# --- What to do first in the app ------------------------------------------
-printf '\n%s+----------------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s|%s  %sOnce inside the Claude Code app on your phone:%s         %s|%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s+----------------------------------------------------------+%s\n\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
 cat <<'EOF'
-       Type:   /welcome
 
-       That's a short conversational tour: 4-5 turns, no info dump.
-       Claude greets you, shows you the two bundled project specs,
-       and explains the slash-command skills system. When you're
-       ready to actually build, you can switch to:
+When you're inside Claude on your phone, unplug the monitor and
+keyboard from this device. You're done with the console.
 
-           /first-project     guided GitHub setup + opens FEAT-002 or -003
-           /whats-ahead       narrative tour of the system
-           /sdd-coordinator   "help me describe what I want to build"
-           /backend-engineer  senior backend perspective on demand
-           ... and 14 more (type / to see all)
-
-The full guide is at ~/README.md on this device. Read it from any
-session with: less ~/README.md
-
-You can unplug the monitor and keyboard from the device. Builders in
-a Box is alive on your tailnet, waiting for the Claude Code app.
+The full guide is at ~/README.md on this device if you need it later.
 EOF

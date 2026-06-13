@@ -7,11 +7,11 @@ Produces a bootable USB image that auto-installs Ubuntu 24.04 Server and lays do
 `out/biab-ubuntu-24.04.iso` — a customised Ubuntu Server ISO that, when booted on a clean machine:
 
 1. **Auto-installs Ubuntu** unattended (no human prompts during install).
-2. Creates user `paco` with `sudo NOPASSWD` (temporary; the wizard's first step puts a real password on the account).
+2. Creates user `builder` with `sudo NOPASSWD` (temporary; the wizard's first step puts a real password on the account).
 3. Extracts the `buildersinabox` repo into `/opt/buildersinabox/` from a tarball embedded in the ISO.
 4. Installs the systemd autologin drop-in for tty1 and the `/etc/profile.d/biab-firstboot.sh` trigger.
 5. Touches `/var/lib/buildersinabox/firstboot.pending` so the wizard fires on first login.
-6. Reboots. On the next boot, `paco` is auto-logged in on tty1, the profile script sees the pending marker, runs `bootstrap.sh` (full install + wizard).
+6. Reboots. On the next boot, `builder` is auto-logged in on tty1, the profile script sees the pending marker, runs `install.sh` (full install + wizard).
 
 ## Prerequisites
 
@@ -53,7 +53,7 @@ Eject the USB safely. Plug it into the target mini PC.
 2. GRUB auto-selects "Builders in a Box — Autoinstall" after 3 seconds.
 3. Ubuntu autoinstall runs unattended for ~8–12 minutes. Logs scroll on the screen.
 4. The machine reboots itself when the install is complete.
-5. tty1 auto-logins as `paco`. The profile-d trigger sees the pending marker and runs `bootstrap.sh`. The user sees the wizard intro within ~30 seconds of the reboot.
+5. tty1 auto-logins as `builder`. The profile-d trigger sees the pending marker and runs `install.sh`. The user sees the wizard intro within ~30 seconds of the reboot.
 6. From here the experience is the wizard you've already tested (01-set-password → 05-choose-cli → 10-tailscale → 20-gh → 30-ai-cli → 35-ssh-finalize → 40-scaffold → 50-tmux → 60-slack-bootstrap).
 
 ## Iteration loop

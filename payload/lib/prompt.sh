@@ -78,23 +78,41 @@ apply_wizard_font() {
     fi
 }
 
-# Print the personalised PACO welcome banner with color. ASCII art so it
-# renders in any console font; the colors degrade gracefully on terminals
-# without ANSI support (the helper above zeros them out).
+# Print the default welcome banner with color. ASCII art so it renders
+# in any console font; colors degrade gracefully on terminals without
+# ANSI support (the helper above zeros them out).
+#
+# This is the NEUTRAL banner — just BUILDERS IN A BOX, no personal name.
+# The gift flavor overrides this function in its manifest.sh with the
+# personalised ASCII variant.
 wizard_banner() {
+    local c="$BIB_BRIGHT_CYAN" r="$BIB_RESET"
+    local b="$BIB_BOLD$BIB_BRIGHT_CYAN"
+    local W=76
+
+    _line() {
+        local color="$1" payload="$2" width="$3"
+        local total_pad=$(( W - width ))
+        local left=$(( total_pad / 2 ))
+        local right=$(( total_pad - left ))
+        printf '  %s|%*s%s%s%s%*s%s|%s\n' \
+            "$c" "$left" "" "$color" "$payload" "$r" "$right" "" "$c" "$r"
+    }
+    _blank() { printf '  %s|%*s|%s\n' "$c" "$W" "" "$r"; }
+    _rule()  { printf '  %s+%s+%s\n' "$c" "$(printf '=%.0s' $(seq 1 $W))" "$r"; }
+
     printf '\n'
-    printf '  %s+==============================================+%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|                                              |%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|%s          %s ____   _    ____ ___ %s              %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|%s          %s|  _ \ / \  / ___/ _ \%s              %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|%s          %s| |_) / _ \| |  | | | |%s             %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|%s          %s|  __/ ___ \ |__| |_| |%s             %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|%s          %s|_| /_/   \_\____\___/%s              %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD$BIB_BRIGHT_MAGENTA" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|                                              |%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|%s     %sWelcome to your Builders in a Box%s        %s|%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET" "$BIB_BOLD" "$BIB_RESET" "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s|                                              |%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
-    printf '  %s+==============================================+%s\n' "$BIB_BRIGHT_CYAN" "$BIB_RESET"
+    _rule
+    _blank
+    _line "$b" ' ___ _   _ ___ _    ___  ___ ___  ___   ___ _  _    _    ___  _____  __' 71
+    _line "$b" '| _ ) | | |_ _| |  |   \| __| _ \/ __| |_ _| \| |  /_\  | _ )/ _ \ \/ /'  71
+    _line "$b" '| _ \ |_| || || |__| |) | _||   /\__ \  | || .` | / _ \ | _ \ (_) >  < ' 71
+    _line "$b" '|___/\___/|___|____|___/|___|_|_\|___/ |___|_|\_|/_/ \_\|___/\___/_/\_\' 71
+    _blank
+    _rule
     printf '\n'
+
+    unset -f _line _blank _rule
 }
 
 # Print a header for a wizard step, framed in bright cyan with a bold title.
@@ -106,8 +124,8 @@ prompt_header() {
 }
 
 # Print an URL prominently, plus a scannable QR code below it when
-# `qrencode` is available. Paco can either type the URL on his phone OR
-# point the camera at the QR — whatever's faster for him.
+# `qrencode` is available. The operator can either type the URL on their phone
+# OR point the camera at the QR — whatever's faster.
 prompt_url() {
     local label="${1:-Open this URL on your phone:}"
     local url="$2"

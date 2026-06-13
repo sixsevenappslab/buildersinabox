@@ -83,7 +83,7 @@ A small pairing web service (hosted, but also open source for self-hosters) brid
 ```
 buildersinabox/
 ├── payload/             # Everything that goes on the device BESIDES Ubuntu
-│   ├── bootstrap.sh        # (coming) main first-boot script
+│   ├── install.sh        # (coming) main first-boot script
 │   ├── install/            # (coming) per-tool install sub-scripts
 │   ├── systemd/            # (coming) systemd units
 │   ├── tmux/               # (coming) tmux config + session bootstrap
@@ -97,7 +97,7 @@ buildersinabox/
 └── README.md
 ```
 
-A DIY user only needs `payload/` — install Ubuntu manually, clone the repo, run `payload/bootstrap.sh`. `iso-builder/` and `pairing/` are convenience layers for the USB and hosted-service tiers.
+A DIY user only needs `payload/` — install Ubuntu manually, clone the repo, run `payload/install.sh`. `iso-builder/` and `pairing/` are convenience layers for the USB and hosted-service tiers.
 
 ## License
 

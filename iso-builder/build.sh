@@ -4,7 +4,7 @@
 # Takes the stock Ubuntu 24.04 Server ISO in sources/ and produces a
 # bootable image that:
 #   1. Auto-installs Ubuntu unattended (no human prompts).
-#   2. Creates user `paco` with sudo NOPASSWD (the wizard sets a real
+#   2. Creates user `builder` with sudo NOPASSWD (the wizard sets a real
 #      password on first login).
 #   3. Embeds the buildersinabox repo at /opt/buildersinabox/ on the
 #      installed system, so the wizard runs on first boot.
@@ -53,6 +53,8 @@ bash "${REPO_ROOT}/tools/check-no-personal-refs.sh" || {
 echo "==> Preparing seed files"
 rm -rf "$WORK"
 mkdir -p "$WORK/cidata" "$WORK/biab" "$WORK/boot/grub" "$OUT_DIR"
+# xorriso refuses to write into a non-empty -outdev; clear any prior build.
+rm -f "$OUT_ISO"
 
 cp "$SCRIPT_DIR/user-data" "$WORK/cidata/user-data"
 cp "$SCRIPT_DIR/meta-data" "$WORK/cidata/meta-data"
@@ -88,18 +90,37 @@ cp "$WORK/boot/grub/grub.cfg" "$WORK/boot/grub/loopback.cfg"
 # from the source, which is exactly what we want.
 
 echo "==> Repacking ISO with cloud-init + payload + custom GRUB"
+# volid: the ISO9660 volume name. Some firmwares (esp. older BIOS) show
+# this as the device name in the F7/F12 boot picker. Use a recognisable
+# label so the user sees "BUILDERS IN A BOX" rather than e.g. "Flash".
+# (UEFI firmwares typically prefer the GPT partition name — see the
+#  sgdisk step right after xorriso.)
 xorriso \
     -indev "$SOURCE_ISO" \
     -outdev "$OUT_ISO" \
     -boot_image any replay \
     -compliance no_emul_toc \
-    -volid "BIABPACO" \
+    -volid "BUILDERS_IN_A_BOX" \
     -pathspecs on \
     -map "$WORK/cidata" /cidata \
     -map "$WORK/biab"   /biab \
     -update "$WORK/boot/grub/grub.cfg"     /boot/grub/grub.cfg \
     -update "$WORK/boot/grub/loopback.cfg" /boot/grub/loopback.cfg \
-    -commit_eject all 2>&1 | tail -10
+    -commit_eject all
+
+# Set the GPT partition NAME for the ESP (partition 2). UEFI firmware
+# commonly displays this string in the F7 boot menu instead of the
+# generic "Flash, Partition 2". sgdisk is non-destructive when only
+# changing names. Errors here are non-fatal — boot still works.
+if command -v sgdisk >/dev/null 2>&1; then
+    echo "==> Setting GPT partition names so the firmware boot menu is recognisable"
+    sgdisk \
+        --change-name=1:"Builders in a Box Installer" \
+        --change-name=2:"Builders in a Box" \
+        "$OUT_ISO" 2>&1 | tail -3 || echo "  (sgdisk reported an error; boot likely still works)"
+else
+    echo "  WARN: sgdisk not installed, leaving default GPT partition names" >&2
+fi
 
 # --- summary -----------------------------------------------------------------
 

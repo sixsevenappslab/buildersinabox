@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Wizard step: prompt for project name, scaffold the workspace, install
-# the bundled SDD skills under ~/.agents/skills/ (with a symlink at
-# ~/.claude/skills/<name> so Claude Code finds them at its native path).
+# Wizard step: scaffold the BASE workspace (no project yet) and install
+# the bundled SDD skills under ~/.agents/skills/ + symlinked under
+# ~/.claude/skills/<name> so Claude Code finds them at its native path.
 #
-# Renders CLAUDE.md + GEMINI.md + AGENTS.md from a single source template
-# so swapping CLIs later doesn't require re-scaffolding.
+# The project picker + project subdir + FEAT spec copy lives in the
+# /first-project skill (runs inside Claude Code, conversational).
 
 set -euo pipefail
 
@@ -20,7 +20,7 @@ if phase_is_done "scaffold_done"; then
     exit 0
 fi
 
-target_user="${BIB_TARGET_USER:-${SUDO_USER:-paco}}"
+target_user="${BIB_TARGET_USER:-$(bib_user_resolve)}"
 target_home="$(getent passwd "$target_user" | cut -d: -f6 || true)"
 [[ -n "$target_home" ]] || die "40-scaffold: cannot resolve home dir for $target_user"
 
@@ -34,62 +34,15 @@ We'll create your workspace at:
 It will have:
     platform/   <- the workspace itself (for changes to the dev environment)
     stratops/   <- your personal strategy & ops folder
-    projects/<your-project-name>/   <- your first project
+
+Your first project gets created later, conversationally, inside Claude
+Code — once you've decided what to build (or picked one of the bundled
+starter specs).
 
 EOF
 
-# Visual project picker. Two starter projects ship with a fully-written
-# spec already in the project's specs/draft/ folder; the third option
-# lets the user start blank with any name.
-printf '\n%s+----------------------------------------------------------+%s\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s|%s  %sPick your first project%s                                  %s|%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s+----------------------------------------------------------+%s\n\n' "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-
-printf '  %s1) Personal finance dashboard%s   %s(recommended)%s\n' \
-    "${BIB_BOLD:-}" "${BIB_RESET:-}" "${BIB_DIM:-}" "${BIB_RESET:-}"
-printf '       Upload your bank CSV. Scrape fund/ETF daily prices.\n'
-printf '       AI auto-categorises every transaction. Mobile dashboard\n'
-printf '       at a domain you own. ~4-8 evenings, full SDD spec ready.\n'
-printf '       Project folder: %sfinance-dashboard/%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
-
-printf '  %s2) Personal Slack coach%s\n' "${BIB_BOLD:-}" "${BIB_RESET:-}"
-printf '       An empathic AI in your Slack channel that knows what is\n'
-printf '       happening on this device and chats with you about your\n'
-printf '       work. ~2 evenings, full SDD spec ready.\n'
-printf '       Project folder: %spersonal-coach/%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
-
-printf '  %s3) Something else%s\n' "${BIB_BOLD:-}" "${BIB_RESET:-}"
-printf '       Start with an empty project and a name of your choice.\n\n'
-
-prompt_choice "Your choice:" \
-    "1) finance dashboard" \
-    "2) Slack coach" \
-    "3) something else" \
-    || die "40-scaffold: aborted (no project choice)"
-
-case "$BIB_PROMPT_VALUE" in
-    "1) finance dashboard")
-        project_name="finance-dashboard"
-        log "40-scaffold: starter project = personal finance dashboard"
-        ;;
-    "2) Slack coach")
-        project_name="personal-coach"
-        log "40-scaffold: starter project = personal Slack coach"
-        ;;
-    "3) something else")
-        printf '\n'
-        prompt_project_name || die "40-scaffold: aborted (no project name)"
-        project_name="$BIB_PROMPT_VALUE"
-        log "40-scaffold: custom project name = $project_name"
-        ;;
-    *)
-        die "40-scaffold: unexpected choice value: $BIB_PROMPT_VALUE"
-        ;;
-esac
-
 # ---------------------------------------------------------------------------
-# Copy skeleton
+# Copy skeleton (workspace root + stratops, no projects/ subdir yet)
 # ---------------------------------------------------------------------------
 skeleton_src="${PAYLOAD_DIR}/skeleton/ai-platform"
 if [[ ! -d "$skeleton_src" ]]; then
@@ -103,21 +56,24 @@ else
     cp -r "$skeleton_src" "$ws_root"
 fi
 
-# Ensure the three target dirs exist.
+# Ensure platform + stratops exist; projects/ is created empty so
+# /first-project can drop its subdir later without permission games.
 mkdir -p \
-    "$ws_root/projects/$project_name" \
+    "$ws_root/projects" \
     "$ws_root/stratops"
 
 # ---------------------------------------------------------------------------
-# Render CLAUDE.md + GEMINI.md + AGENTS.md from one source per folder.
+# Render CLAUDE.md + GEMINI.md + AGENTS.md for root + stratops only.
+# Project-level files come from /first-project.
 # ---------------------------------------------------------------------------
 project_claude_tpl="${PAYLOAD_DIR}/templates/PROJECT-CLAUDE.md"
 if [[ -f "$project_claude_tpl" ]]; then
-    for folder in "$ws_root" "$ws_root/projects/$project_name" "$ws_root/stratops"; do
+    for folder in "$ws_root" "$ws_root/stratops"; do
         for name in CLAUDE.md GEMINI.md AGENTS.md; do
             target="$folder/$name"
             if [[ ! -f "$target" ]]; then
-                sed "s|{{PROJECT_NAME}}|${project_name}|g" "$project_claude_tpl" > "$target"
+                # No project name yet — placeholder that /first-project replaces.
+                sed "s|{{PROJECT_NAME}}|<your project>|g" "$project_claude_tpl" > "$target"
                 log "40-scaffold: wrote $target"
             fi
         done
@@ -159,22 +115,10 @@ else
     warn "40-scaffold: payload/skills/ missing, skipping skill install"
 fi
 
-# ---------------------------------------------------------------------------
-# Bundle every spec under payload/bundled-feats/ into the user's project
-# so they have real, written specs waiting as starter implementation work.
-# ---------------------------------------------------------------------------
-feat_target_dir="${ws_root}/projects/${project_name}/specs/draft"
-mkdir -p "$feat_target_dir"
-shopt -s nullglob
-for feat_src in "${PAYLOAD_DIR}/bundled-feats/"FEAT-*.md; do
-    feat_name="$(basename "$feat_src")"
-    feat_target="${feat_target_dir}/${feat_name}"
-    if [[ ! -f "$feat_target" ]]; then
-        cp "$feat_src" "$feat_target"
-        log "40-scaffold: bundled ${feat_name} → ${feat_target}"
-    fi
-done
-shopt -u nullglob
+# Bundled FEAT specs do NOT get copied here — they live in
+# /opt/buildersinabox/payload/bundled-feats/ until /first-project
+# offers them to the user. Moving the choice into Claude lets the
+# user discuss them and decide conversationally.
 
 # ---------------------------------------------------------------------------
 # Install the tmuxc helper into the user's bashrc.
@@ -208,14 +152,15 @@ EOF
 fi
 
 # ---------------------------------------------------------------------------
-# Drop the welcome README into the user's home, with placeholders filled in.
+# Drop the welcome README into the user's home. {{PROJECT_NAME}} stays as
+# a placeholder for now; /first-project rewrites the README once the
+# user picks a project name (sed in-place).
 # ---------------------------------------------------------------------------
 readme_src="${PAYLOAD_DIR}/tutorial/desktop-readme.md"
 readme_target="${target_home}/README.md"
 if [[ -f "$readme_src" && ! -f "$readme_target" ]]; then
     ai_cli="$(state_get '.ai_cli')"
-    sed -e "s|{{PROJECT_NAME}}|${project_name}|g" \
-        -e "s|{{AI_CLI}}|${ai_cli}|g" \
+    sed -e "s|{{AI_CLI}}|${ai_cli}|g" \
         -e "s|{{TARGET_USER}}|${target_user}|g" \
         -e "s|{{HOSTNAME}}|$(hostname)|g" \
         "$readme_src" > "$readme_target"
@@ -232,8 +177,8 @@ chown -R "$target_user:$target_user" \
     "${target_home}/.bashrc.d" 2>/dev/null || true
 chown "$target_user:$target_user" "$readme_target" "$bashrc" 2>/dev/null || true
 
-# Persist the project name for later wizard steps + tmux.
-state_set '.project_name' "\"$project_name\""
+# project_name remains unset in state.json — /first-project sets it
+# when the user picks one.
 
 phase_done "scaffold_done"
-log "40-scaffold: workspace ready at $ws_root"
+log "40-scaffold: base workspace ready at $ws_root (no project yet)"

@@ -9,25 +9,19 @@ you jump straight in.
 
 ## Start here
 
-Open any of the three tmux windows on screen (or jump in from the
-Claude Code app, same thing) and type:
+Open the `ai-platform` session (in the Claude Code app sidebar, or via
+`tmux attach -t ai-platform` from a terminal). Claude greets you on its
+own — the `/tutorial` skill runs automatically the first time.
 
-```
-/first-project
-```
+The tutorial is the guided onboarding: 8 short beats, ~10 minutes,
+skippable. It covers GitHub auth, the two bundled project specs,
+creating your first project, how Claude's context changes by folder,
+spawning new tmux sessions per project, and the SDD skills with a
+live demo of `/sdd-coordinator`.
 
-That's an interactive walkthrough. It will explain GitHub, put your
-project on GitHub for the first time, and hand you off to FEAT-002 —
-the spec for your AI Slack coach that ships pre-written in your project.
-You build the coach as your first real piece of work, with Claude helping.
-
-When the coach is shipped, type `/second-project` for the next arc — a
-personal finance app (FEAT-003) that you ship to a real domain. That
-walkthrough also helps you open cloud accounts (Cloudflare, Firebase or
-GCP) if you don't have one yet.
-
-If you want the bigger picture first, type `/whats-ahead` instead — it's a
-5-minute narrative tour of the system.
+If the tutorial is already done and you want to refresh the bigger
+picture, type `/whats-ahead`. To set up additional projects later, use
+`/first-project` and `/second-project`.
 
 ## How you connect from your phone (or laptop)
 
@@ -35,8 +29,10 @@ The simple, default way:
 
 1. Install **Claude Code** from the app store on your phone.
 2. Sign in with the same Claude account you used during setup.
-3. The app discovers your three remote-controlled sessions
-   (`platform`, `{{PROJECT_NAME}}`, `stratops`) and lists them.
+3. The app discovers your remote-controlled sessions and lists them.
+   Right after install you'll see one: `ai-platform`. As you create
+   projects via `/first-project`, each new project adds its own
+   session to the sidebar.
 4. Tap any of them to attach. You're inside, exactly where you left off.
 
 No SSH key paste. No host configuration. No "did I attach to the right
@@ -59,20 +55,14 @@ this device — phone, café, sofa, in the car. SSH still works as a fallback
 
 ## What's running right now
 
-A persistent tmux session called `main` with three windows, each running
-your AI CLI ({{AI_CLI}}) with `/remote-control` already enabled:
+A persistent tmux session called `ai-platform`, cwd `~/ai-platform/`,
+running your AI CLI ({{AI_CLI}}) with Remote Control already enabled
+via the `--remote-control` flag. As you create projects, each one gets
+its own session — same shape, different folder, separate sidebar item
+in the Claude Code app.
 
-- **`platform`** — for changes to your dev environment itself
-  (`~/ai-platform/`).
-- **`{{PROJECT_NAME}}`** — your first project
-  (`~/ai-platform/projects/{{PROJECT_NAME}}/`).
-- **`stratops`** — your personal strategy & ops space — OKRs, roadmap,
-  notes (`~/ai-platform/stratops/`).
-
-If `/remote-control` ever needs to be re-enabled (after a daemon restart,
-for example), open a fresh session via Termius and type `/remote-control`
-in each window — or just rerun `~/ai-platform/payload/tmux/launch-main.sh`
-which does it for you.
+If Remote Control ever needs to be re-enabled (after a daemon restart,
+for example), just rerun `~/ai-platform/payload/tmux/launch-main.sh`.
 
 ## Talking to Claude
 
@@ -92,16 +82,19 @@ This device ships with **19 pre-loaded skills**. Type `/` inside any
 Claude Code window and start typing the name. A few you might want:
 
 ### Guided onboarding
-- `/first-project` — your guided first-day walkthrough (Git, GitHub, your
-  first commit, hand-off to FEAT-002, the bundled coach spec).
-- `/second-project` — your second guided project: walks you through
-  picking a cloud platform (Cloudflare, Firebase or GCP), buying a
-  domain, and starting FEAT-003 (a personal finance app that ships to
-  production).
-- `/whats-ahead` — 5-minute narrative tour of the system.
+- `/tutorial` — the post-install onboarding (8 beats, ~10 min). Auto-fires
+  the first time you attach `ai-platform`; can be re-invoked any time
+  to pick up at the next un-done beat.
+- `/first-project` — invoked from `/tutorial` Beat 4, also standalone.
+  Picks a name, scaffolds the folder, copies the chosen FEAT spec, init
+  + commit + GitHub push (if authed), spins up a new tmux session.
+- `/second-project` — your second guided project walk-through: picking a
+  cloud platform (Cloudflare, Firebase or GCP), buying a domain, and
+  starting FEAT-003 (the personal finance app that ships to production).
+- `/whats-ahead` — refresher tour of the system once the tutorial is done.
 - `/extend-yourself` — when you want to teach the device a new trick
-  (a new skill, a new shell helper, a new wizard step, a new bundled
-  FEAT). Walks you through where to put what.
+  (skill, shell helper, wizard step, bundled FEAT). Walks you through
+  where to put what.
 
 ### Building digital products end-to-end
 - `/sdd-base` — read this first to understand the workflow this device
@@ -169,7 +162,7 @@ your account locked, anything weird), there's a fallback:
 4. Once in, run `tmux attach -t main`.
 
 Your GitHub SSH keys are also in `~/.ssh/authorized_keys` so a raw
-`ssh paco@<tailscale-ip>` works too. Both are belt-and-suspenders for
+`ssh <username>@<tailscale-ip>` works too. Both are belt-and-suspenders for
 the rare day when the primary path is down.
 
 ## Where things live
@@ -226,7 +219,7 @@ own monitor and you're stuck, SSH in from your phone or laptop:
         /var/lib/buildersinabox/state.json > /tmp/s.json && \
       sudo mv /tmp/s.json /var/lib/buildersinabox/state.json && \
       sudo chmod 644 /var/lib/buildersinabox/state.json && \
-      sudo /opt/buildersinabox/payload/bootstrap.sh
+      sudo /opt/buildersinabox/payload/install.sh
   The wizard moves on without Claude. Authenticate later by SSH'ing in
   and running `claude` then `/login`.
 

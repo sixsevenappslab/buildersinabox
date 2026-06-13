@@ -21,8 +21,8 @@ autoinstall:
     layout: es
 
   identity:
-    realname: "Paco"
-    username: paco
+    realname: "Builder"
+    username: builder
     hostname: biab
     # Required by subiquity but never used: we add NOPASSWD via sudoers
     # in late-commands and the wizard's 01-set-password.sh will be the
@@ -62,10 +62,14 @@ autoinstall:
     # 1. Extract the embedded buildersinabox repo into /opt.
     - mkdir -p /target/opt/buildersinabox
     - tar -xzf /cdrom/biab/repo.tar.gz -C /target/opt/buildersinabox/
-    # 2. Install the systemd autologin drop-in for tty1.
+    # 2. Render the systemd autologin drop-in for tty1 from its .in template.
+    #    autologin.conf.in contains User=${BIB_USER}; we render with BIB_USER=
+    #    builder for the autoinstall path. install.sh re-renders later if the
+    #    operator chose a different BIB_USER.
     - mkdir -p /target/etc/systemd/system/getty@tty1.service.d
-    - cp /target/opt/buildersinabox/payload/systemd/getty@tty1.service.d/autologin.conf
-        /target/etc/systemd/system/getty@tty1.service.d/autologin.conf
+    - curtin in-target --target=/target -- sh -c 'BIB_USER=builder envsubst "$${BIB_USER}" <
+        /opt/buildersinabox/payload/systemd/getty@tty1.service.d/autologin.conf.in >
+        /etc/systemd/system/getty@tty1.service.d/autologin.conf'
     # 3. Install the /etc/profile.d trigger that runs the first-boot script.
     - cp /target/opt/buildersinabox/payload/profile.d/biab-firstboot.sh
         /target/etc/profile.d/biab-firstboot.sh
@@ -73,9 +77,12 @@ autoinstall:
     # 4. Mark first-boot as pending so the trigger fires on next login.
     - mkdir -p /target/var/lib/buildersinabox
     - touch /target/var/lib/buildersinabox/firstboot.pending
-    # 5. Sudo NOPASSWD for paco until the wizard sets a real password.
-    - 'echo "paco ALL=(ALL) NOPASSWD: ALL" > /target/etc/sudoers.d/90-paco-nopasswd'
-    - chmod 0440 /target/etc/sudoers.d/90-paco-nopasswd
-    # 6. Ensure linger is enabled for paco so user-level systemd units
+    # 5. Sudo NOPASSWD for builder until the wizard sets a real password.
+    #    Also whitelist SSH_* env vars so profile.d/biab-firstboot.sh
+    #    can propagate the SSH context across sudo into the wizard,
+    #    which uses it to skip the phone-bridge step in Phase B.
+    - 'printf "%s\n%s\n" "Defaults:builder env_keep += \"SSH_CONNECTION SSH_CLIENT SSH_TTY\"" "builder ALL=(ALL) NOPASSWD:SETENV: ALL" > /target/etc/sudoers.d/90-builder-nopasswd'
+    - chmod 0440 /target/etc/sudoers.d/90-builder-nopasswd
+    # 6. Ensure linger is enabled for builder so user-level systemd units
     #    survive logout (the wizard's tmux session needs this).
-    - curtin in-target --target=/target -- loginctl enable-linger paco
+    - curtin in-target --target=/target -- loginctl enable-linger builder
