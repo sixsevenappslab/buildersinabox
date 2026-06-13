@@ -1,108 +1,80 @@
 # Builders in a Box
 
-> Plug a USB. Boot a mini PC. Code from your phone.
+> **Your own AI dev box. Plug in, code from your phone in 15 minutes.**
 
-Builders in a Box turns any x86 mini PC into a personal, remote-accessible development server in a single boot. From bare metal to coding with Claude Code on your phone — no manual configuration.
+Turn any Ubuntu 24.04 machine — a mini PC, a homelab box, a VPS — into a personal development server you reach from your phone, with [Claude Code](https://claude.com/claude-code) (or another AI CLI) ready to ship. One command sets it up; [Tailscale](https://tailscale.com) makes it reachable from anywhere; `tmux` keeps your sessions alive.
 
-**Status:** 🚧 Early development. Targeting first working USB → mobile flow in the coming weeks.
+```bash
+curl -fsSL https://buildersinabox.com/install.sh | sudo bash
+```
+
+**Status:** 🚧 early but real. The installer works on a fresh Ubuntu 24.04; the hosted one-liner and the landing page are landing as we go. Until then, the [git-clone install](#install) below works today.
 
 ---
 
-## What it does
+## What you get
 
-You buy a mini PC and a Builders in a Box USB. You plug the USB, connect Ethernet, connect a monitor and keyboard for the first boot, and power it on. ~10 minutes later Ubuntu finishes installing and a setup wizard appears on the screen, walking you through:
+After ~15 minutes:
 
-1. **Tailscale login** — open the URL shown on screen from your phone, complete login with your account. The mini PC joins your tailnet.
-2. **Claude Code login** — same flow.
-3. **GitHub login** — `gh auth login` device flow, so the device can clone/commit/push on your behalf.
-4. **Pick a name for your first project.** The device scaffolds the workspace.
+- **Claude Code reachable from your phone.** SSH in from [Termius](https://termius.com) (or any SSH client) over your private Tailscale network — no port forwarding, no public IP, end-to-end encrypted.
+- **A `tmux` session that never dies.** Your work persists across disconnects. Pick up exactly where you left off, from the couch, a café, or a flight.
+- **A scaffolded workspace** (`~/ai-platform/`) with sensible defaults and a guided `/tutorial` that walks you from "set up" to "building your first project" inside Claude Code itself.
+- **Useful skills out of the box** — code review, simplification, UX review, and more. An opinionated spec-driven-development workflow is one `biab add sdd` away when you want it.
 
-Total wizard time: ~15 minutes. After it finishes, you can unplug the monitor and keyboard — **you'll never need them again**. From now on, everything is mobile-only:
+## What you need
 
-5. Open Termius on your phone, tap the pre-configured host, and you land in a `tmux` session with **three windows already running Claude Code**:
-   - `platform` — at `~/ai-platform/`, for changes to the workspace itself.
-   - `<your-project-name>` — at `~/ai-platform/projects/<your-project-name>/`, ready to start building.
-   - `stratops` — at `~/ai-platform/stratops/`, your personal strategy & ops mesa (OKRs, roadmap, notes).
+- **A machine running Ubuntu Server 24.04 (x86-64).** A mini PC (Beelink, GEEKOM, Minisforum), a spare desktop, a homelab VM, or a cloud VPS all work. ~4 GB RAM is comfortable.
+- **Ethernet for the first boot** (Wi-Fi provisioning is on the roadmap).
+- **Accounts you already have or can make in 30 seconds:** Tailscale, and Claude (or Gemini). GitHub is optional but recommended.
 
-That's it. You have a personal cloud dev environment, on hardware you own, with Claude Code running on three contexts simultaneously, accessible from anywhere.
+## Install
 
-> **v1 vs v2.** v1 requires monitor + keyboard for the one-time setup wizard. v2 (planned) will remove that requirement by relaying the OAuth flows through a hosted pairing service, so the entire setup can happen from the phone via a QR scan. v1 is the open-source MVP; v2 unlocks the commercial hardware tier.
+**Hosted one-liner** (recommended once live):
 
-## Why
-
-- **Own your dev environment.** No vendor lock-in, no monthly fees scaling with usage, no data leaving hardware you control.
-- **Mobile-first development.** With Claude Code, "coding from your phone" stops being a joke. A mini PC + Tailscale + Termius makes it real.
-- **Zero-config onboarding.** The hardest part of self-hosting is the first boot. We solve that with a USB and a QR.
-
-## How it works (high level)
-
-```
-┌─────────────┐    Ethernet    ┌──────────────┐    OAuth flows    ┌────────────┐
-│   USB stick │──────────────▶│   Mini PC    │◀─────────────────▶│   Phone    │
-│  (autoinstall│              │ (Ubuntu+stack)│   (via pairing    │ (Tailscale,│
-│   + QR code) │              │              │    web service)   │   Termius) │
-└─────────────┘                └──────────────┘                    └────────────┘
-                                      │
-                                      ▼
-                              ┌───────────────┐
-                              │  Tailscale    │
-                              │  Claude Code  │
-                              │  tmux ready   │
-                              └───────────────┘
+```bash
+curl -fsSL https://buildersinabox.com/install.sh | sudo bash
 ```
 
-The USB carries:
-- An Ubuntu Server 24.04 autoinstall image.
-- A unique device token (also printed as a QR code).
-- A post-install script that sets up Tailscale, Claude Code, tmux, and a clean development workspace.
+**From source** (works today):
 
-A small pairing web service (hosted, but also open source for self-hosters) bridges the headless mini PC and the user's phone during the OAuth flows for Tailscale and Claude Code login.
+```bash
+git clone https://github.com/sixsevenapps/buildersinabox-installer /opt/buildersinabox
+sudo /opt/buildersinabox/payload/install.sh
+```
 
-## Tiers
+The installer is interactive by default (it asks your name for the welcome screen). For unattended installs, see `payload/install.sh --help` (`--non-interactive`, `--update`, `--uninstall`, `--flavor`).
 
-| Tier | What you get | Who flashes the USB |
-|---|---|---|
-| **Hardware bundle** (planned) | Mini PC + pre-made USB + access to hosted pairing service | We do |
-| **USB only** (planned) | Pre-made USB + access to hosted pairing service | We do |
-| **DIY / self-hosted** | This repo. Build your own image, run your own pairing service | You do |
+### Gift / USB edition
+
+Builders in a Box can also be flashed to a USB stick as a self-installing Ubuntu image — plug it into a mini PC and it provisions hands-free, ending at a personalised welcome wizard. See [`iso-builder/`](iso-builder/). This is how you'd hand a ready-to-go box to someone as a gift.
+
+## How it works
+
+```
+Your phone ──Tailscale──▶ your mini PC ──▶ tmux + Claude Code
+ (Termius / SSH)          (Ubuntu 24.04)     (your workspace)
+```
+
+1. `install.sh` installs the stack (Tailscale, GitHub CLI, your chosen AI CLI, tmux, SSH hardening).
+2. A short wizard handles the OAuth logins (you read a URL, approve on your phone) and scaffolds your workspace.
+3. You SSH in from your phone and land inside Claude Code, in `tmux`, ready to build.
+
+More detail in [`docs/architecture.md`](docs/architecture.md).
 
 ## Roadmap
 
-- [ ] Manual bootstrap script working on a real mini PC
-- [ ] Tailscale + Claude Code + GitHub OAuth device flows validated from mobile
-- [ ] Three-window tmux + Claude Code UX from Termius on phone validated
-- [ ] Workspace skeleton (ai-platform, projects/, stratops) scaffolding
-- [ ] Pairing backend MVP (including project-name capture and GitHub login bridge)
-- [ ] USB autoinstall image generator
-- [ ] First end-to-end: fresh USB → working remote dev environment from phone
-- [ ] Hardware recommendations and tested configurations
-- [ ] Public release
+Builders in a Box is the first module of a small, opinionated toolkit for solo developers. Coming as separate opt-in modules:
 
-## Repo layout
+- **Conerator** — a content engine that turns project data into posts across platforms.
+- **Observio** — a cost + usage dashboard for your AI CLIs and your box.
+- **Pathtrip** — natural-language web automation (scrape and act on any site).
 
-```
-buildersinabox/
-├── payload/             # Everything that goes on the device BESIDES Ubuntu
-│   ├── install.sh        # (coming) main first-boot script
-│   ├── install/            # (coming) per-tool install sub-scripts
-│   ├── systemd/            # (coming) systemd units
-│   ├── tmux/               # (coming) tmux config + session bootstrap
-│   ├── skills/             # Claude Code skills (SDD workflow + utilities)
-│   ├── templates/          # FEAT templates (starter + full), CLAUDE.md template
-│   ├── config/             # Example configs (personas, project matrix)
-│   ├── skeleton/           # Workspace skeleton copied to user's home
-│   └── docs/               # SDD workflow, lifecycle, adoption guide
-├── iso-builder/         # Tool: Ubuntu ISO + payload → bootable USB image
-├── pairing/             # Web service bridging device ↔ phone OAuth (later)
-└── README.md
-```
+Plus: Wi-Fi-first-boot, a richer module-install command (`biab install <module>`), and more hardware-tested images.
 
-A DIY user only needs `payload/` — install Ubuntu manually, clone the repo, run `payload/install.sh`. `iso-builder/` and `pairing/` are convenience layers for the USB and hosted-service tiers.
+## Contributing
+
+Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Security reports: [SECURITY.md](SECURITY.md). Be excellent to each other: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## License
 
-TBD. Likely **AGPL-3.0** for the pairing backend and **MIT** for everything else, so anyone can build and ship a derived device freely, while improvements to the hosted service flow back to the community.
-
-## Contact
-
-Open an issue on this repository to follow progress, propose improvements, or report problems.
+MIT — see [LICENSE](LICENSE). Builders in a Box is published by SixSeven Apps.

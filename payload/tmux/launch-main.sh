@@ -75,7 +75,7 @@ if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
     exit 0
 fi
 
-log "launch-main: creating session '$SESSION_NAME' (ai_cli=$ai_cli, project=$project_name)"
+log "launch-main: creating session '$SESSION_NAME' (ai_cli=$ai_cli)"
 
 # FEAT-005: single-session model.
 #

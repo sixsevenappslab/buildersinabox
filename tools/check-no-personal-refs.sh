@@ -33,6 +33,7 @@ EXCLUDES=(
     --exclude=ubuntu-*.iso
     --exclude=BIZ-PLAN-LIFESTYLE.md
     --exclude=TODO-NEXT-ISO.md
+    --exclude=MAINTAINING.md
 )
 
 # Patterns we want to catch.
