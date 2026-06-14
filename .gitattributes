@@ -1,0 +1,24 @@
+# Files and folders that must NEVER end up in a shipped image.
+# `git archive` honours `export-ignore`, so the iso-builder will use
+# `git archive` (not raw clone) to produce the tree it copies onto the USB.
+#
+# If the iso-builder ever switches back to `git clone`, run
+# `tools/check-no-personal-refs.sh` post-clone to verify the tree is clean,
+# and delete the maintainer-only flavor folder explicitly.
+
+payload/flavors/gift/maintainer/ export-ignore
+
+# Internal-only docs that are useful for the maintainer but shouldn't
+# pollute the recipient's device.
+TODO-NEXT-ISO.md export-ignore
+BIZ-PLAN-LIFESTYLE.md export-ignore
+MAINTAINING.md export-ignore
+
+# SDD process docs — internal artefacts, never ship in `git archive`.
+# (Repo browsing on GitHub still shows them; future publish flow may move
+# specs to a separate repo. For the tarball, this is enough.)
+specs/ export-ignore
+
+# Deferred v2 pairing service — design notes only, no implementation.
+# Don't ship it in the tarball.
+pairing/ export-ignore

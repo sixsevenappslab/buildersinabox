@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# bd — brain-dump capture CLI. Appends a JSONL entry to stratops/brain-dump.jsonl.
+#
+# Usage:
+#   bd "watch the latency of the chordna health check"
+#   bd --tag chordna --tag ops "investigate the memory leak"
+#   bd -t growth "Q3 retention campaign idea"
+#
+# The file location follows $BD_FILE if set, otherwise lands next to
+# whoever's running it: ~/ai-platform/stratops/brain-dump.jsonl by default.
+#
+# Atomic: one append per call, under the PIPE_BUF guarantee for lines <4 KB.
+# Created with 0600 perms (user-only) on first use.
+
+set -euo pipefail
+
+BD_FILE="${BD_FILE:-$HOME/ai-platform/stratops/brain-dump.jsonl}"
+MAX_TEXT=4000
+
+usage() {
+    cat <<EOF >&2
+Usage: bd [-t|--tag TAG]... "<text>"
+  Appends a brain-dump entry to $BD_FILE.
+  Multiple --tag flags allowed. Text capped at $MAX_TEXT chars.
+EOF
+    exit 2
+}
+
+tags=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -t|--tag)
+            [[ $# -ge 2 ]] || { echo "bd: --tag requires a value" >&2; exit 2; }
+            tags+=("$2")
+            shift 2
+            ;;
+        -h|--help)
+            usage
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "bd: unknown flag $1" >&2
+            usage
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+[[ $# -ge 1 ]] || usage
+text="$*"
+
+if [[ ${#text} -gt $MAX_TEXT ]]; then
+    echo "bd: text too long (${#text} chars, max $MAX_TEXT)" >&2
+    exit 2
+fi
+
+mkdir -p "$(dirname "$BD_FILE")"
+if [[ ! -f "$BD_FILE" ]]; then
+    touch "$BD_FILE"
+    chmod 0600 "$BD_FILE"
+fi
+
+ts_ms="$(date -u +%s%3N)"
+rand="$(od -An -N4 -tx1 /dev/urandom | tr -d ' \n')"
+id="bd_${ts_ms}_${rand}"
+ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+cwd="$(pwd)"
+
+line="$(jq -cn \
+    --arg id "$id" \
+    --arg ts "$ts" \
+    --arg text "$text" \
+    --arg cwd "$cwd" \
+    --argjson tags "$(printf '%s\n' "${tags[@]:-}" | jq -R . | jq -s 'map(select(length > 0))')" \
+    '{id:$id, ts:$ts, text:$text, tags:$tags, cwd:$cwd, processed:false, disposition:null, target:null, processed_at:null, triage_notes:null}')"
+
+printf '%s\n' "$line" >> "$BD_FILE"
+
+echo "$id"

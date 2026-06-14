@@ -1,0 +1,12 @@
+.DS_Store
+node_modules/
+dist/
+build/
+*.iso
+*.img
+.env
+.env.local
+.wrangler/
+secrets/
+iso-builder/out/
+iso-builder/.staging/

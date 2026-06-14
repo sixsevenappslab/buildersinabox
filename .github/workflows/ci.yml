@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: shellcheck all shell scripts
+        run: |
+          mapfile -t files < <(find . -name '*.sh' -not -path './.git/*' -not -path './payload/flavors/gift/maintainer/*')
+          printf '%s\n' "${files[@]}"
+          shellcheck -S warning "${files[@]}"
+
+      - name: bash -n entry points
+        run: |
+          bash -n payload/install.sh
+          bash -n payload/lib/common.sh
+          [ -f installer/web/install.sh ] && bash -n installer/web/install.sh || true
+
+      - name: No personal references in the shippable tree
+        run: bash tools/check-no-personal-refs.sh
+
+      - name: git archive cleanliness
+        run: |
+          # The shippable tarball must not contain maintainer-only paths.
+          if git archive HEAD | tar -t | grep -E '(^|/)(specs/|payload/flavors/gift/maintainer/)'; then
+            echo "ERROR: maintainer-only paths leaked into git archive" >&2
+            exit 1
+          fi
+          echo "git archive is clean"
