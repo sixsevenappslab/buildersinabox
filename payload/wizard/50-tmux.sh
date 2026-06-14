@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Wizard step: create the tmux 'main' session with the three pre-configured
-# windows. Runs as the target user (not root). The session persists across
-# SSH disconnects, so the user attaches to it from their phone afterwards.
+# Wizard step: create the single 'ai-platform' tmux session running the AI CLI
+# with /tutorial. Runs as the target user (not root). The session persists
+# across SSH disconnects, so the user attaches to it from their phone afterwards.
 
 set -euo pipefail
 

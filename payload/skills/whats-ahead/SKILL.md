@@ -9,17 +9,16 @@ When the user invokes this skill, you give them a 5-minute narrative tour of wha
 
 ## What to cover, in this order
 
-### 1. The three tmux windows are three contexts, not three screens
+### 1. Each tmux session is a context, not just a screen
 
-Tell the user they're in a tmux session called `main`. Cycle with `Ctrl-b n` (next) and `Ctrl-b p` (previous), or `Ctrl-b 1/2/3` to jump directly.
+Tell the user they're in a tmux session called `ai-platform`, opened in `~/ai-platform/` — the workspace root. It survives SSH disconnects, so they can leave and come back.
 
-Each window is a *context* — a folder + an open conversation with you:
+The model is **one session per context**, not windows inside one session:
 
-- **`platform`** — for changes to the devbox itself. Tmux config, scripts, skills, the workspace skeleton. This is the window for "I want to tweak how my dev environment works".
-- **`<their project_name>`** — their main work. The product, the code, the specs. This is where 80% of the time goes.
-- **`stratops`** — strategy and ops. OKRs, roadmap, "what should I work on this quarter", "how is the business doing". Notes that span projects.
+- **`ai-platform`** — the session they start in. The workspace root: cross-cutting changes, the tutorial, deciding what to work on.
+- **`<their project_name>`** — when they create their first project (via `/first-project`), it gets its **own** tmux session. The product, the code, the specs. This is where 80% of the time goes.
 
-The trick: when they switch windows, you (Claude) keep separate context per window. It's like having three colleagues, each remembering different threads.
+Each session is its own conversation with you (Claude), and each shows up as a separate remote session in the Claude Code app sidebar. Switch between them with `tmuxc <name>` (or `tmuxa` to jump back to `ai-platform`). It's like having a colleague per context, each remembering different threads.
 
 ### 2. The way work happens here is spec-driven (SDD)
 

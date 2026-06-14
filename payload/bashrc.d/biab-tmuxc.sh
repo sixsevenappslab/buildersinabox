@@ -13,7 +13,7 @@
 #   tmuxc kill <name>     # kill a session
 #
 # Examples:
-#   tmuxc main                                  # the default session created at first boot
+#   tmuxc ai-platform                            # the default session created at first boot
 #   tmuxc scratch ~/tmp                          # spin up a throwaway context
 #   tmuxc website ~/ai-platform/projects/myapp   # context per project
 
@@ -61,8 +61,8 @@ tmuxc() {
     esac
 }
 
-# Convenience: `tmuxa` = attach to the existing main session (mirrors the
-# maintainer's most-used shortcut).
+# Convenience: `tmuxa` = attach to the default `ai-platform` session created
+# at first boot.
 tmuxa() {
-    tmux attach -t "${1:-main}"
+    tmux attach -t "${1:-ai-platform}"
 }

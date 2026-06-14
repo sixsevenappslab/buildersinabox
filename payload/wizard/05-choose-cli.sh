@@ -20,7 +20,7 @@ fi
 
 prompt_header "Choose your AI coding CLI"
 cat <<'EOF'
-This is the CLI that will run in your three tmux windows after setup,
+This is the CLI that will run in your tmux session after setup,
 and the one your coach (if you set it up later) will invoke headlessly.
 
 Both choices have OAuth device flows that work from your phone.

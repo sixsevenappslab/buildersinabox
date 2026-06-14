@@ -5,19 +5,15 @@ The workspace that gets copied into the user's home directory on first boot. Aft
 ```
 ~/ai-platform/
 ├── CLAUDE.md            # workspace-level instructions
-├── projects/            # empty — first project gets scaffolded here during pairing
+├── projects/            # empty — your first project gets scaffolded here
 └── stratops/            # strategy & ops "mesa" (OKRs, roadmap, notes)
 ```
 
-The user lands in tmux with three windows:
-
-| Window | cwd | Purpose |
-|---|---|---|
-| `platform` | `~/ai-platform/` | Cross-cutting changes to the workspace itself |
-| `<project-name>` | `~/ai-platform/projects/<project-name>/` | Active development |
-| `stratops` | `~/ai-platform/stratops/` | Personal strategy, OKRs, roadmap, decisions |
-
-Each window has Claude Code already running.
+The user lands in a single tmux session called `ai-platform` (cwd
+`~/ai-platform/`) with Claude Code already running, which opens `/tutorial`.
+The tutorial walks you through creating your first project; `/first-project`
+then spins up its own tmux session per project, so each shows up as a separate
+remote session in the Claude Code app.
 
 ## What's in `stratops/`
 
@@ -33,5 +29,5 @@ You can ignore `stratops/` entirely if you're using your devbox just for code. I
 
 ## What's intentionally NOT here
 
-- No pre-installed code in `projects/`. The first project is scaffolded with the name you provide during pairing.
+- No pre-installed code in `projects/`. Your first project is scaffolded with the name you choose in `/tutorial`.
 - No personal data, no credentials, no example projects from other people. This is your devbox.

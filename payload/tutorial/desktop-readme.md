@@ -136,19 +136,20 @@ tmuxc <name>          # attach (or create) a session
 tmuxc <name> <dir>    # create with a specific cwd
 tmuxc kill <name>     # close one
 
-tmuxa                 # shortcut: attach to 'main'
+tmuxa                 # shortcut: attach to 'ai-platform'
 ```
 
 Use it when you want a side context — e.g. `tmuxc scratch ~/tmp` for a
-throwaway poke at something, while your `main` session keeps running.
+throwaway poke at something, while your `ai-platform` session keeps running.
 
 ## Sharing a session live
 
 You can also share any active session with someone else (a friend, a
 teammate, the person who gave you this device). They get a link, they
 see your screen live, they can take over to help. The remote-control
-machinery is already on by default in your three windows, so any of them
-is shareable — ask Claude in-session and it'll generate the link.
+machinery is already on by default in your `ai-platform` session (and any
+project sessions you create), so any of them is shareable — ask Claude
+in-session and it'll generate the link.
 
 ## Backup access — Termius / SSH
 
@@ -159,7 +160,7 @@ your account locked, anything weird), there's a fallback:
 2. Add a host with the name shown by `tailscale status` on the device
    (it's the device's name on your tailnet).
 3. Tailscale SSH handles auth — no key paste needed.
-4. Once in, run `tmux attach -t main`.
+4. Once in, run `tmux attach -t ai-platform`.
 
 Your GitHub SSH keys are also in `~/.ssh/authorized_keys` so a raw
 `ssh <username>@<tailscale-ip>` works too. Both are belt-and-suspenders for

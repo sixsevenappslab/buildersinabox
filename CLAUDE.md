@@ -1,56 +1,62 @@
-# Builders in a Box — Claude Code instructions
+# Builders in a Box — contributor guide
 
-## Project overview
+Guidance for Claude Code (and humans) working in this repository.
 
-USB-based zero-touch provisioning for a personal dev server. Target user: a developer who buys a mini PC and a Builders in a Box USB and wants to be coding remotely from their phone within 15 minutes of plugging it in.
+## What this is
 
-See `README.md` for the full vision.
+Builders in a Box turns any Ubuntu 24.04 machine (mini PC, homelab box, VPS) into
+a personal dev server you reach from your phone — Claude Code (or another AI CLI)
+running in `tmux`, reachable over Tailscale, set up by one command:
 
-## Current phase
+```bash
+curl -fsSL https://buildersinabox.com/install.sh | sudo bash
+```
 
-**Phase 0 — pre-hardware.** The mini PC hasn't been bought yet. Until it arrives, work is limited to:
-- Designing the architecture and contracts (pairing backend API, device state machine, USB token format).
-- Drafting scripts that we'll execute manually on the mini PC once it arrives.
-- Researching hardware candidates and Ubuntu Server 24.04 autoinstall specifics.
+Start with [`README.md`](README.md) for the product overview and
+[`docs/architecture.md`](docs/architecture.md) for how the pieces fit together.
 
-**Do not write code that requires a running mini PC to validate.** Anything device-side has to wait until we can test it on real hardware.
+## Repository layout
 
-## Architecture summary
+- **`payload/`** — everything that ends up on the device. Bash + systemd + a
+  console wizard. `install/*.sh` install the stack once; `wizard/*.sh` run the
+  guided first-boot setup (password, AI-CLI choice, Tailscale, SSH, scaffold,
+  tmux); `skills/<name>/SKILL.md` are the bundled Claude Code / Gemini skills;
+  `skeleton/` is the workspace copied into the user's home; `tutorial/` and the
+  `/tutorial` skill own post-install onboarding.
+- **`installer/`** — the bootstrap path. `installer/web/install.sh` is the
+  `curl|bash` entrypoint that clones the repo and runs `payload/install.sh`.
+- **`iso-builder/`** — repackages the Ubuntu 24.04 server ISO into a
+  self-installing USB image (the optional "gift" edition).
+- **`site/`** — the Cloudflare Pages landing page; `site/build.sh` also serves
+  `install.sh` byte-identical to the bootstrap script.
+- **`tools/`** — maintenance scripts (publishing, the personal-refs guard).
 
-Three components, three repos-within-the-repo:
+## How the device ends up (the model to keep accurate)
 
-1. **`payload/`** — runs on the mini PC after Ubuntu is installed (or applied manually on any Ubuntu by DIY users). Bash + systemd + a console TUI wizard. Handles three OAuth device flows (Tailscale, Claude Code, GitHub via `gh auth login`) by printing URLs to the console for the user to open on their phone, prompts for project name on the console, scaffolds the workspace skeleton (`ai-platform/{projects,stratops}/`), sets up three tmux windows each running Claude Code, and configures SSH for remote access.
+After setup the user lands in **one** tmux session named `ai-platform`
+(cwd `~/ai-platform/`) running their chosen AI CLI, which opens `/tutorial`.
+`/tutorial` walks them through GitHub auth and creating their first project;
+`/first-project` then creates an **independent** tmux session per project, so
+each shows up as its own remote session in the Claude Code app. There is no
+multi-window layout and no separate pairing service — both were earlier designs
+that were dropped. If you touch onboarding copy, keep it consistent with this.
 
-2. **`pairing/`** — DEFERRED to v2. Small web service (Cloudflare Worker) that would relay OAuth URLs from a headless device to the user's phone. In v1, we skip this entirely: the user connects monitor+keyboard for the ~15 min wizard. Keep the folder with a README pointing at v2 scope; do not implement.
+## Code conventions
 
-3. **`installer/`** — generates the bootable USB image. Ubuntu Server 24.04 autoinstall with embedded device token, post-install hook that drops `firmware/` onto the system and enables the first-boot unit.
+- **Bash** for device scripts. `set -euo pipefail` always. Keep them readable
+  and idempotent — install/wizard steps can re-run.
+- All user-facing strings in **English** by default — this is for an
+  international audience. (The optional `biab add sdd` skills are Spanish; that
+  translation is deliberately deferred.)
+- Commit format: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`.
 
-## Key design decisions (locked)
+## Working in this repo
 
-- **Ethernet first, WiFi later.** First boot assumes wired connection. WiFi provisioning is a v2 problem.
-- **v1 = monitor + keyboard for first boot.** The user connects HDMI + USB keyboard to the mini PC for the ~15 min setup wizard (a TUI shell script). Tailscale, GitHub and Claude Code OAuth device flows run on the console — the user reads URLs from the screen and completes login on their phone or laptop. **No pairing backend in v1.** This eliminates Cloudflare Worker, domain, QR-with-token, mobile polling page, deep linking — all deferred to v2.
-- **OAuth device flows, not embedded credentials.** The user logs into *their own* Tailscale, Claude Code, and GitHub accounts. We never see credentials. v1: URLs shown on the mini PC's screen. v2: relayed via pairing backend to phone.
-- **Final state = three tmux windows with Claude Code.** After setup, the user lands (via Termius SSH from phone) inside a tmux session with three windows: `platform` (cwd `~/ai-platform/`), `<project-name>` (cwd `~/ai-platform/projects/<project-name>/`), and `stratops` (cwd `~/ai-platform/stratops/`). Each window has Claude Code running. The project name is captured from the user during the setup wizard.
-- **One unique token per USB.** Generated at flash time, printed as QR on the USB sticker. The token is the only secret the device knows about itself.
-- **Open source.** AGPL for the pairing backend, MIT for firmware and installer. The commercial moat is hardware + hosted service, not code.
+- Quality gate: PR always, CI green before merge. CI runs shellcheck, a
+  personal-refs guard, `bash -n`, and an archive-cleanliness check.
+- SDD (spec-driven development) is **opt-in** on a user's box (`biab add sdd`)
+  and optional here too — small fixes don't need a spec.
+- Anything in `.gitattributes` marked `export-ignore` (maintainer docs, specs)
+  never ships in the published tree; don't put user-facing content there.
 
-## Code conventions for this project
-
-- **Bash** for firmware scripts. Keep them readable, `set -euo pipefail` always.
-- **TypeScript** for the pairing backend (Cloudflare Workers).
-- **Plain HTML + minimal JS** for the pairing web page. Mobile-first. No SPA framework.
-- All user-facing strings in **English** by default — this is for an international audience.
-
-## What to ask before building
-
-- Hardware target: which mini PC are we testing on? Affects autoinstall config (UEFI vs BIOS, disk layout, NIC drivers).
-- Pairing backend hosting: Cloudflare Workers vs self-hosted Node? Affects code style and dependencies.
-- USB flashing process: do we mass-flash with unique tokens, or generate per-USB on demand?
-
-## Out of scope (for now)
-
-- WiFi-only setup
-- Non-x86 hardware (Raspberry Pi etc.)
-- Multi-user devices
-- Web-based IDE (the whole point is mobile SSH into tmux + Claude Code)
-- Anything that requires bundling Anthropic credentials
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.

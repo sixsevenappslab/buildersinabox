@@ -18,3 +18,7 @@ MAINTAINING.md export-ignore
 # (Repo browsing on GitHub still shows them; future publish flow may move
 # specs to a separate repo. For the tarball, this is enough.)
 specs/ export-ignore
+
+# Deferred v2 pairing service — design notes only, no implementation.
+# Don't ship it in the tarball.
+pairing/ export-ignore

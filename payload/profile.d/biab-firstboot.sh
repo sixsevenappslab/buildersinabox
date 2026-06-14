@@ -49,8 +49,8 @@ _biab_firstboot() {
     # straight inside their session.
     if [ ! -f /var/lib/buildersinabox/firstboot.pending ] \
         && command -v tmux >/dev/null 2>&1 \
-        && tmux has-session -t main 2>/dev/null; then
-        exec tmux attach -t main
+        && tmux has-session -t ai-platform 2>/dev/null; then
+        exec tmux attach -t ai-platform
     fi
 }
 
