@@ -34,7 +34,7 @@ After FEAT-001 has shipped (tmux + Claude + Tailscale working), the user *option
 4. Installs `biab-coach` daemon code under `~/.local/share/biab-coach/`.
 5. Writes `~/.config/biab-coach/{config.yaml, secrets.env}`.
 6. Enables `biab-coach.service` as a systemd **user** unit and lingers the user so it survives logout.
-7. Posts a "hola, soy tu coach" first message in `#coach`.
+7. Posts a "hi, I'm your coach" first message in `#coach`.
 
 From then on, the coach lives in `#coach`:
 
@@ -56,7 +56,7 @@ All proactive messages land in `#coach` (not DM, not threads — top-level chann
 
 ### Coach personality (system prompt outline)
 
-> *"Eres el coach personal del dueño de este mini PC. Hablas con empatía, sin paternalismo. Haces preguntas más que dar respuestas. Conoces el contexto técnico (commits, procesos, logs) pero no eres un asistente técnico — eso ya lo tiene en tmux. Tu trabajo es ayudarle a ver lo que él no está viendo: patrones de trabajo, fatiga, decisiones estratégicas pendientes, hábitos. No moralices. No felicites por defecto. Sé honesto, breve, cálido. Si no tienes nada útil que decir, no digas nada."*
+> *"You are the personal coach for the owner of this mini PC. You speak with empathy, never condescension. You ask questions more than you give answers. You know the technical context (commits, processes, logs) but you are not a technical assistant — they already have that in tmux. Your job is to help them see what they aren't seeing: work patterns, fatigue, pending strategic decisions, habits. Don't moralize. Don't congratulate by default. Be honest, brief, warm. If you have nothing useful to say, say nothing."*
 
 The full prompt lives in `~/.config/biab-coach/system-prompt.md` so the user can edit it.
 
@@ -164,14 +164,14 @@ payload/
 | Risk | Mitigation |
 |---|---|
 | `claude -p` or `gemini -p` flag changes or is removed | Wrap each invocation behind `lib/ai-cli.mjs`. Single function per CLI to patch if upstream changes. Pin tested versions in `package.json` engines field. |
-| AI CLI OAuth expires / requires re-login | Daemon detects non-zero exit + login-needed pattern in stderr → posts to `#coach`: "necesito que entres a tmux y ejecutes `<cli>` una vez para refrescar mi login". |
+| AI CLI OAuth expires / requires re-login | Daemon detects non-zero exit + login-needed pattern in stderr → posts to `#coach`: "I need you to jump into tmux and run `<cli>` once to refresh my login". |
 | User runs the coach with Gemini but Gemini's `-p` headless mode behaves differently (e.g. doesn't accept piped stdin, or different flag name) | Wave 2 spike: validate both CLIs in headless mode against the same prompt shape. If incompatible, ship coach for the working CLI only at v1 launch; track the other as a follow-up. |
 | Slack Socket Mode disconnects | Built-in reconnect in `@slack/socket-mode`. Log disconnect events. After 5 consecutive failed reconnects, post a self-diagnostic to logs and stop (don't spam). |
 | Daemon crashes mid-conversation | systemd `Restart=on-failure` with `RestartSec=10`. Conversation state is in Slack itself (threads), not in daemon memory. |
-| `memory.md` grows unbounded | Soft cap at 8 KB; when exceeded, the coach is asked at next interaction to "compactar memoria.md preservando lo crítico" and rewrite it. |
+| `memory.md` grows unbounded | Soft cap at 8 KB; when exceeded, the coach is asked at next interaction to "compact memory.md while preserving what's critical" and rewrite it. |
 | Proactive messages become annoying | Hard cap: max 1 proactive msg per 4h window across all triggers. User can disable any trigger by setting `enabled: false` in `triggers.yaml`. `/coach silencio 24h` Slack command pauses all proactives. |
 | Server signal commands hang (e.g. flaky disk) | All `server-signals.mjs` calls wrapped in 5-second timeout. On timeout, signal is reported as "unavailable" in context, not blocking. |
-| User accidentally invites others to `#coach` | Coach reads channel members on each message; if > 1 human member, posts "este canal está pensado para ser solo tú y yo. ¿estás de acuerdo en que vean nuestras conversaciones?" and pauses proactives until confirmed. |
+| User accidentally invites others to `#coach` | Coach reads channel members on each message; if > 1 human member, posts "this channel is meant to be just you and me. are you OK with them seeing our conversations?" and pauses proactives until confirmed. |
 | Token leakage via logs | `conversations/*.jsonl` only contains prompts/responses, never env vars. `secrets.env` never read into log statements. shellcheck and a grep-based pre-commit hook to catch accidental token logging. |
 
 ### Implementation plan (waves)
@@ -244,13 +244,13 @@ No UTMs, no SEO, no funnels — it's not a marketing surface, it's a product sur
 
 - [ ] Slack token invalid at startup → daemon exits with a clear log line; setup script detects this and shows fix instructions.
 - [ ] User invites a second human to `#coach` → daemon posts the privacy nudge and pauses proactives until confirmation.
-- [ ] `claude -p` exits non-zero with "please login" → daemon posts the "necesito que refresques mi login" message; does not retry until next message.
+- [ ] `claude -p` exits non-zero with "please login" → daemon posts the "I need you to refresh my login" message; does not retry until next message.
 - [ ] `memory.md` corrupted (invalid UTF-8) → daemon backs it up to `memory.md.broken-<timestamp>` and starts fresh.
 - [ ] System clock jump (NTP correction) → scheduler reschedules instead of double-firing.
 - [ ] Slack Socket Mode disconnect: auto-reconnects within 60s; logs but does not message.
 - [ ] User sends a message exactly when a proactive is about to fire: reactive wins, proactive is delayed by 5 min.
 - [ ] Channel members guard: bot itself counts as a member but is not "human" — must filter by `is_bot`.
-- [ ] User asks the coach to read a specific file ("¿qué te parece este código?") → coach responds that it doesn't read code on purpose, and suggests tmux+Claude for that.
+- [ ] User asks the coach to read a specific file ("what do you think of this code?") → coach responds that it doesn't read code on purpose, and suggests tmux+Claude for that.
 
 ### Regression plan
 

@@ -164,7 +164,6 @@ bib_flavor_resolve() {
 #   "phases": {
 #     "stack_installed": false,
 #     "tailscale_done": false,
-#     "gh_done": false,
 #     "ai_cli_done": false,
 #     "scaffold_done": false,
 #     "tmux_done": false
@@ -228,7 +227,6 @@ state_init() {
             phases: {
                 stack_installed: false,
                 tailscale_done: false,
-                gh_done: false,
                 ai_cli_done: false,
                 scaffold_done: false,
                 tmux_done: false

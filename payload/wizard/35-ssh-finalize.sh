@@ -26,9 +26,9 @@ target_home="$(getent passwd "$target_user" | cut -d: -f6 || true)"
 
 # ---------------------------------------------------------------------------
 # 1. Prepare ~/.ssh and an empty authorized_keys with safe perms.
-#    GitHub key import has moved to 20-gh-login (runs in SSH phase, after
-#    gh is actually authenticated). Here we only set up the directory so
-#    the import has somewhere to write.
+#    GitHub key import happens later in /tutorial (Beat 2), after gh is
+#    actually authenticated. Here we only set up the directory so the
+#    import has somewhere to write.
 # ---------------------------------------------------------------------------
 ssh_dir="${target_home}/.ssh"
 auth_keys="${ssh_dir}/authorized_keys"

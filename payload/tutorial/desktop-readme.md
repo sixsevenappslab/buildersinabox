@@ -186,7 +186,6 @@ the rare day when the primary path is down.
 ~/.agents/skills/                <- bundled skills (and any you add)
 ~/.claude/skills/                <- same skills, symlinked from above
 ~/.bashrc.d/                     <- shell helpers like tmuxc
-~/.config/biab-coach/secrets.env <- Slack tokens (if you ran 60-slack-bootstrap)
 /var/lib/buildersinabox/         <- setup state (don't touch unless asked)
 /var/log/buildersinabox/         <- bootstrap + wizard logs
 ```

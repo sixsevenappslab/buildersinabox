@@ -286,7 +286,7 @@ log "install: ai_cli=${CHOSEN_CLI} flavor=${BIB_FLAVOR_RESOLVED} force=${FORCE} 
 
 if [[ "$FORCE" -eq 1 ]]; then
     log "install: --force given, resetting wizard phases"
-    for phase in tailscale_done gh_done ai_cli_done scaffold_done tmux_done; do
+    for phase in tailscale_done ai_cli_done scaffold_done tmux_done; do
         phase_reset "$phase"
     done
 fi

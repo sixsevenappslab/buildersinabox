@@ -54,7 +54,7 @@ Eject the USB safely. Plug it into the target mini PC.
 3. Ubuntu autoinstall runs unattended for ~8–12 minutes. Logs scroll on the screen.
 4. The machine reboots itself when the install is complete.
 5. tty1 auto-logins as `builder`. The profile-d trigger sees the pending marker and runs `install.sh`. The user sees the wizard intro within ~30 seconds of the reboot.
-6. From here the experience is the wizard you've already tested (01-set-password → 05-choose-cli → 10-tailscale → 20-gh → 30-ai-cli → 35-ssh-finalize → 40-scaffold → 50-tmux → 60-slack-bootstrap).
+6. From here the experience is the wizard you've already tested (01-set-password → 10-tailscale → 35-ssh-finalize → 36-phone-bridge → [SSH from phone/laptop] → 05-choose-cli → 38-ai-cli-login → 40-scaffold → 50-tmux). GitHub auth happens afterwards inside Claude Code via `/tutorial`.
 
 ## Iteration loop
 

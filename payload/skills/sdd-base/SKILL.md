@@ -1,6 +1,6 @@
 ---
 name: sdd-base
-description: Spec-Driven Development — base workflow for Claude Code. One FEAT-NNN document per feature, lifecycle draft → active → completed. Two modes (starter / full). Invoked directly or through the specialized skills sdd-coordinator / sdd-spec-writer / sdd-qa / sdd-growth / sdd-docs / spec-implementer.
+description: Spec-Driven Development — base workflow for Claude Code. One FEAT-NNN document per feature, lifecycle draft → active → completed. Two modes (starter / full). Invoked directly or through the specialized skills sdd-coordinator / sdd-spec-writer / sdd-qa / sdd-growth / sdd-docs.
 ---
 
 # Spec-Driven Development (SDD) — Base
@@ -11,7 +11,7 @@ This skill describes the **base workflow** that every other SDD skill builds on.
 
 ## Two modes
 
-SDD ships in two flavours. Pick the one that matches the size of the work and the user's preference.
+SDD ships in two flavors. Pick the one that matches the size of the work and the user's preference.
 
 | Mode | Sections | Template | Use it when |
 |------|----------|----------|-------------|
@@ -39,7 +39,7 @@ If the file is missing, fall back to all defaults.
 
 ### `~/.claude/projects.yaml`
 
-Lists the projects that SDD-aware skills (especially `spec-implementer`) should know about. Schema example at `config/projects.example.yaml`. Each entry can specify `path`, `type`, `base_branch`, `deploy_cmd`, `specs_root`, and `quality_gates`.
+Lists the projects that SDD-aware skills should know about. Schema example at `config/projects.example.yaml`. Each entry can specify `path`, `type`, `base_branch`, `deploy_cmd`, `specs_root`, and `quality_gates`.
 
 If the file is missing, **auto-discover** projects by scanning `$BUILDERSINABOX_ROOT/projects/*/` (default root: `~/ai-platform`) and treating any folder that contains a `specs/` subdirectory as a project. Override the root via the `BUILDERSINABOX_ROOT` environment variable.
 
@@ -90,7 +90,7 @@ Every full FEAT lists explicit Boundaries:
 ```
 draft/ ──DoR pass──▶ active/ ──merged + deployed──▶ completed/
    │                     │
-   └── stale (>45d) ─────┴─▶ spec-cleanup (archive / drop / promote)
+   └── stale (>45d) ─────┴─▶ manual cleanup (archive / drop / promote)
 ```
 
 | Folder | What lives here |
@@ -147,9 +147,9 @@ Not every change needs a full FEAT. Pick the right tier up front.
 
 | Tier | When | Process |
 |------|------|---------|
-| **Direct** | Hotfixes, simple bugs, < 2h changes | Fix → PR with clear description → CI → review → merge |
+| **Direct** | Hotfixes, simple bugs, < 2h changes | Fix → PR with clear description → CI → `/code-review` → merge |
 | **Spec-light** | Small features with business logic | `sdd-coordinator` creates a minimal FEAT → implement → PR → review |
-| **Full SDD** | Medium/large features, architectural changes | `sdd-coordinator` orchestrates `sdd-spec-writer` + `sdd-qa` (+ `sdd-growth` if applicable) → DoR → validation → `spec-implementer` → PR → `pr-review` |
+| **Full SDD** | Medium/large features, architectural changes | `sdd-coordinator` orchestrates `sdd-spec-writer` + `sdd-qa` (+ `sdd-growth` if applicable) → DoR → validation → implement → PR → `/code-review` |
 
 When unsure, ask the user which tier applies before writing anything.
 
@@ -162,11 +162,8 @@ This skill is the foundation. Specialized skills handle individual sections:
 - `sdd-qa` — QA Lead voice. Fills §4.
 - `sdd-growth` — Growth Lead voice. Fills §3 when the feature has a growth/marketing surface.
 - `sdd-docs` — Plans §5 post-merge documentation actions.
-- `spec-implementer` — End-to-end pipeline: reads a FEAT in `active/`, implements it, opens a PR, optionally deploys.
-- `spec-cleanup` — Interactive triage of stale drafts.
-- `spec-triage` — Cross-project audit of FEAT health.
 
-You don't need all of them. A minimal flow is `sdd-coordinator` → human implements → done.
+You don't need all of them. A minimal flow is `sdd-coordinator` → you implement against the spec → `/code-review` → done. Implementation, PR review, and stale-draft cleanup are done by you in-session here (with `/code-review` for reviews); there's no background automation in this bundle.
 
 ## Implementation plan: waves
 
@@ -179,7 +176,7 @@ Wave 3 — edge cases + error handling
 Wave 4 — observability + tests
 ```
 
-Waves help `spec-implementer` checkpoint progress and let humans intervene between waves if something looks off.
+Waves let you checkpoint progress and intervene between waves if something looks off.
 
 ## Quality gates
 

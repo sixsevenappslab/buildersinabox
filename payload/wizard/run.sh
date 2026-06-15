@@ -105,9 +105,9 @@ run_step "36-phone-bridge.sh"      # pauses here on console (exit 78)
 
 # PHASE B (SSH from phone or laptop): the heavy OAuth steps land here.
 # Per FEAT-005:
-#  - 20-gh-login is intentionally NOT here. GitHub auth moves into the
-#    /tutorial skill (Beat 2), so the user does it inside Claude Code
-#    where copy-paste + Claude's reaction loop are available.
+#  - GitHub auth is NOT a wizard step. It happens inside the /tutorial
+#    skill (Beat 2), where copy-paste + Claude's reaction loop are
+#    available; that beat also imports the user's GitHub SSH keys.
 #  - 40-scaffold builds the BASE workspace only. Project picker + FEAT
 #    spec copy + GitHub repo creation live inside Claude (/tutorial
 #    Beat 4 → /first-project).
@@ -116,10 +116,9 @@ run_step "38-ai-cli-login.sh"      # long Claude URL, copy-paste in SSH
 run_step "40-scaffold.sh"          # base ai-platform/ skeleton, no project
 run_step "50-tmux.sh"              # single 'ai-platform' session, /tutorial
 
-# Note: 60-slack-bootstrap.sh deliberately NOT in the wizard chain.
-# Pasting long Slack tokens on a console keyboard is awful. The Slack
-# setup happens later from the Claude Code app on the phone, as part
-# of implementing the coach project (FEAT-002 Wave 1).
+# Note: there is no Slack wizard step. Setting up Slack (e.g. for the
+# coach example, FEAT-002) happens later from the Claude Code app, as
+# part of implementing that project — not on the first-boot console.
 
 # Clear the first-boot pending marker so /etc/profile.d/biab-firstboot.sh
 # doesn't relaunch the wizard on subsequent logins.

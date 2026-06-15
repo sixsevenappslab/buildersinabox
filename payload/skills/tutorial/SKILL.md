@@ -111,7 +111,24 @@ After they confirm, verify (this is the only signal that actually matters):
 gh auth status 2>&1
 ```
 
-If green: mark Beat 2 done. If not green: surface the actual gh error and offer one of:
+If green, import the user's GitHub SSH keys into `~/.ssh/authorized_keys`. This is a belt-and-suspenders fallback: Tailscale SSH is the primary path, but if the Claude app or Tailscale is ever unreachable, a raw `ssh <user>@<tailscale-host>` from any machine holding their GitHub key still gets them in.
+
+```bash
+mkdir -p ~/.ssh && chmod 700 ~/.ssh
+touch ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
+if keys="$(gh api /user/keys --jq '.[].key' 2>/dev/null)"; then
+  added=0
+  while IFS= read -r k; do
+    [ -z "$k" ] && continue
+    grep -Fqx "$k" ~/.ssh/authorized_keys || { printf '%s\n' "$k" >> ~/.ssh/authorized_keys; added=$((added+1)); }
+  done <<< "$keys"
+  echo "Imported $added GitHub SSH key(s) into ~/.ssh/authorized_keys."
+else
+  echo "No GitHub SSH keys fetched (you may have none uploaded) — Tailscale SSH still works regardless."
+fi
+```
+
+Then mark Beat 2 done. If `gh auth status` is not green: surface the actual gh error and offer one of:
 - retry `gh auth login --web` (sometimes the polling times out)
 - fallback to Personal Access Token: walk the user through `https://github.com/settings/tokens/new` (scopes: `repo`, `read:org`, `gist`, `workflow`), then `echo <TOKEN> | gh auth login --with-token --hostname github.com`
 
