@@ -2,7 +2,7 @@
 id: FEAT-010
 title: landing-page
 project: buildersinabox
-status: draft
+status: completed
 phase: requisitos
 priority: medium
 created: 2026-06-13

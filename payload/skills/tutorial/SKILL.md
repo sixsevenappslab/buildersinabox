@@ -217,9 +217,9 @@ If they skip: note it and move on. Don't sell.
 
 Mark Beat 6 done or skipped.
 
-### Beat 7 — `tmuxc`, `bd`, and `/morning-check` (2 min, mandatory)
+### Beat 7 — `tmuxc` and `/morning-check` (1 min, mandatory)
 
-Three small tools you'll use most days. Demo all three quickly.
+Two small tools you'll use most days. Keep this beat SHORT — the user is ~25 minutes in.
 
 **1. `tmuxc`** — spin up a tmux session in any folder.
 
@@ -229,7 +229,7 @@ tmuxc scratch ~/tmp    # create+attach 'scratch' with cwd ~/tmp
 tmuxc kill scratch     # close it
 ```
 
-> *Every time you make a project, I spin up a new tmux session for it. But you can do this yourself for any folder. So if you want a session for your strategy & notes space later: `tmuxc stratops ~/ai-platform/stratops` and it'll appear in the Claude Code app sidebar like any other. Your stratops folder already has templates (PORTFOLIO, OKRs, ROADMAP, FINANCIAL, monthly review) — open the session and ask me to walk through filling them in.*
+> *Every time you make a project, I spin up a new tmux session for it. But you can do this yourself for any folder — the new session appears in the Claude Code app sidebar like any other.*
 
 Demo:
 
@@ -239,25 +239,13 @@ tmux ls
 tmux kill-session -t demo
 ```
 
-**2. `bd`** — brain-dump capture. Drop an idea anywhere, anytime.
+**2. `/morning-check`** — quick "where am I" survey.
 
-```bash
-bd "burn rate widget should be top-right not bottom"
-bd -t finance -t ui "tax categorisation for ETFs"
-```
+> *Type `/morning-check` at the start of a session and you get a 30-second snapshot: tmux sessions, last 24h commits, open PRs, disk + RAM, tailnet. Designed for phone-from-bed mornings.*
 
-> *`bd` appends a one-line JSON entry to `~/ai-platform/stratops/brain-dump.jsonl`. Cheap, always available, never gets in your way. When you have a quiet moment, ask me to triage what's there — I can sort the entries into project ideas, todos, or noise.*
+One closing sentence, no demo:
 
-Demo:
-
-```bash
-bd "tutorial: walk the user through the brain-dump workflow"
-tail -1 ~/ai-platform/stratops/brain-dump.jsonl
-```
-
-**3. `/morning-check`** — quick "where am I" survey.
-
-> *Type `/morning-check` at the start of a session and you get a 30-second snapshot: tmux sessions, last 24h commits, open PRs, unprocessed brain-dumps, disk + RAM, tailnet. Designed for phone-from-bed mornings.*
+> *There's also `bd "some idea"` — a one-line brain-dump capture you can fire from any terminal; ask me about it whenever an idea strikes.*
 
 Mark Beat 7 done.
 

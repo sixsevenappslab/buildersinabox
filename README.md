@@ -1,6 +1,6 @@
 # Builders in a Box
 
-> **Your own AI dev box. Plug in, code from your phone in 15 minutes.**
+> **Your own AI dev box. One command, ~15 minutes to coding from your phone.**
 
 Turn any Ubuntu 24.04 machine — a mini PC, a homelab box, a VPS — into a personal development server you reach from your phone, with [Claude Code](https://claude.com/claude-code) (or another AI CLI) ready to ship. One command sets it up; [Tailscale](https://tailscale.com) makes it reachable from anywhere; `tmux` keeps your sessions alive.
 
@@ -8,13 +8,13 @@ Turn any Ubuntu 24.04 machine — a mini PC, a homelab box, a VPS — into a per
 curl -fsSL https://buildersinabox.com/install.sh | sudo bash
 ```
 
-**Status:** 🚧 early but real. The installer works on a fresh Ubuntu 24.04; the hosted one-liner and the landing page are landing as we go. Until then, the [git-clone install](#install) below works today.
+**Status:** 🚧 early but real. The hosted one-liner above and the [git-clone install](#install) below both work on a fresh Ubuntu 24.04.
 
 ---
 
 ## What you get
 
-After ~15 minutes:
+About 15 minutes gets you to your first SSH session from your phone; the guided tutorial after that is ~12 more. At the end:
 
 - **Claude Code reachable from your phone.** SSH in from [Termius](https://termius.com) (or any SSH client) over your private Tailscale network — no port forwarding, no public IP, end-to-end encrypted.
 - **A `tmux` session that never dies.** Your work persists across disconnects. Pick up exactly where you left off, from the couch, a coffee shop, or a flight.
@@ -24,8 +24,8 @@ After ~15 minutes:
 ## What you need
 
 - **A machine running Ubuntu Server 24.04 (x86-64).** A mini PC (Beelink, GEEKOM, Minisforum), a spare desktop, a homelab VM, or a cloud VPS all work. ~4 GB RAM is comfortable.
-- **Ethernet for the first boot** (Wi-Fi provisioning is on the roadmap).
-- **Accounts you already have or can make in 30 seconds:** Tailscale, and Claude (or Gemini). GitHub is optional but recommended.
+- **A network connection.** An already-running machine or VPS uses whatever it has; the USB/gift image needs wired Ethernet for its first boot (Wi-Fi provisioning is on the roadmap).
+- **Accounts:** [Tailscale](https://tailscale.com) (the free plan is plenty) and either a **paid Claude subscription** (Pro or above — Claude Code is included in paid plans, not the free tier) or a **Google account** for Gemini CLI. GitHub is optional but recommended.
 
 ## Install
 
@@ -61,15 +61,35 @@ Your phone ──Tailscale──▶ your mini PC ──▶ tmux + Claude Code
 
 More detail in [`docs/architecture.md`](docs/architecture.md).
 
+## What it changes on your system
+
+Everything the installer touches, so you can audit it and undo it:
+
+- **Packages:** tmux, jq, the GitHub CLI, Tailscale, and your chosen AI CLI (Claude Code or Gemini).
+- **Files:** the repo at `/opt/buildersinabox`; the `biab` and `bd` commands in `/usr/local/bin`; state in `/var/lib/buildersinabox`; logs in `/var/log/buildersinabox`; an autologin drop-in for `tty1` and a first-boot trigger in `/etc/profile.d/`; small shell helpers in `~/.bashrc.d/`.
+- **SSH:** once Tailscale is up, sshd is bound to your Tailscale address only (a drop-in in `/etc/ssh/sshd_config.d/`). If you're connected over SSH from outside your tailnet — typical on a VPS — the wizard warns you and asks before doing this.
+- **Workspace:** `~/ai-platform/` scaffolded in the target user's home.
+
+To remove all of it:
+
+```bash
+sudo /opt/buildersinabox/payload/install.sh --uninstall
+```
+
+It leaves your home directory, Tailscale, and your GitHub and Claude logins untouched.
+
+## Security model
+
+Early-2026 scans found tens of thousands of self-hosted AI agent boxes exposed to the public internet, most with authentication bypasses. Builders in a Box is designed so there is nothing to expose:
+
+- **Zero public ports.** Nothing listens on the open internet. Once Tailscale is up, sshd binds to your private Tailscale address only — and Ubuntu's `ssh.socket` activation is disabled so that bind actually holds. No port forwarding, no public IP, no reverse proxy.
+- **Auth stays inside your tailnet.** SSH (Tailscale SSH, your GitHub public keys, or your sudo password) is only reachable from devices on your private Tailscale network. Root login over SSH is key-only (`prohibit-password`).
+- **Lockout-safe hardening.** If you're connected from outside the tailnet — typical on a VPS — the wizard warns and asks before restricting sshd, instead of cutting you off mid-session.
+- **Auditable install.** The script served at `buildersinabox.com/install.sh` is pinned to the release tag it shipped with, so the code you read is the code it fetches. [What it changes](#what-it-changes-on-your-system) lists every path it touches; `--uninstall` reverses it.
+
 ## Roadmap
 
-Builders in a Box is the first module of a small, opinionated toolkit for solo developers. Coming as separate opt-in modules:
-
-- **Conerator** — a content engine that turns project data into posts across platforms.
-- **Observio** — a cost + usage dashboard for your AI CLIs and your box.
-- **Pathtrip** — natural-language web automation (scrape and act on any site).
-
-Plus: Wi-Fi-first-boot, a richer module-install command (`biab install <module>`), and more hardware-tested images.
+Wi-Fi first boot, more hardware-tested images, and a `biab install <module>` command for optional add-ons.
 
 ## Contributing
 

@@ -45,8 +45,22 @@ git archive HEAD | tar -x -C "$TMP"
 file_count="$(find "$TMP" -type f | wc -l | tr -d ' ')"
 echo "publish: extracted $file_count files from git archive HEAD"
 
+# --- Pin the published bootstrap to the release tag -------------------------
+# The script people audit at buildersinabox.com/install.sh must fetch exactly
+# the code they audited, not whatever main HEAD is by the time they run it.
+# The dev tree keeps `main` as the default ref; every tagged release rewrites
+# it in the published copy.
+if [[ -n "$TAG" ]]; then
+    for f in installer/web/install.sh site/install.sh; do
+        sed -i "s|^REF=\"\${BIB_REF:-main}\"\$|REF=\"\${BIB_REF:-${TAG}}\"|" "$TMP/$f"
+        grep -q "BIB_REF:-${TAG}" "$TMP/$f" \
+            || die "ABORT — could not pin BIB_REF to ${TAG} in $f (default-ref line changed?)"
+    done
+    echo "publish: bootstrap default ref pinned to ${TAG}"
+fi
+
 # --- Gate 1: explicit deny-list of internal paths --------------------------
-for forbidden in specs payload/flavors/gift/maintainer BIZ-PLAN-LIFESTYLE.md TODO-NEXT-ISO.md MAINTAINING.md; do
+for forbidden in specs payload/flavors/gift/maintainer BIZ-PLAN-LIFESTYLE.md LAUNCH-PLAN.md TODO-NEXT-ISO.md MAINTAINING.md; do
     if [[ -e "$TMP/$forbidden" ]]; then
         die "ABORT — internal path leaked into the archive: $forbidden"
     fi

@@ -2,7 +2,7 @@
 id: FEAT-001
 title: v1-first-boot-wizard-and-payload
 project: buildersinabox
-status: draft
+status: completed
 priority: high
 complexity: high
 created: 2026-05-25

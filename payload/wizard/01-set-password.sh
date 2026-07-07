@@ -47,9 +47,9 @@ IMPORTANT — read this slowly:
     drawer — anywhere safe that's not this computer.
   * Nobody can recover it for you. Not the person who gave you this
     device, not me. There's no "forgot password" link.
-  * If you lose it, you re-flash the USB and start over. Your code
-    survives (it's on GitHub), but everything else on this device is
-    gone.
+  * If you lose it, you reinstall this machine and start over (for
+    the USB gift edition, that means re-flashing the stick). Your code
+    survives (it's on GitHub), but everything else here is gone.
 
 The username this password is for is: ${target_user}
 

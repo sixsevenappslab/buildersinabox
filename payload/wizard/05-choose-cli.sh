@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Wizard step: pick the AI CLI. Persists the choice in state.json.
-# Skipped if state.ai_cli is already set (use --force from bootstrap to redo).
+# Skipped if state.ai_cli is already set — which install.sh guarantees today
+# (it asks interactively, or takes --ai-cli/BIB_AI_CLI, before the stack
+# install). Kept as a fallback for state files that lack ai_cli.
 
 set -euo pipefail
 

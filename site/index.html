@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Builders in a Box — your own AI dev box</title>
-<meta name="description" content="Plug in, code from your phone in 15 minutes. One-command install on any Ubuntu 24.04.">
+<meta name="description" content="One command, ~15 minutes to coding from your phone. Installs on any Ubuntu 24.04.">
 <meta property="og:title" content="Builders in a Box">
-<meta property="og:description" content="Your own AI dev box. Plug in, code from your phone in 15 minutes.">
+<meta property="og:description" content="Your own AI dev box. One command, ~15 minutes to coding from your phone.">
 <style>
   :root { color-scheme: light dark; --fg:#111; --dim:#666; --bg:#fafafa; --card:#fff; --accent:#1769ff; --code:#0b1020; }
   @media (prefers-color-scheme: dark){ :root{ --fg:#eee; --dim:#999; --bg:#0d0d10; --card:#16161c; --accent:#5b9bff; --code:#06080f; } }
@@ -31,7 +31,7 @@
 <body>
 <main>
   <h1>Your own AI dev box.</h1>
-  <p class="tag">Plug in, code from your phone in 15 minutes — on any Ubuntu 24.04 machine you own.</p>
+  <p class="tag">Secure by default: zero public ports, everything behind Tailscale. One command, ~15 minutes to coding from your phone — on any Ubuntu 24.04 machine you own.</p>
 
   <div class="cmd">
     <code id="oneliner">curl -fsSL https://buildersinabox.com/install.sh | sudo bash</code>
@@ -45,15 +45,19 @@
 
   <p><strong>What you get:</strong></p>
   <ul>
-    <li>Claude Code (or another AI CLI) reachable from your phone over Tailscale — no port forwarding, no public IP.</li>
+    <li>Claude Code (or another AI CLI) reachable from your phone over Tailscale — no port forwarding, no public IP, nothing listening on the open internet.</li>
     <li>A <code>tmux</code> session that survives disconnects. Pick up from the couch, a coffee shop, a flight.</li>
     <li>A scaffolded workspace and a guided tutorial that gets you building your first project.</li>
   </ul>
 
-  <p class="note">Bring your own Ubuntu 24.04 box — a mini PC, a homelab VM, or a VPS. Open source, MIT.</p>
+  <p class="note">Bring your own Ubuntu 24.04 box — a mini PC, a homelab VM, or a VPS. You'll also need a paid Claude subscription (Pro or above) or a Google account for Gemini CLI; Tailscale's free plan is plenty. Open source, MIT.</p>
+
+  <p class="note">The README lists <a href="https://github.com/sixsevenappslab/buildersinabox#what-it-changes-on-your-system">everything the installer changes</a> and the <a href="https://github.com/sixsevenappslab/buildersinabox#security-model">security model</a>; <code>--uninstall</code> removes it all.</p>
+
+  <p class="note">Just want Claude working in the background? Anthropic's Cowork does that without a server. This is for when the agent needs <em>your</em> machine — your files, your LAN, your credentials, your cron jobs.</p>
 
   <footer>
-    Builders in a Box, by SixSeven Apps. Modules coming: Conerator, Observio, Pathtrip.
+    Builders in a Box, by SixSeven Apps.
     <br>Run <code>curl -fsSL https://buildersinabox.com/install.sh</code> (without the pipe) to read it before you run it.
   </footer>
 </main>

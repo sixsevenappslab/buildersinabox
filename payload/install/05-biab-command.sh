@@ -26,8 +26,8 @@ cat > "$target" <<'WRAPPER'
 #   biab update         — git pull the BIAB repo + re-run install scripts
 #
 # `update` is the recommended way to receive bug fixes and new bundled
-# skills/specs without re-flashing the USB. Requires the upstream repo
-# at /opt/buildersinabox to be a git checkout (it is, by default).
+# skills/specs without reinstalling. Requires the upstream repo at
+# /opt/buildersinabox to be a git checkout (it is, by default).
 
 exec_bootstrap() {
     exec sudo --preserve-env=SSH_CONNECTION,SSH_CLIENT,SSH_TTY \
@@ -75,9 +75,13 @@ do_update() {
         echo "(this device was installed before remote updates were supported, or the .git folder was removed)" >&2
         exit 1
     fi
-    echo "==> Pulling latest BIAB into $repo"
-    sudo git -C "$repo" fetch --quiet --all
-    sudo git -C "$repo" pull --ff-only
+    echo "==> Syncing latest BIAB into $repo"
+    # Releases are fresh-history snapshots (publish.sh force-pushes) and
+    # tag-pinned installs have a tag-only fetch refspec — a plain pull can
+    # never fast-forward here. Hard-sync to the latest published main.
+    sudo git -C "$repo" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+    sudo git -C "$repo" fetch --quiet --force --tags origin
+    sudo git -C "$repo" checkout --quiet -B main refs/remotes/origin/main
     echo "==> Re-running install scripts (idempotent, no wizard)"
     # install.sh --skip-wizard runs every install/*.sh again. The
     # individual scripts are idempotent (apt installs no-op if present,
@@ -103,7 +107,7 @@ biab — Builders in a Box CLI
   biab           resume the installer from the last completed step
   biab status    print state.json
   biab logs      follow the bootstrap log
-  biab update    pull latest BIAB + re-run install scripts (no re-flash needed)
+  biab update    pull latest BIAB + re-run install scripts (no reinstall needed)
   biab add sdd   install the optional spec-driven-development skills
   biab help      this message
 EOF

@@ -2,7 +2,7 @@
 id: FEAT-012
 title: launch-demo-assets
 project: buildersinabox
-status: draft
+status: active
 priority: high
 complexity: medium
 created: 2026-06-15

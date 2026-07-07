@@ -2,7 +2,7 @@
 id: FEAT-007
 title: curl-bash-installer
 project: buildersinabox
-status: draft
+status: completed
 phase: requisitos
 priority: high
 complexity: medium

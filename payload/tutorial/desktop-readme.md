@@ -41,7 +41,7 @@ in every window automatically during setup.
 
 **Also works on your laptop.** Claude Code has a Mac/Windows/Linux app
 too — install it, sign in with the same account, and you'll see the
-exact same three sessions there. Same conversation, same context, just
+exact same sessions there. Same conversation, same context, just
 on a bigger screen with a real keyboard. Use the phone for quick
 checks; switch to the laptop for deep work. The session doesn't care
 where you are.
@@ -62,11 +62,11 @@ its own session — same shape, different folder, separate sidebar item
 in the Claude Code app.
 
 If Remote Control ever needs to be re-enabled (after a daemon restart,
-for example), just rerun `~/ai-platform/payload/tmux/launch-main.sh`.
+for example), just rerun `/opt/buildersinabox/payload/tmux/launch-main.sh`.
 
 ## Talking to Claude
 
-When you're inside any of the three sessions, just type. Claude listens.
+When you're inside any session, just type. Claude listens.
 Try:
 
 > *"Help me sketch what a slack scheduler would look like"*
@@ -227,7 +227,7 @@ own monitor and you're stuck, SSH in from your phone or laptop:
 
 - **Claude Code app doesn't see your sessions:** confirm `/remote-control`
   is active in each window. The launcher script
-  `~/ai-platform/payload/tmux/launch-main.sh` re-applies it.
+  `/opt/buildersinabox/payload/tmux/launch-main.sh` re-applies it.
 - **Claude says "please login" or refuses to start:** SSH in (fallback
   path above), run `claude` once interactively, do the login again.
 - **Mobile app can't reach the device at all:** check `tailscale status`
@@ -238,51 +238,23 @@ own monitor and you're stuck, SSH in from your phone or laptop:
 
 ## Recovery — starting over from scratch
 
-You own this hardware. If you ever need to wipe everything and start
-fresh — either back to a clean Builders in a Box, or all the way back
-to Windows — both paths are open.
+You own this machine. If you ever need to wipe everything and start
+fresh, reinstall Ubuntu Server 24.04 (or re-provision the VPS, or
+re-flash the USB stick if this box came as a gift) and run the
+installer again:
 
-### Option A: clean reinstall of Builders in a Box
-
-This is the easy path. The USB stick that came with this gift is also
-the recovery image — it always does the same thing:
-
-1. Plug the USB stick into this device.
-2. Power off the device. Power on again.
-3. Press F7 (or F11/F12 depending on the mini PC brand) at the boot
-   logo, pick "UEFI: Flash, Partition 2".
-4. GRUB auto-selects "Builders in a Box — Autoinstall" after 3 seconds.
-5. The disk gets wiped and Ubuntu reinstalls in ~10 minutes.
-6. The wizard fires on first boot. You walk through it again.
+    curl -fsSL https://buildersinabox.com/install.sh | sudo bash
 
 Your code is safe — it lives on GitHub. Reinstalling only loses local
 state (logs, the local Claude session, anything you haven't pushed).
 
-### Option B: go back to Windows
+To remove Builders in a Box from this machine without reinstalling
+the OS:
 
-The mini PC came with Windows 11 OEM. **That licence is permanently
-baked into the UEFI firmware** — you didn't lose it when we wiped the
-disk for Builders in a Box. To get Windows back:
+    sudo /opt/buildersinabox/payload/install.sh --uninstall
 
-1. On any other computer, download the Windows 11 installer ISO from:
-       https://www.microsoft.com/software-download/windows11
-   (Microsoft offers it free as a direct download.)
-
-2. Flash that ISO onto a USB stick (at least 8 GB):
-   - On Windows: use Microsoft's "Media Creation Tool" from the same page.
-   - On Mac / Linux: use Balena Etcher (https://etcher.balena.io/) or Rufus.
-
-3. Plug that Windows USB into the mini PC. Power on, press F7, pick the
-   Windows installer USB.
-
-4. Run through the Windows installer. Pick "Custom Install" and delete
-   all partitions, then install onto the unallocated space.
-
-5. When Windows boots and connects to the internet, the OEM licence
-   activates itself. No product key to type, no purchase.
-
-Whole process: ~30 minutes. You can come back to Builders in a Box any
-time — just plug in the original USB stick and reinstall.
+That removes everything BIAB-owned and leaves your home directory,
+Tailscale, and your GitHub and Claude logins untouched.
 
 ## What this box is — and isn't
 

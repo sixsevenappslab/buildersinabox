@@ -2,7 +2,7 @@
 id: FEAT-011
 title: public-repo-publish
 project: buildersinabox
-status: draft
+status: completed
 phase: requisitos
 priority: high
 complexity: medium

@@ -2,7 +2,7 @@
 id: FEAT-009
 title: oss-hygiene-readme
 project: buildersinabox
-status: draft
+status: completed
 phase: requisitos
 priority: high
 complexity: low

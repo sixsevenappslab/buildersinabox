@@ -163,8 +163,9 @@ if command -v qrencode >/dev/null 2>&1; then
 fi
 cat <<'EOF'
 
-When you're inside Claude on your phone, unplug the monitor and
-keyboard from this device. You're done with the console.
+When you're inside Claude on your phone, you're done with this
+terminal. If this device has a monitor and keyboard attached, you
+can unplug them now — from here on, your phone is the console.
 
 The full guide is at ~/README.md on this device if you need it later.
 EOF

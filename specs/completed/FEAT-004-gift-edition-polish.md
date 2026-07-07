@@ -2,7 +2,7 @@
 id: FEAT-004
 title: gift-edition-polish
 project: buildersinabox
-status: draft
+status: completed
 priority: high
 complexity: medium
 created: 2026-05-27

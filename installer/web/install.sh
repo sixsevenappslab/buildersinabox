@@ -9,7 +9,9 @@
 #
 # Env overrides:
 #   BIB_OS_OVERRIDE=1       skip the Ubuntu 24.04 check
-#   BIB_REF=<tag|branch>    clone a specific ref (default: main)
+#   BIB_REF=<tag|branch>    clone a specific ref. Published copies default to
+#                           the release tag they shipped with (pinned by
+#                           tools/publish.sh); the dev tree defaults to main.
 #   BIB_REPO_URL=<url>      clone from a fork/mirror (default: the public repo)
 #   BIB_DEST=<path>         install location (default: /opt/buildersinabox)
 #   BIB_BOOTSTRAP_DRYRUN=1  fetch only, don't exec the installer (testing)
@@ -52,9 +54,19 @@ fi
 # --- Fetch the repo (clone fresh, or update an existing checkout) ----------
 if [ -d "$DEST/.git" ]; then
     echo "biab install: updating existing checkout at $DEST"
-    git -C "$DEST" fetch --quiet --all || die "git fetch failed"
-    git -C "$DEST" checkout --quiet "$REF" || die "git checkout $REF failed"
-    git -C "$DEST" pull --quiet --ff-only origin "$REF" 2>/dev/null || true
+    # Two reasons a plain fetch/pull can never move this checkout forward:
+    # tag-pinned clones get a tag-only fetch refspec, and releases are
+    # fresh-history snapshots (force-pushed). Widen the refspec and
+    # hard-sync to the requested ref instead.
+    git -C "$DEST" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+    git -C "$DEST" fetch --quiet --force --tags origin || die "git fetch failed"
+    if git -C "$DEST" show-ref --verify --quiet "refs/remotes/origin/$REF"; then
+        git -C "$DEST" checkout --quiet -B "$REF" "refs/remotes/origin/$REF" \
+            || die "git checkout $REF failed"
+    else
+        git -C "$DEST" -c advice.detachedHead=false checkout --quiet --force "$REF" \
+            || die "git checkout failed (unknown tag/branch BIB_REF=$REF?)"
+    fi
 elif [ -e "$DEST" ] && [ ! -d "$DEST/.git" ]; then
     die "$DEST exists but is not a git checkout. Move it aside or run: rm -rf $DEST, then retry."
 else
@@ -64,6 +76,9 @@ else
     git clone --quiet --branch "$REF" --depth 1 "$REPO_URL" "$DEST" \
         || die "git clone failed (network? wrong BIB_REF=$REF? repo private?)"
     trap - ERR
+    # A tag-pinned clone leaves a tag-only fetch refspec behind, which would
+    # make every future `biab update` a silent no-op. Widen it now.
+    git -C "$DEST" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
 fi
 
 INSTALLER="$DEST/payload/install.sh"

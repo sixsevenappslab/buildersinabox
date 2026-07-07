@@ -25,6 +25,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 # shellcheck source=lib/ai-cli.sh
 source "${SCRIPT_DIR}/lib/ai-cli.sh"
+# shellcheck source=lib/prompt.sh
+source "${SCRIPT_DIR}/lib/prompt.sh"
 
 # ---------------------------------------------------------------------------
 # Defaults + arg parsing
@@ -219,6 +221,52 @@ require_root
 require_supported_os
 
 # ---------------------------------------------------------------------------
+# Root-only host (typical fresh VPS): offer to create the human user
+# ---------------------------------------------------------------------------
+# bib_user_resolve refuses to operate as root because the workspace it
+# scaffolds belongs to a human account. On a fresh DigitalOcean/Hetzner box
+# you're root with no other user — create one here instead of dying.
+
+_resolved_user="${BIB_USER:-${SUDO_USER:-${USER:-}}}"
+# Re-runs as plain root (ssh root@vps → biab / --update) must reuse the user
+# already persisted in state.json instead of re-asking or dying.
+if [[ -z "$_resolved_user" || "$_resolved_user" == "root" ]] && [[ -f "$BIB_STATE_FILE" ]]; then
+    _state_user="$(jq -r '.bib_user // empty' "$BIB_STATE_FILE" 2>/dev/null || true)"
+    if [[ -n "$_state_user" ]]; then
+        _resolved_user="$_state_user"
+        export BIB_USER="$_state_user"
+    fi
+    unset _state_user
+fi
+if [[ -z "$_resolved_user" || "$_resolved_user" == "root" ]]; then
+    _manual_hint="create one and re-run:
+    adduser --gecos '' <username> && usermod -aG sudo <username>
+    BIB_USER=<username> $0"
+    if [[ "$NON_INTERACTIVE" -eq 1 || ! -r /dev/tty ]]; then
+        die "running as root with no target user account. Either set BIB_USER=<existing user>, or ${_manual_hint}"
+    fi
+    printf '\nYou are running as root and this machine has no target user account.\n'
+    printf 'Builders in a Box sets up the workspace for a regular user, not root.\n'
+    printf 'I can create that account now (you pick its password in the next step).\n'
+    printf '\nUsername to create (lowercase; leave blank to abort): '
+    _new_user=""
+    read -r _new_user < /dev/tty || _new_user=""
+    [[ -n "$_new_user" ]] || die "aborted. To do it by hand, ${_manual_hint}"
+    [[ "$_new_user" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]] \
+        || die "'${_new_user}' is not a valid username (lowercase letters, digits, - and _)."
+    if getent passwd "$_new_user" >/dev/null; then
+        log "install: user ${_new_user} already exists, using it"
+    else
+        useradd -m -s /bin/bash -G sudo "$_new_user" \
+            || die "could not create user ${_new_user}"
+        log "install: created user ${_new_user} (in sudo group; password set by the wizard)"
+    fi
+    export BIB_USER="$_new_user"
+    unset _new_user
+fi
+unset _resolved_user _manual_hint
+
+# ---------------------------------------------------------------------------
 # Interactive identity prompt
 # ---------------------------------------------------------------------------
 # On a first-time interactive install, ask the operator for their name so
@@ -234,7 +282,13 @@ if [[ "$NON_INTERACTIVE" -eq 0 && ! -f "$BIB_STATE_FILE" && -z "${BIB_NAME:-}" ]
     printf '\nWhat name should the wizard greet you by? '
     printf '(leave blank to skip the personalised line) '
     printf '\n> '
-    read -r BIB_NAME || BIB_NAME=""
+    # Read from /dev/tty, not stdin — under `curl | sudo bash` stdin is the
+    # script pipe (already at EOF), so a plain read would silently skip.
+    if [[ -r /dev/tty ]]; then
+        read -r BIB_NAME < /dev/tty || BIB_NAME=""
+    else
+        read -r BIB_NAME || BIB_NAME=""
+    fi
     export BIB_NAME
 fi
 
@@ -278,7 +332,25 @@ if [[ -f "$_autologin_in" ]] && command -v envsubst >/dev/null 2>&1; then
 fi
 unset _autologin_in _autologin_out
 
-# Resolve the chosen CLI. CLI arg wins over state file value.
+# Resolve the chosen CLI. An explicit choice (flag / env / state file) wins.
+# Without one, ASK before persisting: silently persisting the default here
+# used to make the wizard's 05-choose-cli step always skip (it honours
+# state.ai_cli), so interactive users never actually got the choice the
+# README promises.
+if [[ "$NON_INTERACTIVE" -eq 0 && -z "$AI_CLI_ARG" && -z "${BIB_AI_CLI:-}" \
+      && -z "$(state_get '.ai_cli')" ]]; then
+    printf '\n'
+    cat <<'EOF'
+Pick the AI coding CLI this box will run in its tmux session.
+Both have OAuth logins that work from your phone.
+EOF
+    if prompt_choice "Which one?" "claude" "gemini"; then
+        AI_CLI_ARG="$BIB_PROMPT_VALUE"
+    else
+        warn "install: no interactive input available — defaulting to claude (use --ai-cli=gemini to override)"
+        AI_CLI_ARG="claude"
+    fi
+fi
 CHOSEN_CLI="$(ai_cli_resolve "$AI_CLI_ARG")"
 ai_cli_persist "$CHOSEN_CLI"
 

@@ -20,7 +20,7 @@ cd "$REPO_ROOT" || exit 1
 # - specs/: SDD process docs, also export-ignored.
 # - LICENSE: MIT requires a copyright holder; that's fine.
 # - tools/: this script itself documents the forbidden strings.
-# - BIZ-PLAN-LIFESTYLE.md, TODO-NEXT-ISO.md: maintainer notes, export-ignored.
+# - BIZ-PLAN-LIFESTYLE.md, LAUNCH-PLAN.md, TODO-NEXT-ISO.md: maintainer notes, export-ignored.
 EXCLUDES=(
     --exclude-dir=.git
     --exclude-dir=node_modules
@@ -32,6 +32,7 @@ EXCLUDES=(
     --exclude=LICENSE
     --exclude=ubuntu-*.iso
     --exclude=BIZ-PLAN-LIFESTYLE.md
+    --exclude=LAUNCH-PLAN.md
     --exclude=TODO-NEXT-ISO.md
     --exclude=MAINTAINING.md
 )

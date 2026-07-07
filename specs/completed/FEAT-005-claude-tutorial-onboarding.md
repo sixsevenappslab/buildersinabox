@@ -2,7 +2,7 @@
 id: FEAT-005
 title: claude-tutorial-onboarding
 project: buildersinabox
-status: active
+status: completed
 priority: high
 complexity: high
 created: 2026-05-29

@@ -2,7 +2,7 @@
 id: FEAT-008
 title: slim-default-bundle
 project: buildersinabox
-status: draft
+status: completed
 phase: requisitos
 priority: high
 complexity: medium
