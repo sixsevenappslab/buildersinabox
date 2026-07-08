@@ -194,6 +194,22 @@ The math: AI infra cost = €0.05-0.30 per "coding session." If BIAB bundles cre
 - Logistics: dropship via partner (no inventory) or batch-fulfill 20/month max
 - Only viable once Cloud/Pro is humming (else returns + RMA bury you)
 
+### 5.5 B2B services angle — implementation + retainer (added 2026-07-08, post-gate)
+Idea from Jesús: small businesses as buyers of *outcomes*, not boxes. ~1 month of implementation
+(automating one painful process on a BIAB box installed on-premise) + monthly retainer ("iguala").
+
+- **Why it's interesting:** fixes the buyer problem of the hardware play — the SMB pays for the
+  result (€1,500-3,000 setup + €150-400/mo retainer), the mini PC becomes the delivery vehicle
+  ("your server, your office, your data never leaves"). Hardware on-demand, never inventory
+  (council decision 2026-07-07).
+- **Why it's dangerous:** the retainer is a perpetual manual obligation. Only compatible with the
+  operating model if priced for near-zero maintenance (robust automations + observio-style
+  monitoring + ≤2h/mo per client assumed in the fee). Otherwise it's a second job.
+- **Status:** NOT for v1 launch — this is a separate business (automation agency using BIAB as
+  infra) competing for the same hours. Validation first, zero build: Jesús sounds out 2-3 SMBs
+  from his network (July 2026). Needs a named business with a named process willing to pay
+  before designing anything. Evaluate against the 6-week gate outcome.
+
 ---
 
 ## 6. Go-to-market sequence
