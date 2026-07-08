@@ -35,10 +35,10 @@
 - [x] Criterios de aceptacion globales verificables (no genericos)
 
 ### QA (§4) — owner Pablo
-- [ ] Minimo 1 caso funcional en la tabla con pasos numerados y resultado verificable
-- [ ] Minimo 1 edge case (input vacio/invalido/limite)
-- [ ] Minimo 1 item de regresion (feature existente que NO debe romperse)
-- [ ] Bloque `Criterios de testing` con comandos ejecutables (no pseudocodigo)
+- [x] Minimo 1 caso funcional en la tabla con pasos numerados y resultado verificable
+- [x] Minimo 1 edge case (input vacio/invalido/limite)
+- [x] Minimo 1 item de regresion (feature existente que NO debe romperse)
+- [x] Bloque `Criterios de testing` con comandos ejecutables (no pseudocodigo)
 
 ### Growth (§1.Growth Notes) — owner Andrea (solo si aplica)
 - [ ] Canal + metrica + target, o marcado N/A explicito
@@ -116,6 +116,8 @@ El wizard ofrece `claude` o `antigravity`. Quien elige Antigravity obtiene: inst
 - `tools/reset-for-gift.sh:73-75` — limpia `~/.config/gemini` y `~/.cache/gemini`.
 - Comentarios menores con "gemini": `payload/lib/common.sh:160`, `payload/lib/prompt.sh:163`.
 - `payload/docs/cli-skills-compatibility.md` — validacion 2026-05-25 con `gemini@0.43.0`: solo discovery de skills, nunca invocacion. Queda obsoleta; necesita addendum agy.
+- **Copy shippable adicional con "gemini"** (hueco detectado en QA review de Pablo, verificado con grep 2026-07-09): `payload/skills/README.md` (l.5, 41, 44 — instrucciones de skills citando Gemini CLI), `payload/skills/first-project/SKILL.md` (l.51, 66 — genera `GEMINI.md` como contexto por proyecto), `payload/examples/FEAT-002-personal-slack-coach.md` (7 menciones — spec de ejemplo con `gemini -p` headless), `CLAUDE.md` raiz (l.23 — "bundled Claude Code / Gemini skills"), `iso-builder/user-data:59` (comentario), `payload/flavors/default/copy/welcome.txt:24` y `payload/flavors/gift/copy/welcome.txt:31` ("Claude or Gemini" en el banner de bienvenida) — los tres ultimos detectados al ejecutar el grep del criterio #1 contra `git archive HEAD` real. Los hits bajo `specs/`, `pairing/` y `payload/flavors/gift/maintainer/` no cuentan: son `export-ignore` y no entran en el arbol shippable. Dos casos que NO se modifican, con motivo: `payload/skills/backend-engineer/SKILL.md:15` menciona "Gemini API" como tecnologia de las apps que construye el usuario (no el CLI; sigue siendo valido) y `CHANGELOG.md` (l.24-25, 63) es historia inmutable de releases — ambos quedan eximidos del grep del criterio de aceptacion #1 con filtro documentado alli.
+- **Fichero de contexto que lee agy — sin resolver:** `40-scaffold.sh` (l.69-83) y `/first-project` generan `CLAUDE.md`/`GEMINI.md`/`AGENTS.md` por carpeta. Fuentes web ([guia Arm](https://learn.arm.com/install-guides/antigravity/)) indican que agy lee `GEMINI.md` (legacy) o `.antigravity.md` como contexto de workspace, sin confirmacion empirica ni certeza sobre `AGENTS.md` → punto (8) del spike T1; la decision resultante (mantener/renombrar/añadir fichero) se aplica en `payload/wizard/40-scaffold.sh`, `payload/templates/PROJECT-CLAUDE.md` si hace falta y `payload/skills/first-project/SKILL.md`.
 
 **Antigravity CLI (`agy`) — hallazgos web (2026-07-09, verificar en el spike):**
 
@@ -167,7 +169,7 @@ El wizard ofrece `claude` o `antigravity`. Quien elige Antigravity obtiene: inst
 | `payload/install/41-antigravity-cli.sh` | CREAR | Install pineado de `agy` + deps de keyring si el spike las confirma; idempotente |
 | `payload/wizard/38-ai-cli-login.sh` | MODIFICAR | Branch antigravity: `agy auth login` guiado + verificacion + fallo claro (EARS Unwanted); branch claude intacto |
 | `payload/tmux/launch-main.sh` | MODIFICAR | `launch_cmd_for()`: caso antigravity con prompt inicial `/tutorial` (l.46-62) |
-| `payload/wizard/40-scaffold.sh` | MODIFICAR | `install_skill()`: symlink adicional al dir global de skills de agy (segun spike) |
+| `payload/wizard/40-scaffold.sh` | MODIFICAR | `install_skill()`: symlink adicional al dir global de skills de agy (segun spike); ficheros de contexto generados (¿se mantiene `GEMINI.md`?) segun T1 punto (8) |
 | `payload/wizard/run.sh` | MODIFICAR | FINALE bifurcado por `ai_cli` (l.127-171): claude = app CTA actual; antigravity = SSH/Termius + `tmux attach -t ai-platform` |
 | `payload/tutorial/desktop-readme.md` | MODIFICAR | Secciones por CLI con marcadores de bloque que `40-scaffold.sh` filtra al renderizar (ya hace sed; añadir filtrado) |
 | `payload/test/dryrun.sh` | MODIFICAR | `BIB_AI_CLI="${BIB_AI_CLI:-claude}"` parametrizable |
@@ -178,6 +180,15 @@ El wizard ofrece `claude` o `antigravity`. Quien elige Antigravity obtiene: inst
 | `payload/lib/common.sh` | MODIFICAR | Comentario de state.json l.160 |
 | `payload/lib/prompt.sh` | MODIFICAR | Comentario-ejemplo l.163 |
 | `payload/docs/cli-skills-compatibility.md` | MODIFICAR | Addendum: resultados del spike con agy (discovery + invocacion, que nunca se probo con gemini) |
+| `payload/skills/README.md` | MODIFICAR | l.5, 41, 44: Gemini CLI → Antigravity CLI (comando de listado de skills segun T1) |
+| `payload/skills/first-project/SKILL.md` | MODIFICAR | l.51, 66: lista de ficheros de contexto generados, segun decision de T1 punto (8) |
+| `payload/examples/FEAT-002-personal-slack-coach.md` | MODIFICAR | 7 menciones: `gemini -p` → invocacion headless de agy equivalente; "Claude Code or Gemini CLI" → Antigravity |
+| `CLAUDE.md` | MODIFICAR | l.23: "bundled Claude Code / Gemini skills" → Antigravity |
+| `iso-builder/user-data` | MODIFICAR | l.59 (comentario): "Claude/Gemini" → "Claude/Antigravity" |
+| `payload/flavors/default/copy/welcome.txt` | MODIFICAR | l.24: "Claude or Gemini" → "Claude or Antigravity" |
+| `payload/flavors/gift/copy/welcome.txt` | MODIFICAR | l.31: idem |
+
+**Sin cambios (exentos, con motivo):** `payload/skills/backend-engineer/SKILL.md` ("Gemini API" = tecnologia de las apps del usuario, no el CLI — sigue siendo correcto) y `CHANGELOG.md` (historia de releases, no se reescribe). Ambos excluidos del grep del criterio #1.
 
 ### Dependencias
 
@@ -190,9 +201,9 @@ El wizard ofrece `claude` o `antigravity`. Quien elige Antigravity obtiene: inst
 **Wave 1 — Spike (GATE: si falla, el FEAT se replantea con Jesus antes de escribir una linea de Wave 2)**
 
 <task id="T1">
-SPIKE — validar agy E2E en VM headless Ubuntu 24.04 (multipass, mismo rig que FEAT-001). Verificar y documentar: (1) install oficial y como pinear version (¿env var de install.sh? ¿asset de GitHub release + checksum? naming exacto de assets); (2) `agy auth login` por SSH: ¿imprime URL + one-time code copiable? transcript literal; (3) persistencia del token tras logout/reboot SIN keyring y CON `gnome-keyring` headless (¿que unlock exige? ¿sobrevive a reboot con login por SSH key?); (4) discovery de skills: ¿lee `~/.agents/skills/`? ¿funciona symlink en `~/.gemini/config/skills/`? ¿`/tutorial` aparece en `/skills`?; (5) ¿`agy -i '/tutorial'` dispara la skill al abrir el TUI?; (6) rutas exactas de config/cache/credenciales para reset-for-gift; (7) comando de verificacion de login no interactivo (¿`agy auth status`? ¿round-trip `-p`?). Registrar resultados como addendum en `payload/docs/cli-skills-compatibility.md` y las decisiones en §5 de este FEAT.
-<verify>Existe el addendum en `payload/docs/cli-skills-compatibility.md` con transcripts reales de la VM para los 7 puntos, y §5 "Decisiones tomadas" registra: metodo de pin elegido, mecanismo de persistencia validado (o veredicto NO-GO), ruta de skills confirmada y comando de verificacion de login.</verify>
-<done>Los 7 interrogantes tienen respuesta empirica (no de blog); en particular, un `agy -p "reply OK"` (o equivalente) funciona en la VM tras un reboot sin re-login. Si la persistencia headless resulta inviable o exige degradacion de seguridad, el spike termina en NO-GO documentado y se para (Ask First a Jesus) — eso tambien cuenta como done.</done>
+SPIKE — validar agy E2E en VM headless Ubuntu 24.04 (multipass, mismo rig que FEAT-001). Verificar y documentar: (1) install oficial y como pinear version (¿env var de install.sh? ¿asset de GitHub release + checksum? naming exacto de assets); (2) `agy auth login` por SSH: ¿imprime URL + one-time code copiable? transcript literal; (3) persistencia del token tras logout/reboot SIN keyring y CON `gnome-keyring` headless (¿que unlock exige? ¿sobrevive a reboot con login por SSH key?); (4) discovery de skills: ¿lee `~/.agents/skills/`? ¿funciona symlink en `~/.gemini/config/skills/`? ¿`/tutorial` aparece en `/skills`?; (5) ¿`agy -i '/tutorial'` dispara la skill al abrir el TUI?; (6) rutas exactas de config/cache/credenciales para reset-for-gift; (7) comando de verificacion de login no interactivo (¿`agy auth status`? ¿round-trip `-p`?); (8) fichero de contexto de workspace: ¿agy lee `GEMINI.md`, `AGENTS.md`, `.antigravity.md` o varios? probar con contenido distintivo en cada uno y decidir que genera el scaffold (mantener `GEMINI.md`, renombrar, o añadir fichero). Registrar resultados como addendum en `payload/docs/cli-skills-compatibility.md` y las decisiones en §5 de este FEAT.
+<verify>Existe el addendum en `payload/docs/cli-skills-compatibility.md` con transcripts reales de la VM para los 8 puntos, y §5 "Decisiones tomadas" registra: metodo de pin elegido, mecanismo de persistencia validado (o veredicto NO-GO), ruta de skills confirmada, comando de verificacion de login y fichero(s) de contexto que agy carga.</verify>
+<done>Los 8 interrogantes tienen respuesta empirica (no de blog); en particular, un `agy -p "reply OK"` (o equivalente) funciona en la VM tras un reboot sin re-login. Si la persistencia headless resulta inviable o exige degradacion de seguridad, el spike termina en NO-GO documentado y se para (Ask First a Jesus) — eso tambien cuenta como done.</done>
 </task>
 
 **Wave 2 — Core (depende de T1 GO)**
@@ -224,9 +235,9 @@ Finale y README de escritorio bifurcados. `payload/wizard/run.sh` (l.127-171): e
 </task>
 
 <task id="T6">
-Copy publico + CI + reset. `README.md` (l.28, l.68) y `site/index.html` (l.57): sustituir la promesa de Gemini por Antigravity ("a Google account for Antigravity CLI" + nota honesta de requisitos) — el deploy de site/ queda gated por Jesus. `payload/test/dryrun.sh`: `BIB_AI_CLI="${BIB_AI_CLI:-claude}"`. `.github/workflows/ci.yml`: job `dryrun` con matrix `ai_cli: [claude, antigravity]` sobre ubuntu-latest con `BIB_OAUTH_MOCK=1` y `BIB_TMUX_LAUNCH_CMD=true` (si el runner no soporta el install completo, degradar a container/multipass y documentarlo en el propio yml). `tools/reset-for-gift.sh`: reemplazar rutas gemini por las rutas de agy confirmadas en T1 + limpieza del secreto del keyring (`secret-tool clear` o borrado del keyring file del usuario).
-<verify>`grep -ri "gemini" README.md site/ tools/ .github/` == 0 hits; CI verde en la PR con ambos jobs de matrix pasando; en VM, tras login real de agy, ejecutar `tools/reset-for-gift.sh` y comprobar que `agy` vuelve a pedir login (token realmente purgado).</verify>
-<done>Ninguna superficie publica promete Gemini CLI; un cambio futuro que rompa la ruta antigravity pone CI en rojo; una caja regalada no lleva el token de Google del maintainer dentro.</done>
+Copy publico + CI + reset. `README.md` (l.28, l.68) y `site/index.html` (l.57): sustituir la promesa de Gemini por Antigravity ("a Google account for Antigravity CLI" + nota honesta de requisitos) — el deploy de site/ queda gated por Jesus. Barrido del resto de copy shippable: `payload/skills/README.md` (l.5, 41, 44), `payload/examples/FEAT-002-personal-slack-coach.md` (invocacion headless de agy en lugar de `gemini -p`), `CLAUDE.md:23`, `payload/skills/first-project/SKILL.md` (l.51, 66 — segun decision de T1 punto 8), `iso-builder/user-data:59`, y los dos `welcome.txt` de `payload/flavors/{default,gift}/copy/` ("Claude or Gemini" → "Claude or Antigravity"). `payload/test/dryrun.sh`: `BIB_AI_CLI="${BIB_AI_CLI:-claude}"`. `.github/workflows/ci.yml`: job `dryrun` con matrix `ai_cli: [claude, antigravity]` sobre ubuntu-latest con `BIB_OAUTH_MOCK=1` y `BIB_TMUX_LAUNCH_CMD=true` (si el runner no soporta el install completo, degradar a container/multipass y documentarlo en el propio yml). NOTA explicita para QA: esta matrix corre con OAuth mockeado — valida el wiring del installer/wizard, **NO** la persistencia del token de agy (R1); esa solo la cubre la pasada manual E2E de §4 (CP-02). `tools/reset-for-gift.sh`: reemplazar rutas gemini por las rutas de agy confirmadas en T1 + limpieza del secreto del keyring (`secret-tool clear` o borrado del keyring file del usuario).
+<verify>El grep exacto del criterio de aceptacion #1 (con sus exclusiones documentadas) == 0 hits; CI verde en la PR con ambos jobs de matrix pasando; en VM, tras login real de agy, ejecutar `tools/reset-for-gift.sh` y comprobar que `agy` vuelve a pedir login (token realmente purgado).</verify>
+<done>Ninguna superficie publica promete Gemini CLI; un cambio futuro que rompa el wiring de la ruta antigravity pone CI en rojo (sin que ese verde se lea como cobertura de R1); una caja regalada no lleva el token de Google del maintainer dentro.</done>
 </task>
 
 ### Patron de codigo
@@ -256,10 +267,16 @@ launch_cmd_for() {
 
 ### Criterios de aceptacion
 
-1. `grep -ri gemini` sobre el arbol shippable (`git archive HEAD | tar -t` + grep de contenido) devuelve cero resultados — ni codigo, ni copy, ni comentarios.
+1. Cero menciones a Gemini en el arbol shippable, con dos exenciones documentadas. Comando exacto:
+   ```bash
+   tree="$(mktemp -d)" && git archive HEAD | tar -x -C "$tree"
+   grep -ri gemini "$tree" --exclude=CHANGELOG.md | grep -vi 'gemini api'
+   # → 0 lineas (exit code 1 del segundo grep)
+   ```
+   Exenciones y motivo: `CHANGELOG.md` es historia inmutable de releases (no se reescribe); el patron "Gemini API" (hoy solo `payload/skills/backend-engineer/SKILL.md:15`) se refiere a la API de modelos para las apps que construye el usuario, no al CLI retirado, y sigue siendo correcto. Cualquier otro hit es fallo del criterio.
 2. En una VM/box headless Ubuntu 24.04 limpia: `install.sh --ai-cli=antigravity` completa el wizard entero desde Termius, y tras un **reboot** la sesion `ai-platform` arranca `agy` autenticado (sin re-login) con /tutorial en pantalla.
 3. La misma pasada con `--ai-cli=claude` es indistinguible del comportamiento actual (regresion cero — verificable con el dryrun claude y la pasada E2E de §4).
-4. CI en la PR: shellcheck + `bash -n` + personal-refs + archive-cleanliness + dryrun matrix `[claude, antigravity]`, todo verde.
+4. CI en la PR: shellcheck + `bash -n` + personal-refs + archive-cleanliness + dryrun matrix `[claude, antigravity]`, todo verde. **Alcance del verde de CI:** la matrix corre con `BIB_OAUTH_MOCK=1` + `BIB_TMUX_LAUNCH_CMD=true`, asi que cubre el wiring (installer + wizard + estado), pero NO la persistencia del token de agy (R1) ni el login real — eso lo cubre exclusivamente el criterio #2 via la pasada manual E2E de QA (§4, CP-02). CI verde no sustituye al criterio #2.
 5. La version de `agy` instalada es exactamente la pineada en `41-antigravity-cli.sh` (`agy --version` == constante del script) y re-ejecutar el installer no la cambia ni falla.
 6. `tools/reset-for-gift.sh` deja `agy` des-autenticado (pide login en el siguiente arranque) — verificado en VM.
 
@@ -304,7 +321,112 @@ launch_cmd_for() {
 
 ## 4. QA (Pablo)
 
-> Pendiente — spawn sdd-qa después de §2.
+> Casos de ACEPTACIÓN del FEAT completo (journey de usuario + regresiones). Los `<verify>` por tarea de §2 son la verificación unitaria de cada wave y NO se repiten aquí. Entornos: **VM-A** = VM multipass Ubuntu Server 24.04 limpia (mismo rig que FEAT-001, repo montado en `/repo`); **BOX** = box física headless (opcional, para la pasada final); **MOBILE** = cliente SSH en móvil (Termius) conectado por Tailscale. Los comandos marcados `[según T1]` usan el comando de verificación de login que confirme el spike (`agy auth status` o round-trip `-p`).
+
+### Casos de prueba funcionales
+
+| # | Caso | Pasos | Resultado esperado | Estado |
+|---|------|-------|--------------------|--------|
+| CP-01 | **Journey completo antigravity desde el móvil (Termius)** — historia de usuario 1 y 2 | 1. Lanzar VM-A limpia y ejecutar `sudo /repo/payload/install.sh` (interactivo) desde una sesión SSH abierta en Termius (MOBILE).<br>2. En el chooser, seleccionar `antigravity`.<br>3. En el paso de login, seguir SOLO lo que dice la pantalla: copiar la URL + one-time code mostrados, completar el OAuth de Google en el navegador del móvil, volver a Termius.<br>4. Dejar que el wizard termine (scaffold + tmux + finale).<br>5. Leer el finale completo en la pantalla de Termius.<br>6. Seguir las instrucciones del finale al pie de la letra: `ssh <user>@<hostname>` + `tmux attach -t ai-platform`. | El OAuth completa sin navegador local y sin input imposible; el wizard llega al finale sin colgarse; el finale NO contiene QR ni mención a la app de Claude Code y SÍ instrucciones SSH/Termius + `tmux attach -t ai-platform`; al atacharse, `agy` está corriendo con `/tutorial` en marcha. Todo el journey se completa usando únicamente el móvil. | ⬜ |
+| CP-02 | **Persistencia del token tras reboot** — criterio de aceptación #2, riesgo R1 | 1. Partir de CP-01 completado (login real de agy hecho).<br>2. `sudo reboot` en la VM-A.<br>3. Reconectar por SSH (key auth, sin password de sesión gráfica).<br>4. Comprobar la sesión tmux: `sudo -u <user> tmux ls`.<br>5. Atacharse a `ai-platform` y observar el estado de agy.<br>6. Fuera de tmux, ejecutar el comando de verificación de login `[según T1]` (p. ej. `sudo -iu <user> agy -p "reply OK"`). | La sesión `ai-platform` existe tras el reboot; agy arranca **autenticado sin pedir re-login** (ni URL ni code en pantalla); el comando de verificación responde OK. Repetir un segundo reboot para descartar que el primero viviera de caché. | ⬜ |
+| CP-03 | **reset-for-gift purga el token de Google** — criterio de aceptación #6 | 1. Partir de una VM-A con login real de agy completado y verificado.<br>2. Ejecutar `sudo tools/reset-for-gift.sh` (flujo completo de regalo).<br>3. Comprobar restos: directorios de config/cache de agy `[rutas según T1]` y el secreto en el keyring (`sudo -iu <user> secret-tool search --all service <atributo-según-T1>` o inspección del keyring file).<br>4. Arrancar agy de nuevo (`sudo -iu <user> agy`). | No queda token en keyring ni en `~/.gemini/antigravity-cli/` ni en ninguna ruta confirmada por T1; agy pide login desde cero (URL + code). Una caja regalada NO lleva la cuenta Google del maintainer dentro. | ⬜ |
+| CP-04 | **Desktop README bifurcado (ruta antigravity)** | 1. En la VM-A post-wizard antigravity, abrir `/home/<user>/README.md`.<br>2. `grep -c -e "Claude Code app" -e "Remote Control" -e "claude.ai/download" /home/<user>/README.md`.<br>3. `grep -c "tmux attach" /home/<user>/README.md`.<br>4. Leerlo entero como usuario nuevo: seguir sus instrucciones de conexión móvil. | Paso 2 == 0 en total; paso 3 >= 1; las instrucciones del README son seguibles de principio a fin con antigravity (SSH/Termius + attach; ccgram citado solo como opción avanzada, sin instrucciones de bridge propio). | ⬜ |
+| CP-05 | **Skills disponibles e invocables en agy** — requisito EARS de skills, riesgo R3/R5 | 1. En la sesión `ai-platform` de la VM-A antigravity, ejecutar `/skills` (o el listado equivalente de agy).<br>2. Verificar que `tutorial` y `first-project` aparecen.<br>3. Confirmar que `/tutorial` está de hecho ejecutándose desde el arranque (prompt inicial) y que sus primeros pasos responden.<br>4. Invocar `/first-project` hasta el punto de crear la sesión tmux del proyecto. | Las skills instaladas en `~/.agents/skills/` son visibles para agy (vía symlink al dir global confirmado en T1); `/tutorial` arrancó solo (sin send-keys manual del tester); `/first-project` crea una sesión tmux independiente con nombre del proyecto. | ⬜ |
+| CP-06 | **CI ejercita ambas rutas** — historia de usuario 3 | 1. En la PR del FEAT, comprobar el workflow: job dryrun con matrix `ai_cli: [claude, antigravity]`.<br>2. Introducir en una branch de prueba un breakage deliberado solo-antigravity (p. ej. typo en `41-antigravity-cli.sh`) y empujar.<br>3. Revertir. | Paso 1: ambos jobs de la matrix verdes en la PR real. Paso 2: el job antigravity se pone ROJO y el claude sigue verde (el canario funciona de verdad, no es decorativo). | ⬜ |
+| CP-07 | **Superficie pública sin Gemini** — criterio de aceptación #1 | 1. `git archive HEAD \| tar -xC /tmp/biab-ship && grep -ri gemini /tmp/biab-ship` (excluyendo, si Elena lo acepta, menciones históricas de `CHANGELOG.md` — ver Notas QA).<br>2. `grep -ri gemini README.md site/`.<br>3. Revisar la landing renderizada (`site/index.html`) a ojo: la promesa es "a Google account for Antigravity CLI" con nota honesta de requisitos. | Cero hits de `gemini` en código, copy y comentarios del árbol shippable; el copy público describe Antigravity sin prometer nada que el spike no haya validado. | ⬜ |
+| CP-08 | **Pin de versión e idempotencia del installer de agy** — criterio de aceptación #5 | 1. En VM-A, ejecutar el flujo de install antigravity completo.<br>2. `agy --version` y comparar con la constante pineada: `grep -E 'AGY_VERSION|ANTIGRAVITY_VERSION' payload/install/41-antigravity-cli.sh`.<br>3. Re-ejecutar `sudo payload/install/41-antigravity-cli.sh`.<br>4. `agy --version` de nuevo. | Versión instalada == constante del script en ambas pasadas; la segunda pasada termina exit 0 sin re-descargar a una versión distinta ni romper nada. | ⬜ |
+
+### Edge cases
+
+| # | Caso | Input / condición | Resultado esperado | Estado |
+|---|------|-------------------|--------------------|--------|
+| EC-01 | Flag legacy `gemini` | `sudo payload/install.sh --ai-cli=gemini` y también `BIB_AI_CLI=gemini` en modo non-interactive | Muere inmediatamente con "unsupported ai-cli" (exit != 0), listando las opciones válidas. Sin cuelgue, sin instalación parcial. | ⬜ |
+| EC-02 | Valor vacío/basura de CLI | `--ai-cli=` (vacío) y `--ai-cli=CLAUDE; rm -rf /` (mayúsculas + injection string) | Validación rechaza ambos con mensaje claro; ningún side effect (el string jamás se evalúa/ejecuta). | ⬜ |
+| EC-03 | OAuth abandonado a mitad | En el paso de login antigravity, NO completar el OAuth: cerrar Termius / dejar expirar el one-time code / Ctrl-C sobre `agy auth login` | El wizard no se queda colgado indefinidamente esperando: la verificación post-login falla y — EARS Unwanted — termina en `die` con instrucciones de recuperación concretas (re-run de install.sh; síntoma de keyring si T1 lo identificó). El estado en `state.json` NO marca `ai_cli_done`. | ⬜ |
+| EC-04 | Reboot antes de completar el login | Instalar con antigravity, interrumpir en el paso de login, `sudo reboot`, reconectar y re-ejecutar `sudo payload/install.sh` | El installer retoma en el paso de login (fases previas saltadas por state.json, no re-ejecutadas destructivamente); el login completa y el resto del wizard sigue normal. | ⬜ |
+| EC-05 | Re-run completo tras éxito (idempotencia E2E) | Con el wizard antigravity terminado y funcionando, re-ejecutar `sudo payload/install.sh` entero | Ningún paso rompe; no exige re-OAuth si el token es válido; la sesión tmux `ai-platform` queda funcional (recreada o intacta); el README de escritorio no se duplica ni se corrompe. | ⬜ |
+| EC-06 | Fallo de red al descargar agy | Simular fallo del fetch del binario (p. ej. cortar red o apuntar `AGY_VERSION` a un release inexistente en una copia del script) | `41-antigravity-cli.sh` muere con error claro (no deja un `agy` a medias en PATH); re-run tras restaurar la red instala bien. | ⬜ |
+| EC-07 | Keyring no arrancado en un arranque concreto (si T1 confirma dependencia de gnome-keyring) | Matar/deshabilitar `gnome-keyring-daemon` en la sesión del usuario y arrancar la sesión tmux | agy NO se cuelga: o re-pide login con mensaje comprensible, o el launcher detecta el estado y lo explica. Documentado como troubleshooting en el desktop-readme antigravity si el spike confirma que puede pasar. | ⬜ |
+
+### Regresión — la ruta `claude` es sagrada (criterio de aceptación #3)
+
+Checklist: nada de esto debe cambiar de forma observable. Verificación en dos niveles — dryrun (automático) y una pasada E2E claude en VM-A idéntica a la que se haría hoy en main.
+
+- [ ] **Dryrun claude**: `BIB_AI_CLI=claude payload/test/dryrun.sh` (default actual) termina `exit=0` con las mismas fases en `state.json` que en `main` (diff de state.json entre main y la branch == solo lo esperado).
+- [ ] **E2E claude en VM-A**: install interactivo eligiendo `claude` → login `claude auth login --claudeai` intacto → sesión `ai-platform` con `claude --remote-control` y `/tutorial` → finale con el CTA de la app + QR de claude.ai/download **exactamente como hoy**.
+- [ ] **desktop-readme claude**: el `~/README.md` renderizado con `ai_cli=claude` es idéntico al actual (diff contra un render de main == vacío, salvo que los marcadores de bloque sean invisibles en el output).
+- [ ] **38-ai-cli-login.sh branch claude**: `git diff main -- payload/wizard/38-ai-cli-login.sh` revisado a mano — cero cambios de comportamiento en el branch claude (solo refactor compartido inevitable, si lo hay).
+- [ ] **Skills claude**: los symlinks `~/.claude/skills/<name>` → `~/.agents/skills/<name>` siguen creándose y `/tutorial` sigue siendo el prompt inicial de la ruta claude.
+- [ ] **reset-for-gift ruta claude**: sigue limpiando las credenciales de Claude como hasta ahora (el cambio de rutas gemini→agy no toca las líneas de claude).
+- [ ] **CI existente**: shellcheck, `bash -n`, personal-refs guard y archive-cleanliness siguen verdes (los jobs nuevos son aditivos).
+- [ ] **install.sh servido por la landing**: `site/build.sh` sigue produciendo un `install.sh` byte-idéntico al de `installer/web/install.sh` (los cambios de copy en `site/index.html` no rompen ese contrato).
+
+### Criterios de testing
+
+```bash
+# --- Estático (local y CI, sin VM) ---
+# 1. Lint de todo el bash tocado
+shellcheck payload/install.sh payload/install/41-antigravity-cli.sh \
+  payload/lib/ai-cli.sh payload/wizard/38-ai-cli-login.sh \
+  payload/wizard/05-choose-cli.sh payload/wizard/40-scaffold.sh \
+  payload/wizard/run.sh payload/tmux/launch-main.sh \
+  payload/test/dryrun.sh tools/reset-for-gift.sh
+find payload installer tools -name '*.sh' -exec bash -n {} +
+
+# 2. Cero gemini en el árbol shippable (CP-07)
+rm -rf /tmp/biab-ship && mkdir -p /tmp/biab-ship
+git archive HEAD | tar -xC /tmp/biab-ship
+grep -ri gemini /tmp/biab-ship && echo "FAIL: gemini remains" || echo "OK"
+# (Nota: '~/.gemini/antigravity-cli' es una ruta legacy REAL de agy — si T1 la
+# confirma, esas ocurrencias son legítimas y se excluyen con comentario inline.)
+
+# 3. Dead code eliminado de ai-cli.sh (NFR §1)
+grep -rn 'ai_cli_binary\|ai_cli_headless_flag\|ai_cli_login_cmd' payload/ installer/ \
+  && echo "FAIL: dead code" || echo "OK"
+
+# --- Dryrun (VM multipass con repo montado en /repo, rig FEAT-001) ---
+multipass launch 24.04 --name biab-qa --cpus 2 --memory 4G --disk 15G
+multipass mount "$(pwd)" biab-qa:/repo
+# Ambas rutas, mockeadas:
+multipass exec biab-qa -- sudo env BIB_AI_CLI=claude      bash /repo/payload/test/dryrun.sh
+multipass exec biab-qa -- sudo env BIB_AI_CLI=antigravity bash /repo/payload/test/dryrun.sh
+# El finale antigravity del dryrun no imprime el QR de claude:
+multipass exec biab-qa -- sudo env BIB_AI_CLI=antigravity bash /repo/payload/test/dryrun.sh \
+  | grep -c 'claude.ai/download'   # esperado: 0
+
+# --- E2E antigravity (VM limpia, login REAL, luego CP-01..CP-05) ---
+# Pin (CP-08):
+multipass exec biab-qa -- agy --version
+grep -E 'AGY_VERSION|ANTIGRAVITY_VERSION' payload/install/41-antigravity-cli.sh
+# Persistencia post-reboot (CP-02):
+multipass exec biab-qa -- sudo reboot; sleep 45
+multipass exec biab-qa -- sudo -iu ubuntu tmux ls          # ai-platform presente
+multipass exec biab-qa -- sudo -iu ubuntu agy -p "reply OK"  # [según T1] responde sin pedir login
+# Purga de token (CP-03):
+multipass exec biab-qa -- sudo bash /repo/tools/reset-for-gift.sh
+multipass exec biab-qa -- sudo -iu ubuntu agy -p "reply OK" # esperado: pide login / falla auth
+
+# --- Flag legacy y validación (EC-01/EC-02) ---
+sudo payload/install.sh --ai-cli=gemini; echo "exit=$?"     # esperado: exit!=0 + "unsupported"
+sudo env BIB_USER=ubuntu BIB_FLAVOR=default BIB_AI_CLI=gemini \
+  payload/install.sh --non-interactive; echo "exit=$?"      # esperado: exit!=0
+
+# --- CI (en la PR) ---
+gh pr checks <PR>   # shellcheck + bash -n + personal-refs + archive-cleanliness + dryrun[claude] + dryrun[antigravity] verdes
+```
+
+### Smoke test post-deploy (tras merge, antes del flip a público)
+
+1. `curl -fsSL https://buildersinabox.com/install.sh | head -50` — el bootstrap servido es el nuevo (menciona `antigravity`, no `gemini`) y byte-idéntico a `installer/web/install.sh`.
+2. Landing en el navegador: la sección de requisitos dice Antigravity; cero menciones a Gemini CLI.
+3. Una pasada E2E final en BOX física (no VM) de CP-01 + CP-02 — el keyring/systemd real puede diferir del de multipass; es EL riesgo del FEAT y merece hardware real antes del launch.
+
+### Notas QA — huecos detectados en §2 (para Elena/Laura, no bloquean la DoR de §4)
+
+1. **Archivos shippables con "gemini" que NO están en la tabla de §2**: `payload/skills/README.md`, `payload/skills/first-project/SKILL.md`, `payload/skills/backend-engineer/SKILL.md`, `payload/examples/FEAT-002-personal-slack-coach.md`, `CLAUDE.md` (raíz) y `CHANGELOG.md` — todos entran en `git archive HEAD` (verificado 2026-07-09) y harían FALLAR el criterio de aceptación #1 tal como está escrito. Hace falta o añadirlos a la tabla de T2/T6, o que Elena excluya explícitamente las menciones históricas (CHANGELOG) del criterio.
+2. **`40-scaffold.sh` genera `GEMINI.md`** como fichero de contexto por proyecto (l.69-83). §2 no dice qué fichero de contexto lee agy (¿`GEMINI.md` heredado? ¿`AGENTS.md`?) y no está entre los 7 puntos del spike T1 — sugerido añadirlo como punto (8) del spike.
+3. **CI matrix con `BIB_OAUTH_MOCK=1`** no ejercita el login real por diseño — correcto, pero significa que R1 (persistencia) queda cubierto SOLO por las pasadas manuales CP-02 y el smoke en BOX física. Que nadie marque el criterio #2 como cumplido con el dryrun verde.
+4. **EC-07 depende del resultado de T1**: si el spike concluye que no hace falta keyring daemon, EC-07 se marca N/A con nota.
 
 ---
 
