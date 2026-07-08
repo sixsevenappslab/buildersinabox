@@ -8,7 +8,7 @@
 - **E2E mode:** none
   > Scripts de dispositivo (bash). La verificación automatizada es el dryrun harness; la validación real exige una pasada E2E en box headless física/VM (ver §4).
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** tecnica
+- **Fase:** validacion
 - **Creado:** 2026-07-09
 - **Actualizado:** 2026-07-09
 - **Validado por Jesus:** [ ]
@@ -41,7 +41,7 @@
 - [x] Bloque `Criterios de testing` con comandos ejecutables (no pseudocodigo)
 
 ### Growth (§1.Growth Notes) — owner Andrea (solo si aplica)
-- [ ] Canal + metrica + target, o marcado N/A explicito
+- [x] Canal + metrica + target, o marcado N/A explicito
 
 ---
 
@@ -92,7 +92,11 @@ El wizard ofrece `claude` o `antigravity`. Quien elige Antigravity obtiene: inst
 
 ### Growth Notes (Andrea — si aplica)
 
-> Pendiente de Andrea: la migración toca copy público (README + landing) y el mensaje multi-CLI del launch (Show HN / r/selfhosted). Definir cómo se cuenta "Claude o Antigravity" en la landing y si el dato "Gemini CLI murió el 18-jun" es utilizable como contenido.
+- **Canal:** Content/Social (Show HN + r/selfhosted + LinkedIn, según LAUNCH-PLAN §4). Sin canal nuevo: este FEAT corrige copy dentro del launch ya planificado.
+- **Jerarquía del mensaje:** el hook sigue siendo seguridad (42.665 instancias expuestas / 93,4% auth bypass) — NO se diluye. "Claude o Antigravity" es selling point **secundario**: en la landing va en la línea de requisitos ("a Claude subscription or a Google account for Antigravity CLI", estilo B2); en el Show HN, una frase en el cuerpo ("works with Claude Code or Google's Antigravity CLI — no vendor lock-in"), nunca en el título.
+- **Ángulo "Gemini CLI murió":** utilizable, pero como **comentario preparado** para el thread de HN y mención en r/selfhosted (LAUNCH-PLAN ya contempla "refugiados Gemini CLI"), no como post propio. Frase tipo: "Google killed Gemini CLI for consumers on June 18; we migrated to its successor Antigravity and CI tests both paths". Refuerza el hook ("los demás lo hacen mal") sin competir con él. Caduca rápido: solo vale para el launch, no evergreen.
+- **Métrica + target:** BIAB no tiene telemetría y NO se añade (contradiría el posicionamiento privacy/security-first — boundary implícito). Aproximación honesta: contar menciones de antigravity en issues/Discussions/testimonios post-launch. **Target: ≥15% de los reportes de instalación completada (gate §3 del LAUNCH-PLAN: ≥50 installs) mencionan la ruta antigravity a las 6 semanas.** Si es ~0%, la promesa multi-CLI no justifica su coste de mantenimiento — dato para el checkpoint de sep.
+- **Riesgo de mensaje (spike T1):** no publicar NADA que prometa Antigravity (landing, README público servido, drafts de HN/LinkedIn) hasta que T1 sea GO — ya gated en §3 Ask First; esta nota lo extiende a los drafts del launch. Si T1 acaba en NO-GO, el copy del launch pasa a Claude-only honesto ("Claude Code today; second CLI when we can support it properly") — mejor que prometer y retractarse en el thread.
 
 ---
 
