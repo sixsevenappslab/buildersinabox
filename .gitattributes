@@ -13,6 +13,7 @@ payload/flavors/gift/maintainer/ export-ignore
 TODO-NEXT-ISO.md export-ignore
 BIZ-PLAN-LIFESTYLE.md export-ignore
 LAUNCH-PLAN.md export-ignore
+HYPOTHESES.md export-ignore
 MAINTAINING.md export-ignore
 
 # SDD process docs — internal artefacts, never ship in `git archive`.
