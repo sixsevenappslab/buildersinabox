@@ -8,6 +8,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- Email capture on the landing page: a release-notes signup form backed by a Cloudflare Pages Function (`/subscribe`) and a Resend audience.
 - Lockout guard: if someone is connected over SSH from outside the tailnet (typical on a VPS), the wizard now warns and asks before restricting sshd to the Tailscale address, and prints the exact command (`BIB_SSH_FORCE_TAILSCALE=1`) to apply the restriction later.
 - Root-only hosts (fresh VPS images): the installer now offers to create the target user account instead of failing with an error.
 - Releases pin the published bootstrap: `tools/publish.sh --tag vX.Y.Z` rewrites the served `install.sh` to clone that tag by default, so the script you audit fetches exactly the code it runs.

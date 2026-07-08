@@ -24,6 +24,10 @@
   .btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); margin-left:.5em; }
   ul { padding-left:1.2em; } li { margin:.3em 0; }
   .note { color:var(--dim); font-size:.95rem; }
+  .sub { display:flex; gap:.5em; margin:2.2em 0 .4em; flex-wrap:wrap; }
+  .sub input[type=email] { flex:1 1 220px; padding:10px 12px; border-radius:8px; border:1px solid rgba(128,128,128,.4); background:var(--card); color:var(--fg); font:inherit; }
+  .sub button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  .hp { position:absolute; left:-9999px; }
   footer { margin-top:3em; color:var(--dim); font-size:.9rem; border-top:1px solid rgba(128,128,128,.2); padding-top:1.4em; }
   a { color:var(--accent); }
 </style>
@@ -55,6 +59,44 @@
   <p class="note">The README lists <a href="https://github.com/sixsevenappslab/buildersinabox#what-it-changes-on-your-system">everything the installer changes</a> and the <a href="https://github.com/sixsevenappslab/buildersinabox#security-model">security model</a>; <code>--uninstall</code> removes it all.</p>
 
   <p class="note">Just want Claude working in the background? Anthropic's Cowork does that without a server. This is for when the agent needs <em>your</em> machine — your files, your LAN, your credentials, your cron jobs.</p>
+
+  <form class="sub" id="subform" method="post" action="/subscribe">
+    <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address">
+    <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button type="submit">Get release notes</button>
+  </form>
+  <p class="note" id="submsg">Launch news + release notes, a few emails a year. No spam, unsubscribe anytime.</p>
+
+  <script>
+  (function () {
+    var form = document.getElementById('subform');
+    var msg = document.getElementById('submsg');
+    var done = function (ok) {
+      msg.textContent = ok
+        ? "You're in — we'll email you when there's something worth reading."
+        : "That didn't work — check the address and try again.";
+      if (ok) form.style.display = 'none';
+    };
+    var q = new URLSearchParams(location.search).get('subscribed');
+    if (q !== null) done(q === '1');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('button');
+      btn.disabled = true; btn.textContent = '…';
+      fetch('/subscribe', {
+        method: 'POST',
+        headers: { 'accept': 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.value,
+          website: form.website.value
+        })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) { done(!!d.ok); })
+        .catch(function () { done(false); })
+        .finally(function () { btn.disabled = false; btn.textContent = 'Get release notes'; });
+    });
+  })();
+  </script>
 
   <footer>
     Builders in a Box, by SixSeven Apps.

@@ -30,3 +30,27 @@ The dev repo (`jesusmartincalvo/buildersinabox`) is the private workbench. The p
 `site/build.sh` copies `installer/web/install.sh` → `site/install.sh` and fails the build if they drift, so `buildersinabox.com/install.sh` is always byte-identical to the repo. `site/_headers` forces `text/plain` + a 5-minute cache on `/install.sh`.
 
 Post-deploy smoke: `curl -sI https://buildersinabox.com/install.sh` → `200` + `text/plain`; `curl -fsSL https://buildersinabox.com/install.sh | diff - installer/web/install.sh` → no diff.
+
+## Email capture (Resend)
+
+The landing form posts to `/subscribe`, served by the Pages Function
+`functions/subscribe.js`, which adds the address to a Resend audience.
+One-time setup (~10 min, no mailboxes involved):
+
+1. **Resend account** — sign up at resend.com with any email (the account
+   email does NOT need to be @buildersinabox.com). Free tier: 3k emails/month,
+   1k audience contacts — plenty for the launch gate.
+2. **Verify the domain** — Resend → Domains → Add `buildersinabox.com`. It
+   gives you 3-4 DNS records (DKIM TXT + SPF/MX on a `send.` subdomain);
+   add them in the Cloudflare DNS dashboard. This lets you SEND as
+   `hello@buildersinabox.com` without any mailbox existing.
+3. **Receive replies (optional but recommended)** — Cloudflare → Email →
+   Email Routing: forward `hello@buildersinabox.com` to your real inbox.
+   Pure forwarding, free, no mailbox. Routing's MX lives on the apex;
+   Resend's MX lives on `send.` — they don't conflict.
+4. **Audience + API key** — Resend → Audiences → note the default audience ID.
+   API Keys → create one. Then Cloudflare → Pages project → Settings →
+   Environment variables (Production, encrypted):
+   `RESEND_API_KEY`, `RESEND_AUDIENCE_ID`. Redeploy.
+
+Smoke test: `curl -s -X POST https://buildersinabox.com/subscribe -H 'accept: application/json' -H 'content-type: application/json' -d '{"email":"you@example.com"}'` → `{"ok":true}` and the contact appears in the Resend audience.
