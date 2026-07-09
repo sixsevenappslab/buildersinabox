@@ -48,7 +48,7 @@ If they pick option 1 or 2, the folder name is fixed (`personal-coach` or `finan
 
 You're going to:
 1. Create the project folder under `~/ai-platform/projects/<name>/`.
-2. Drop in seed `CLAUDE.md` / `GEMINI.md` / `AGENTS.md` (from `/opt/buildersinabox/payload/templates/PROJECT-CLAUDE.md`).
+2. Drop in seed `CLAUDE.md` / `AGENTS.md` (from `/opt/buildersinabox/payload/templates/PROJECT-CLAUDE.md`). `CLAUDE.md` is Claude Code's context file; `AGENTS.md` is the open standard that Antigravity (agy) reads.
 3. Copy the chosen bundled spec into `specs/draft/` if option 1 or 2.
 4. Persist the name into state.json.
 5. Patch `~/README.md` so the `{{PROJECT_NAME}}` placeholder gets replaced with the real name.
@@ -63,7 +63,7 @@ mkdir -p "$PDIR/specs/draft" "$PDIR/specs/active" "$PDIR/specs/completed"
 
 # Seed context files for this project.
 TPL=/opt/buildersinabox/payload/templates/PROJECT-CLAUDE.md
-for name in CLAUDE.md GEMINI.md AGENTS.md; do
+for name in CLAUDE.md AGENTS.md; do
     sed "s|{{PROJECT_NAME}}|$PROJECT|g" "$TPL" > "$PDIR/$name"
 done
 

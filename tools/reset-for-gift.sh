@@ -31,7 +31,7 @@ echo "  Target user: $TARGET_USER ($TARGET_HOME)"
 echo "======================================================================"
 echo
 echo "This will DELETE all of the following:"
-echo "  - Your GitHub, Claude, Tailscale, gh, npm auth tokens"
+echo "  - Your GitHub, Claude, Antigravity (Google), Tailscale, gh, npm auth tokens"
 echo "  - Your SSH keys and authorized_keys"
 echo "  - The ai-platform workspace ($TARGET_HOME/ai-platform/)"
 echo "  - Bundled skills under ~/.agents/skills + ~/.claude/skills"
@@ -70,9 +70,14 @@ rm -rf "$TARGET_HOME/.config/claude" \
        "$TARGET_HOME/.config/claude-code" \
        "$TARGET_HOME/.cache/claude" 2>/dev/null || true
 
-# Gemini CLI: same pattern.
-rm -rf "$TARGET_HOME/.config/gemini" \
-       "$TARGET_HOME/.cache/gemini" 2>/dev/null || true
+# Antigravity CLI (agy): its OAuth token is a plain 0600 file at
+# ~/.gemini/antigravity-cli/antigravity-oauth-token (agy 1.1.0 uses the file
+# fallback — there is NO system keyring to clear, verified in FEAT-013 spike
+# T1). Settings, cached conversations and session state also live under
+# ~/.gemini/, so remove that whole legacy tree to purge the Google account
+# token completely. Also drop the official installer's staging cache.
+rm -rf "$TARGET_HOME/.gemini" \
+       "$TARGET_HOME/.cache/antigravity" 2>/dev/null || true
 
 # npm / yarn login if any.
 rm -f "$TARGET_HOME/.npmrc" 2>/dev/null || true

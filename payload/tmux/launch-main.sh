@@ -3,14 +3,14 @@
 # into the right folder and running the chosen AI CLI. Idempotent.
 #
 # Reads from /var/lib/buildersinabox/state.json:
-#   - ai_cli       (claude | gemini)
+#   - ai_cli       (claude | antigravity)
 #   - project_name (slug)
 #
 # Run as the target user (NOT root). When called from the wizard, the
 # caller drops privileges via `su - <user>`.
 #
 # Test/dryrun: set BIB_TMUX_LAUNCH_CMD=true (or any other safe command)
-# to swap out the CLI launch — useful when claude/gemini aren't logged in
+# to swap out the CLI launch — useful when claude/agy aren't logged in
 # yet, so the session is built but the AI CLI is not actually started.
 
 set -euo pipefail
@@ -40,7 +40,9 @@ target_home="$HOME"
 # already active. No send-keys / sleep hack required, and the named
 # session shows up in the Claude Code mobile/desktop app instantly.
 #
-# Gemini has no equivalent feature, so we just run it plain.
+# Antigravity (agy) has no remote-control equivalent, but its `-i <prompt>`
+# flag boots the TUI with an initial prompt — verified to fire /tutorial in
+# spike T1. AGY_CLI_DISABLE_AUTO_UPDATE keeps the pinned version put.
 #
 # Dryrun: BIB_TMUX_LAUNCH_CMD overrides everything (used by tests).
 launch_cmd_for() {
@@ -55,6 +57,12 @@ launch_cmd_for() {
             printf "claude --remote-control %q %q" "$window_name" "$initial_prompt"
         else
             printf "claude --remote-control %q" "$window_name"
+        fi
+    elif [[ "$ai_cli" == "antigravity" ]]; then
+        if [[ -n "$initial_prompt" ]]; then
+            printf "AGY_CLI_DISABLE_AUTO_UPDATE=1 agy -i %q" "$initial_prompt"
+        else
+            printf "AGY_CLI_DISABLE_AUTO_UPDATE=1 agy"
         fi
     else
         echo "$ai_cli"

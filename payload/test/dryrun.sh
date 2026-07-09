@@ -11,15 +11,16 @@ set -uo pipefail
 
 # Wipe state and any scaffold artefacts from previous runs.
 sudo rm -f /var/lib/buildersinabox/state.json /var/log/buildersinabox/bootstrap.log
-sudo rm -rf /home/ubuntu/ai-platform /home/ubuntu/.agents /home/ubuntu/.claude
+sudo rm -rf /home/ubuntu/ai-platform /home/ubuntu/.agents /home/ubuntu/.claude /home/ubuntu/.gemini
 # Kill any leftover tmux from previous dry-runs.
 sudo -u ubuntu tmux kill-server 2>/dev/null || true
 
 # Required env vars for --non-interactive mode (validated by install.sh).
+# BIB_AI_CLI is parametrised so CI can exercise both paths (claude|antigravity).
 export BIB_USER=ubuntu
 export BIB_NAME=""             # Default flavor; no greeting line.
 export BIB_FLAVOR=default
-export BIB_AI_CLI=claude
+export BIB_AI_CLI="${BIB_AI_CLI:-claude}"
 
 # Test-mode env vars used by the existing libraries.
 export BIB_OAUTH_MOCK=1

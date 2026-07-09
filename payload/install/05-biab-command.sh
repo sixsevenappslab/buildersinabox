@@ -46,11 +46,16 @@ do_add() {
     fi
     local skills_src=/opt/buildersinabox/payload/skills
     local manifest="${skills_src}/manifest.tsv"
-    local home agents_dir claude_dir
+    local home agents_dir claude_dir agy_dir ai_cli
     home="$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)"
     agents_dir="${home}/.agents/skills"
     claude_dir="${home}/.claude/skills"
+    # Mirror 40-scaffold: on antigravity boxes also symlink into agy's global
+    # skills dir (~/.gemini/skills), since agy doesn't scan ~/.agents/skills.
+    agy_dir="${home}/.gemini/skills"
+    ai_cli="$(jq -r '.ai_cli // "claude"' /var/lib/buildersinabox/state.json 2>/dev/null || echo claude)"
     mkdir -p "$agents_dir" "$claude_dir"
+    [[ "$ai_cli" == "antigravity" ]] && mkdir -p "$agy_dir"
     local added=0
     while IFS=$'\t' read -r name tier; do
         [[ -z "$name" || "$name" == \#* ]] && continue
@@ -60,11 +65,14 @@ do_add() {
         else
             cp -r "${skills_src}/${name}" "${agents_dir}/${name}"
             [[ -e "${claude_dir}/${name}" || -L "${claude_dir}/${name}" ]] || ln -s "${agents_dir}/${name}" "${claude_dir}/${name}"
+            if [[ "$ai_cli" == "antigravity" ]]; then
+                [[ -e "${agy_dir}/${name}" || -L "${agy_dir}/${name}" ]] || ln -s "${agents_dir}/${name}" "${agy_dir}/${name}"
+            fi
             echo "biab add: installed ${name}"
             added=$((added+1))
         fi
     done < "$manifest"
-    echo "==> Added ${added} SDD skill(s). Type / in Claude Code to see them."
+    echo "==> Added ${added} SDD skill(s). Type / in your AI CLI to see them."
 }
 
 do_update() {

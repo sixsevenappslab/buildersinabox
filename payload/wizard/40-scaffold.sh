@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # Wizard step: scaffold the BASE workspace (no project yet) and install
 # the bundled SDD skills under ~/.agents/skills/ + symlinked under
-# ~/.claude/skills/<name> so Claude Code finds them at its native path.
+# ~/.claude/skills/<name> (Claude Code) and, for antigravity boxes, under
+# ~/.gemini/skills/<name> (agy's global "Shared" skills dir — spike T1
+# confirmed agy does NOT scan ~/.agents/skills/ in $HOME, only workspaces).
 #
 # The project picker + project subdir + FEAT spec copy lives in the
-# /first-project skill (runs inside Claude Code, conversational).
+# /first-project skill (runs inside the AI CLI, conversational).
 
 set -euo pipefail
 
@@ -63,13 +65,18 @@ mkdir -p \
     "$ws_root/stratops"
 
 # ---------------------------------------------------------------------------
-# Render CLAUDE.md + GEMINI.md + AGENTS.md for root + stratops only.
+# Render CLAUDE.md + AGENTS.md for root + stratops only.
 # Project-level files come from /first-project.
+#
+# CLAUDE.md is Claude Code's context file; AGENTS.md is the open standard
+# that Antigravity (agy) reads as workspace context (spike T1 confirmed agy
+# loads AGENTS.md). We no longer generate the GEMINI.md context file — the
+# retired second CLI was its only consumer.
 # ---------------------------------------------------------------------------
 project_claude_tpl="${PAYLOAD_DIR}/templates/PROJECT-CLAUDE.md"
 if [[ -f "$project_claude_tpl" ]]; then
     for folder in "$ws_root" "$ws_root/stratops"; do
-        for name in CLAUDE.md GEMINI.md AGENTS.md; do
+        for name in CLAUDE.md AGENTS.md; do
             target="$folder/$name"
             if [[ ! -f "$target" ]]; then
                 # No project name yet — placeholder that /first-project replaces.
@@ -88,11 +95,20 @@ fi
 skills_src="${PAYLOAD_DIR}/skills"
 agents_skills_dir="${target_home}/.agents/skills"
 claude_skills_dir="${target_home}/.claude/skills"
+# agy reads globally-registered skills from ~/.gemini/skills/ (its "Shared"
+# dir). Only wire it up for antigravity boxes so Claude-only boxes don't grow
+# an empty ~/.gemini/ tree.
+scaffold_ai_cli="$(state_get '.ai_cli')"
+agy_skills_dir="${target_home}/.gemini/skills"
 
 mkdir -p "$agents_skills_dir" "$claude_skills_dir"
+if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
+    mkdir -p "$agy_skills_dir"
+fi
 
-# install_skill <skill-name> — copy one skill into ~/.agents/skills and
-# symlink it under ~/.claude/skills. Idempotent. Mirrored by `biab add`.
+# install_skill <skill-name> — copy one skill into ~/.agents/skills (the
+# source of truth) and symlink it into each CLI's native global skills dir.
+# Idempotent. Mirrored by `biab add`.
 install_skill() {
     local skill_name="$1"
     local skill_dir="${skills_src}/${skill_name}"
@@ -108,6 +124,13 @@ install_skill() {
     if [[ ! -e "$claude_link" && ! -L "$claude_link" ]]; then
         ln -s "$target_dir" "$claude_link"
         log "40-scaffold: symlinked $claude_link -> $target_dir"
+    fi
+    if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
+        local agy_link="${agy_skills_dir}/${skill_name}"
+        if [[ ! -e "$agy_link" && ! -L "$agy_link" ]]; then
+            ln -s "$target_dir" "$agy_link"
+            log "40-scaffold: symlinked $agy_link -> $target_dir"
+        fi
     fi
 }
 
@@ -135,9 +158,38 @@ else
     warn "40-scaffold: payload/skills/ missing, skipping skill install"
 fi
 
+# ---------------------------------------------------------------------------
+# Pre-seed agy settings so the first /tutorial launch is zero-touch.
+# ---------------------------------------------------------------------------
+# Without this, agy's first run prompts for file-access (the skills live
+# outside the workspace, reached via symlink) and shows a telemetry consent.
+# allowNonWorkspaceAccess skips the file-access prompt; enableTelemetry:false
+# keeps the box quiet (privacy-first); trustedWorkspaces trusts the workspace
+# root up front. (Spike T1.)
+#
+# The login step (38) already runs agy's onboarding, which writes this file
+# first — so we MERGE our keys into whatever exists rather than skip, keeping
+# agy's own keys intact. Skipping here left the box asking for trust on first
+# launch (E2E CP-05), which breaks the zero-touch promise.
+if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
+    agy_conf_dir="${target_home}/.gemini/antigravity-cli"
+    agy_settings="${agy_conf_dir}/settings.json"
+    mkdir -p "$agy_conf_dir"
+    ours="$(jq -n --arg ws "$ws_root" \
+        '{allowNonWorkspaceAccess: true, enableTelemetry: false, trustedWorkspaces: [$ws]}')"
+    if [[ -f "$agy_settings" ]] && jq -e . "$agy_settings" >/dev/null 2>&1; then
+        # Existing valid JSON: our keys win, agy's other keys survive.
+        merged="$(jq --argjson ours "$ours" '. * $ours' "$agy_settings")"
+    else
+        merged="$ours"
+    fi
+    printf '%s\n' "$merged" > "$agy_settings"
+    log "40-scaffold: merged agy settings at $agy_settings"
+fi
+
 # Bundled FEAT specs do NOT get copied here — they live in
 # /opt/buildersinabox/payload/examples/ until /first-project
-# offers them to the user. Moving the choice into Claude lets the
+# offers them to the user. Moving the choice into the AI CLI lets the
 # user discuss them and decide conversationally.
 
 # ---------------------------------------------------------------------------
@@ -180,11 +232,22 @@ readme_src="${PAYLOAD_DIR}/tutorial/desktop-readme.md"
 readme_target="${target_home}/README.md"
 if [[ -f "$readme_src" && ! -f "$readme_target" ]]; then
     ai_cli="$(state_get '.ai_cli')"
-    sed -e "s|{{AI_CLI}}|${ai_cli}|g" \
-        -e "s|{{TARGET_USER}}|${target_user}|g" \
-        -e "s|{{HOSTNAME}}|$(hostname)|g" \
-        "$readme_src" > "$readme_target"
-    log "40-scaffold: wrote $readme_target"
+    : "${ai_cli:=claude}"
+    # The desktop README carries CLI-specific sections wrapped in
+    # <!-- BIB:claude:start -->..<!-- BIB:end --> and
+    # <!-- BIB:antigravity:start -->..<!-- BIB:end --> markers. Keep the
+    # blocks for the chosen CLI plus all unmarked lines; drop the other
+    # CLI's blocks and every marker line.
+    awk -v cli="$ai_cli" '
+        /<!-- BIB:claude:start -->/      { inblock=1; keep=(cli=="claude");      next }
+        /<!-- BIB:antigravity:start -->/ { inblock=1; keep=(cli=="antigravity"); next }
+        /<!-- BIB:end -->/               { inblock=0; keep=1;                     next }
+        { if (!inblock || keep) print }
+    ' "$readme_src" \
+    | sed -e "s|{{TARGET_USER}}|${target_user}|g" \
+          -e "s|{{HOSTNAME}}|$(hostname)|g" \
+        > "$readme_target"
+    log "40-scaffold: wrote $readme_target (ai_cli=$ai_cli)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -195,6 +258,9 @@ chown -R "$target_user:$target_user" \
     "${target_home}/.agents" \
     "${target_home}/.claude" \
     "${target_home}/.bashrc.d" 2>/dev/null || true
+if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
+    chown -R "$target_user:$target_user" "${target_home}/.gemini" 2>/dev/null || true
+fi
 chown "$target_user:$target_user" "$readme_target" "$bashrc" 2>/dev/null || true
 
 # project_name remains unset in state.json — /first-project sets it

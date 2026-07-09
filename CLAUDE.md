@@ -20,7 +20,7 @@ Start with [`README.md`](README.md) for the product overview and
 - **`payload/`** — everything that ends up on the device. Bash + systemd + a
   console wizard. `install/*.sh` install the stack once; `wizard/*.sh` run the
   guided first-boot setup (password, AI-CLI choice, Tailscale, SSH, scaffold,
-  tmux); `skills/<name>/SKILL.md` are the bundled Claude Code / Gemini skills;
+  tmux); `skills/<name>/SKILL.md` are the bundled Claude Code / Antigravity skills;
   `skeleton/` is the workspace copied into the user's home; `tutorial/` and the
   `/tutorial` skill own post-install onboarding.
 - **`installer/`** — the bootstrap path. `installer/web/install.sh` is the

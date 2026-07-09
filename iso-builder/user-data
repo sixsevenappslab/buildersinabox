@@ -56,7 +56,7 @@ autoinstall:
   # installer environment; use `curtin in-target -- <cmd>` to run inside
   # the new root (/target). We keep this minimal: stage the repo, install
   # the first-boot machinery, and mark the wizard as pending. The actual
-  # stack install (Tailscale, gh, Claude/Gemini, tmux, ssh hardening) is
+  # stack install (Tailscale, gh, Claude/Antigravity, tmux, ssh hardening) is
   # deferred to the first-boot script so the user sees progress on screen.
   late-commands:
     # 1. Extract the embedded buildersinabox repo into /opt.

@@ -47,7 +47,7 @@ usage() {
 Usage: sudo install.sh [options]
 
 Options:
-  --ai-cli=<claude|gemini>   Pick the AI CLI to install (default: claude).
+  --ai-cli=<claude|antigravity>  Pick the AI CLI to install (default: claude).
   --flavor=<default|gift>    Pick the copy/banner flavor (default: default).
   --force                    Reset wizard-phase state so the wizard runs again.
                              Does not reinstall the stack.
@@ -109,7 +109,7 @@ fi
 if [[ "$NON_INTERACTIVE" -eq 1 ]]; then
     : "${BIB_USER:?BIB_USER is required in --non-interactive mode}"
     : "${BIB_FLAVOR:?BIB_FLAVOR is required in --non-interactive mode (default|gift)}"
-    : "${BIB_AI_CLI:?BIB_AI_CLI is required in --non-interactive mode (claude|gemini)}"
+    : "${BIB_AI_CLI:?BIB_AI_CLI is required in --non-interactive mode (claude|antigravity)}"
     # BIB_NAME may legitimately be empty (default flavor drops the line).
     # Treat unset as empty; do not require.
     export BIB_NAME="${BIB_NAME:-}"
@@ -342,12 +342,14 @@ if [[ "$NON_INTERACTIVE" -eq 0 && -z "$AI_CLI_ARG" && -z "${BIB_AI_CLI:-}" \
     printf '\n'
     cat <<'EOF'
 Pick the AI coding CLI this box will run in its tmux session.
-Both have OAuth logins that work from your phone.
+Both have OAuth logins that work from your phone:
+  - claude       needs a paid Claude subscription (Pro or above).
+  - antigravity  Google's Antigravity CLI (agy) — needs a Google account.
 EOF
-    if prompt_choice "Which one?" "claude" "gemini"; then
+    if prompt_choice "Which one?" "claude" "antigravity"; then
         AI_CLI_ARG="$BIB_PROMPT_VALUE"
     else
-        warn "install: no interactive input available — defaulting to claude (use --ai-cli=gemini to override)"
+        warn "install: no interactive input available — defaulting to claude (use --ai-cli=antigravity to override)"
         AI_CLI_ARG="claude"
     fi
 fi

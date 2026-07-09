@@ -1,136 +1,120 @@
-# CLI skills compatibility: Claude Code ↔ Gemini CLI
+# CLI skills compatibility: Claude Code ↔ Antigravity CLI (`agy`)
 
-> Wave 0 deliverable of FEAT-001. Determines whether the bundled SDD skills can be shipped under `~/.agents/skills/` and consumed identically by both AI CLIs supported in v1.
+> Determines whether the bundled SDD skills ship under `~/.agents/skills/`
+> and are consumed identically by both AI CLIs Builders in a Box supports.
 
-**Status:** ✅ Complete. Research + empirical validation done on a clean Ubuntu 24.04 multipass VM.
+**Status:** ✅ Validated empirically for both CLIs.
 
-**Date:** 2026-05-25.
-
-## Empirical results (TL;DR)
-
-Tested on a fresh `multipass launch 24.04` VM with `claude@2.1.150` and `gemini@0.43.0` installed via npm. Dropped the unmodified `payload/skills/sdd-base/SKILL.md` into `~/.agents/skills/sdd-base/`.
-
-**Gemini CLI:** discovers the skill with zero configuration. Confirmed via:
-
-```
-$ gemini skills list --all
-Discovered Agent Skills:
-
-sdd-base [Enabled]
-  Description: Spec-Driven Development — base workflow for Claude Code. ...
-  Location:    /home/ubuntu/.agents/skills/sdd-base/SKILL.md
-```
-
-**Claude Code:** does not look in `~/.agents/skills/` natively. Its canonical user-level skills path is `~/.claude/skills/`. For Claude to discover the bundled skill we need to also install it there (or symlink).
-
-**Install strategy for v1 wizard:** install bundled skills to both `~/.claude/skills/` and `~/.agents/skills/` (via symlink to avoid duplication). One source-of-truth at `~/.agents/skills/<name>/`, a symlink at `~/.claude/skills/<name>` pointing to it. Both CLIs find their skill from their native location, no content drift possible.
+The original v1 validation (2026-05-25) targeted Builders in a Box's *first*
+second-CLI option, which Google retired for consumers on 2026-06-18. That CLI
+has been replaced by its successor, the **Antigravity CLI (`agy`)**, and the
+findings below reflect the FEAT-013 spike on `agy` 1.1.0 (2026-07-09).
 
 ## TL;DR
 
-The skill format **is drop-in compatible** between Claude Code and Gemini CLI at the file/directory level. Both look in `~/.agents/skills/` (the documented cross-CLI alias), both expect a `SKILL.md` with `name` and `description` frontmatter, both add the body to the conversation when the skill activates.
+The Anthropic-style `SKILL.md` format is drop-in compatible between Claude
+Code and `agy`: a folder with a `SKILL.md` (YAML frontmatter `name` +
+`description`, then a body) is discovered and invocable by both. The
+difference is *where* each CLI looks:
 
-The bundled `payload/skills/sdd-base/SKILL.md` is generic (roles by title, persona names configurable, no hardcoded project paths) and ships safely to both CLIs.
+- **Claude Code** reads `~/.claude/skills/<name>/`.
+- **`agy`** does **not** scan `~/.agents/skills/` in `$HOME` — it only reads
+  `.agents/skills/` at the *workspace* level. Its global ("Shared") skills
+  directory is `~/.gemini/skills/`.  <!-- ~/.gemini is agy's real config home -->
 
-**One caveat** (non-blocking, but worth fixing in a follow-up): the bundled SKILL.md references `~/.claude/sdd-config.json` as the optional config location. For Gemini users that path doesn't exist. The skill correctly falls back to defaults if the file is missing, so Gemini users get a usable workflow but lose configurability. Recommendation: move the config to `~/.config/sdd/config.json` (XDG-compliant, CLI-agnostic). Tracked as follow-up, not a Wave 0 blocker.
+So Builders in a Box keeps a single source of truth at `~/.agents/skills/<name>/`
+and symlinks it into each CLI's native location:
 
-## Research findings (paper)
+- `~/.claude/skills/<name>` → `~/.agents/skills/<name>`  (Claude Code)
+- `~/.gemini/skills/<name>` → `~/.agents/skills/<name>`   (`agy`, antigravity boxes only)  <!-- agy's real config home -->
 
-### Discovery locations
+Symlinks are honoured by both CLIs (confirmed on the VM), so there is no
+content duplication and no drift.
 
-| CLI | Searched paths (precedence high → low) |
-|-----|----------------------------------------|
-| Claude Code | `.claude/skills/` (workspace) → `~/.claude/skills/` (user) → built-in |
-| Gemini CLI | `.gemini/skills/` or `.agents/skills/` (workspace) → `~/.gemini/skills/` or `~/.agents/skills/` (user) → extension skills → built-in |
+## FEAT-013 spike addendum — `agy` 1.1.0 on headless Ubuntu 24.04
 
-The `~/.agents/skills/` and `.agents/skills/` aliases are explicitly documented in [Gemini CLI's skills docs](https://geminicli.com/docs/cli/skills/). Claude Code (v2.1.150 tested) does **not** read from `~/.agents/skills/` natively — its canonical path remains `~/.claude/skills/`. **Conclusion (revised after empirical test): install bundled skills to `~/.agents/skills/` as the source of truth, and symlink `~/.claude/skills/<name>` to it so Claude Code finds them at its native path. Both CLIs work with no duplication and no drift.**
+Ran on a clean multipass VM (Ubuntu 24.04, no `gnome-keyring`/`libsecret`/
+`dbus-x11` at any point). `agy` installed pinned from a GitHub release
+(`agy_cli_linux_x64.tar.gz`, sha256-verified), authenticated with a real
+Google consumer account.
 
-### Required file layout
+### Skills — discovery + invocation
 
-Both CLIs require:
+- A rig of marker skills in each candidate directory showed `/skills` lists,
+  by category:
+  - **Workspace:** `<workspace>/.agents/skills/`
+  - **Global:** `~/.gemini/antigravity-cli/skills/`  <!-- agy app-data dir -->
+  - **Shared:** `~/.gemini/skills/`  <!-- agy's stable global dir -->
+  - plus product-builtin and a registered `~/.gemini/config/skills/`.  <!-- agy config dir -->
+- `~/.agents/skills/` in `$HOME` was **not** scanned — the home-level marker
+  skill never appeared. Only workspace `.agents/skills/` is read.
+- **Symlinks work:** a skill symlinked into a scanned global dir showed up and
+  was invocable. Builders in a Box symlinks into `~/.gemini/skills/` (the
+  stable "Shared" dir; the `antigravity-cli/` tree is regenerable app-data).  <!-- agy's config home -->
+- `agy -i '/tutorial'` boots the TUI and fires the skill (verified). On the
+  first run, because the real `SKILL.md` sits outside the workspace (reached
+  via symlink), `agy` asks for file-access — neutralised by pre-seeding
+  `allowNonWorkspaceAccess: true` in its settings (see below).
+
+### Login + token persistence
+
+- `agy` 1.1.0 has **no** `agy auth login` subcommand. Login is the TUI itself:
+  launch `agy`, choose "Google OAuth", it prints a long sign-in URL, the user
+  signs in and pastes the authorization code back.
+- The OAuth token is written to a plain `0600` file at
+  `~/.gemini/antigravity-cli/antigravity-oauth-token`  <!-- agy token file -->
+  (JSON `{token, auth_method}`). **No system keyring is used or required** —
+  the earlier "keyring-only" concern (issue #57) does not reproduce on 1.1.0,
+  which falls back to a file. The token survived two reboots with `agy`
+  staying authenticated (verified with `agy models`).
+- Health check (non-interactive, no quota, no OAuth trigger):
+  `agy models </dev/null` — exit 0 + model list when authed, exit 1 when not.
+
+### Zero-touch settings pre-seed
+
+Written by the scaffold step to
+`~/.gemini/antigravity-cli/settings.json`:  <!-- agy settings file -->
+
+```json
+{
+  "allowNonWorkspaceAccess": true,
+  "enableTelemetry": false,
+  "trustedWorkspaces": ["/home/<user>/ai-platform"]
+}
+```
+
+Plus `AGY_CLI_DISABLE_AUTO_UPDATE=1` exported in the launcher/login so the
+pinned version can't silently drift.
+
+### Workspace context files
+
+Asked `agy` which context markers it saw in a workspace containing
+`GEMINI.md`, `AGENTS.md` and `.antigravity.md`:  <!-- agy legacy context file -->
+
+- It reads **`AGENTS.md`** and the legacy **`GEMINI.md`**.  <!-- agy legacy context file -->
+- It does **not** read `.antigravity.md`.
+
+Decision for the scaffold: generate **`CLAUDE.md`** (Claude Code) and
+**`AGENTS.md`** (the open standard `agy` reads). Builders in a Box stops
+generating the legacy per-folder context file the retired CLI used.
+
+### reset-for-gift purge targets
+
+To de-authenticate a box before gifting, remove `~/.gemini/` wholesale (token
++ settings + cached conversations) and `~/.cache/antigravity/`. There is no
+keyring secret to clear.  <!-- ~/.gemini is agy's real config home -->
+
+## Required file layout (both CLIs)
 
 ```
 <skills-root>/<skill-name>/
-└── SKILL.md          # frontmatter + body
+└── SKILL.md          # YAML frontmatter (name, description) + body
    (+ any supporting assets, scripts, templates)
 ```
 
-### Frontmatter
+## Activation behavior
 
-Both CLIs read `name` and `description` from YAML frontmatter at the top of `SKILL.md`. The bundled skill already conforms:
-
-```yaml
----
-name: sdd-base
-description: Spec-Driven Development — base workflow for Claude Code. ...
----
-```
-
-The text `for Claude Code` in the description is misleading once we ship to Gemini too. Consider rewording to `for AI coding CLIs` or simply omitting the CLI reference. Minor wording fix, not a compatibility blocker.
-
-### Activation behavior
-
-Per Gemini's docs: *"When a skill activates, the `SKILL.md` body and folder structure is added to the conversation history."*
-
-Claude Code behaves the same way (the skill body is injected into the system prompt when the model decides the user's request matches the skill description).
-
-**Implication for content writing:** the SKILL.md body should be **self-contained**. It cannot assume access to other skills, external services, or files outside its own folder unless those references are themselves portable.
-
-## What we ship in v1
-
-| File | Status |
-|------|--------|
-| `payload/skills/sdd-base/SKILL.md` | ✅ Generic — roles by title, no Elena/Laura/Pablo hardcoded, no specific project paths. Ships as-is. |
-| `payload/templates/FEAT-TEMPLATE.md` | ✅ Generic — `Owner: Product Lead`, etc. Ships as-is. |
-| `payload/templates/FEAT-STARTER.md` | ✅ Generic. Ships as-is. |
-| `payload/skills/sdd-coordinator/` | 🚧 Not yet written. Generic version needed before v1 ships. |
-| `payload/skills/sdd-spec-writer/` | 🚧 Same. |
-| `payload/skills/sdd-qa/` | 🚧 Same. |
-| `payload/skills/sdd-growth/` | 🚧 Same. |
-| `payload/skills/sdd-docs/` | 🚧 Same. |
-
-A maintainer's local `~/.claude/skills/sdd-base/SKILL.md` may contain personalised agent personas, internal email domains, and hardcoded project paths from the maintainer's own workflow. **Those are not candidates for shipping.** Only the generic versions in `payload/skills/` ship to recipient devices. `tools/check-no-personal-refs.sh` guards the boundary.
-
-## Empirical test recipe (reproducible)
-
-For anyone wanting to re-validate, this is the exact sequence used:
-
-```bash
-# Host (one-time)
-sudo snap install multipass
-
-# Provision the VM
-multipass launch --name biab-spike --cpus 2 --memory 4G --disk 20G 24.04
-multipass mount /path/to/buildersinabox biab-spike:/repo
-
-# Install Node 20 + both CLIs inside the VM
-multipass exec biab-spike -- bash -c "curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -"
-multipass exec biab-spike -- sudo apt-get install -y nodejs
-multipass exec biab-spike -- sudo npm install -g @anthropic-ai/claude-code @google/gemini-cli
-
-# Drop the bundled skill via the cross-CLI alias
-multipass exec biab-spike -- bash -c 'mkdir -p ~/.agents/skills && cp -r /repo/payload/skills/sdd-base ~/.agents/skills/'
-
-# Verify Gemini discovers it (no OAuth needed)
-multipass exec biab-spike -- gemini skills list --all
-# Expected: sdd-base listed with the correct description and location
-
-# (Optional) Verify the invocation by OAuthing into Gemini and running a SDD prompt
-multipass exec biab-spike -- gemini auth login
-multipass exec biab-spike -- bash -c 'echo "Use sdd-base to outline a FEAT for a hello-world CLI" | gemini -p'
-
-# Cleanup
-multipass delete biab-spike && multipass purge
-```
-
-### What we validated
-
-- [x] **Format-level compatibility.** Anthropic-style frontmatter (`name`, `description`) is read identically by both CLIs.
-- [x] **Gemini discovery.** Zero-config discovery from `~/.agents/skills/` confirmed via `gemini skills list --all`.
-- [x] **Claude discovery path.** Confirmed as `~/.claude/skills/` (Claude Code does not currently honour the `~/.agents/skills/` alias — at least not in v2.1.150). Mitigation: install bundled skills to both paths (symlink one to the other).
-- [ ] **Behavioural invocation.** Not validated under this spike — the model picking up the skill and producing SDD-shaped output is content-quality territory, deferred to FEAT-001 Wave 4 end-to-end tests once we have authenticated CLIs in the test rig.
-
-## Follow-ups (not Wave 0 blockers)
-
-1. **Config path portability.** Move `~/.claude/sdd-config.json` to `~/.config/sdd/config.json`. Update `SKILL.md` to look there first, fall back to the legacy path. One-line change once the bundled skill is finalised.
-2. **Description wording.** Drop the literal `for Claude Code` reference in `description` so the skill reads neutral when shown to Gemini users.
-3. **Specialized skills.** Write generic versions of `sdd-coordinator`, `sdd-spec-writer`, `sdd-qa`, `sdd-growth`, `sdd-docs` before v1 ships. They reference roles by title and never name personas, persona names live in `sdd-config.json`.
+When a skill activates, its `SKILL.md` body is injected into the model's
+context. Bodies should therefore be **self-contained** — no assumptions about
+other skills or files outside the skill's own folder unless those references
+are themselves portable.

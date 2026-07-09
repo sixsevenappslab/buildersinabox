@@ -1,8 +1,9 @@
 # skills/
 
-Claude Code skills bundled with a Builders in a Box devbox. Installed to
-`~/.agents/skills/<name>/` on first boot, with a symlink at
-`~/.claude/skills/<name>` so both Claude Code and Gemini CLI find them.
+AI CLI skills bundled with a Builders in a Box devbox. Installed to
+`~/.agents/skills/<name>/` on first boot (the source of truth), with a
+symlink into each CLI's native skills dir — `~/.claude/skills/<name>` for
+Claude Code, `~/.gemini/skills/<name>` for Antigravity CLI — so both find them.
 
 ## What's in this v1 bundle
 
@@ -38,10 +39,10 @@ strip personalization before shipping: `spec-implementer`, `pr-review`,
 
 ## How to invoke a skill
 
-Type `/skill-name` inside any tmux window running Claude Code or Gemini CLI.
+Type `/skill-name` inside any tmux window running Claude Code or Antigravity CLI.
 Example: `/sdd-coordinator I want to add bulk export to my app`.
 
-To see what's available at any time, type `/skills list` (Gemini) or
+To see what's available at any time, type `/skills` (Antigravity) or
 just `/` and start typing (Claude Code shows matches).
 
 ## Adding your own

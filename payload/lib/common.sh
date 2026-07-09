@@ -157,7 +157,7 @@ bib_flavor_resolve() {
 # Schema (v2):
 # {
 #   "version": 2,
-#   "ai_cli": "claude" | "gemini" | null,
+#   "ai_cli": "claude" | "antigravity" | null,
 #   "bib_user": "<resolved operator account>",
 #   "bib_name": "<display name, may be empty>",
 #   "flavor": "default" | "gift",

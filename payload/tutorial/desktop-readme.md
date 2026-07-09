@@ -1,21 +1,40 @@
 # Your Builders in a Box
 
+<!-- BIB:claude:start -->
 You made it. The device is configured. From now on, everything happens
 through the **Claude Code mobile app** — no SSH client, no manual
 `tmux attach`, no typing commands to reconnect. The sessions are
 already running on this device and exposed via Claude Code's
 **Remote Control** feature, so the mobile app sees them and lets
 you jump straight in.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+You made it. The device is configured. From now on you reach it from
+your phone (or laptop) over **SSH through Tailscale**, and pick up your
+work by attaching to a persistent **tmux** session. The AI sessions are
+already running on this device and survive disconnects — you attach,
+you're back exactly where you left off.
+<!-- BIB:end -->
 
 ## Start here
 
+<!-- BIB:claude:start -->
 Open the `ai-platform` session (in the Claude Code app sidebar, or via
 `tmux attach -t ai-platform` from a terminal). Claude greets you on its
 own — the `/tutorial` skill runs automatically the first time.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+SSH into the box and attach the `ai-platform` session:
+
+    tmux attach -t ai-platform
+
+Antigravity (`agy`) greets you on its own — the `/tutorial` skill runs
+automatically the first time.
+<!-- BIB:end -->
 
 The tutorial is the guided onboarding: 8 short beats, ~10 minutes,
 skippable. It covers GitHub auth, the two bundled project specs,
-creating your first project, how Claude's context changes by folder,
+creating your first project, how your AI's context changes by folder,
 spawning new tmux sessions per project, and the SDD skills with a
 live demo of `/sdd-coordinator`.
 
@@ -25,6 +44,7 @@ picture, type `/whats-ahead`. To set up additional projects later, use
 
 ## How you connect from your phone (or laptop)
 
+<!-- BIB:claude:start -->
 The simple, default way:
 
 1. Install **Claude Code** from the app store on your phone.
@@ -52,21 +72,60 @@ Because Claude Code app's remote control over your already-running
 sessions is the smoothest interface for the way you'll actually use
 this device — phone, coffee shop, sofa, in the car. SSH still works as a fallback
 (see "Backup access" below), but you shouldn't need it day to day.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+The simple, default way is SSH over your private Tailscale network:
+
+1. Install **Termius** (or any SSH client) on your phone — on a laptop
+   the built-in terminal is enough.
+2. Make sure **Tailscale** is connected on that device, signed in with
+   the same account you used during setup. Your box shows up on your
+   tailnet under the name from `tailscale status`.
+3. Connect with Tailscale SSH (no key paste needed):
+
+       ssh {{TARGET_USER}}@{{HOSTNAME}}
+
+4. Attach your session:
+
+       tmux attach -t ai-platform
+
+You're inside, exactly where you left off. As you create projects via
+`/first-project`, each one gets its own tmux session — attach any of
+them by name with `tmux attach -t <name>` (or the `tmuxc` helper below).
+
+**Works the same from your laptop** — same tailnet, same `ssh` + `tmux
+attach`, just a bigger screen and a real keyboard. The session doesn't
+care where you are; it keeps running on the box.
+
+Detach any time with `Ctrl-b d` — the session and `agy` keep running,
+ready for you to re-attach later.
+<!-- BIB:end -->
 
 ## What's running right now
 
+<!-- BIB:claude:start -->
 A persistent tmux session called `ai-platform`, cwd `~/ai-platform/`,
-running your AI CLI ({{AI_CLI}}) with Remote Control already enabled
+running your AI CLI (claude) with Remote Control already enabled
 via the `--remote-control` flag. As you create projects, each one gets
 its own session — same shape, different folder, separate sidebar item
 in the Claude Code app.
 
 If Remote Control ever needs to be re-enabled (after a daemon restart,
 for example), just rerun `/opt/buildersinabox/payload/tmux/launch-main.sh`.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+A persistent tmux session called `ai-platform`, cwd `~/ai-platform/`,
+running Antigravity (`agy`) with the `/tutorial` skill. As you create
+projects, each one gets its own tmux session — same shape, different
+folder, attach by name.
 
-## Talking to Claude
+If the session ever disappears (after a reboot without autostart, for
+example), just rerun `/opt/buildersinabox/payload/tmux/launch-main.sh`.
+<!-- BIB:end -->
 
-When you're inside any session, just type. Claude listens.
+## Talking to your AI
+
+When you're inside any session, just type. Your AI listens.
 Try:
 
 > *"Help me sketch what a slack scheduler would look like"*
@@ -76,10 +135,10 @@ Try:
 
 > *"Review what I just changed and tell me if anything looks wrong."*
 
-## Skills — Claude with specific expertise
+## Skills — your AI with specific expertise
 
 This device ships with **19 pre-loaded skills**. Type `/` inside any
-Claude Code window and start typing the name. A few you might want:
+session and start typing the name. A few you might want:
 
 ### Guided onboarding
 - `/tutorial` — the post-install onboarding (8 beats, ~10 min). Auto-fires
@@ -122,8 +181,8 @@ Claude Code window and start typing the name. A few you might want:
 - `/ux-review` — UX heuristic evaluation.
 
 Want more skills later? Drop a folder under `~/.agents/skills/<name>/`
-containing a `SKILL.md`. Both Claude Code and Gemini CLI find it
-automatically.
+containing a `SKILL.md`. It's symlinked into your AI CLI's skills path
+automatically (that's what `biab add` does).
 
 ## Switching contexts with tmuxc
 
@@ -142,6 +201,7 @@ tmuxa                 # shortcut: attach to 'ai-platform'
 Use it when you want a side context — e.g. `tmuxc scratch ~/tmp` for a
 throwaway poke at something, while your `ai-platform` session keeps running.
 
+<!-- BIB:claude:start -->
 ## Sharing a session live
 
 You can also share any active session with someone else (a friend, a
@@ -165,22 +225,44 @@ your account locked, anything weird), there's a fallback:
 Your GitHub SSH keys are also in `~/.ssh/authorized_keys` so a raw
 `ssh <username>@<tailscale-ip>` works too. Both are belt-and-suspenders for
 the rare day when the primary path is down.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+## Sharing a session live
+
+tmux lets more than one client attach to the same session at once, so
+you can pair with someone: they SSH into the box as you (or as another
+user you've added), run `tmux attach -t ai-platform`, and you both see —
+and drive — the same screen. Detach with `Ctrl-b d` when you're done.
+Builders in a Box does not ship a hosted "share a link" service.
+
+## If SSH ever fails
+
+Your primary path IS SSH over Tailscale, so keep these handy:
+
+- Check the box is on your tailnet: run `tailscale status` from another
+  device. If the box is offline there, power-cycle it.
+- Your GitHub SSH keys are in `~/.ssh/authorized_keys`, so a raw
+  `ssh <username>@<tailscale-ip>` works even if Tailscale SSH is off.
+- If `agy` says you're signed out, SSH in and run `agy` once
+  interactively to redo the Google OAuth (choose "Google OAuth", paste
+  the authorization code).
+<!-- BIB:end -->
 
 ## Where things live
 
 ```
 ~/ai-platform/                   <- your workspace root
-├── CLAUDE.md / GEMINI.md / AGENTS.md
+├── CLAUDE.md / AGENTS.md
 ├── projects/
 │   └── {{PROJECT_NAME}}/
-│       ├── CLAUDE.md / GEMINI.md / AGENTS.md
+│       ├── CLAUDE.md / AGENTS.md
 │       └── specs/
 │           ├── draft/FEAT-002-personal-slack-coach.md   <- your first work
 │           ├── draft/FEAT-003-personal-finance-app.md   <- your second
 │           ├── active/      (when you start implementing)
 │           └── completed/   (when you ship)
 └── stratops/
-    ├── CLAUDE.md / GEMINI.md / AGENTS.md
+    ├── CLAUDE.md / AGENTS.md
     └── README.md
 
 ~/.agents/skills/                <- bundled skills (and any you add)
@@ -190,6 +272,7 @@ the rare day when the primary path is down.
 /var/log/buildersinabox/         <- bootstrap + wizard logs
 ```
 
+<!-- BIB:claude:start -->
 ## The Claude login URL is too long for OCR — what to do
 
 The wizard's third login is Claude Code itself. Inside Claude's UI you
@@ -222,9 +305,31 @@ own monitor and you're stuck, SSH in from your phone or laptop:
       sudo /opt/buildersinabox/payload/install.sh
   The wizard moves on without Claude. Authenticate later by SSH'ing in
   and running `claude` then `/login`.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+## The agy login URL is long — what to do
+
+Antigravity signs in with Google OAuth. When you launch `agy` signed
+out, choose "Google OAuth" and it prints a long sign-in URL that's
+painful to type by hand and too long for your phone's text-recognition
+to capture reliably from a monitor.
+
+That's why the setup wizard pauses about halfway through and asks you
+to SSH in from another device — phone OR laptop, your pick. In an SSH
+session the URL appears in a real terminal where you can long-press to
+copy (phone) or click-and-drag (laptop), then paste straight into your
+browser, sign in, and paste the authorization code back into `agy`.
+
+If `agy` ever says you're signed out, SSH in and just run `agy` once
+interactively to redo it:
+
+    ssh {{TARGET_USER}}@{{HOSTNAME}}
+    agy        # choose "Google OAuth", paste the code
+<!-- BIB:end -->
 
 ## When something feels off
 
+<!-- BIB:claude:start -->
 - **Claude Code app doesn't see your sessions:** confirm `/remote-control`
   is active in each window. The launcher script
   `/opt/buildersinabox/payload/tmux/launch-main.sh` re-applies it.
@@ -235,6 +340,19 @@ own monitor and you're stuck, SSH in from your phone or laptop:
   power-cycle it.
 - **Wizard didn't finish and you want to restart it:** as root, run
   `touch /var/lib/buildersinabox/firstboot.pending` and reboot.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+- **`tmux attach` says no such session:** rerun the launcher —
+  `/opt/buildersinabox/payload/tmux/launch-main.sh` — to recreate the
+  `ai-platform` session.
+- **`agy` says "please sign in" or refuses to start:** run `agy` once
+  interactively over SSH and redo the Google OAuth.
+- **Can't reach the device at all:** check `tailscale status` from
+  another device on your tailnet. If the mini PC is offline there,
+  power-cycle it.
+- **Wizard didn't finish and you want to restart it:** as root, run
+  `touch /var/lib/buildersinabox/firstboot.pending` and reboot.
+<!-- BIB:end -->
 
 ## Recovery — starting over from scratch
 
@@ -246,7 +364,7 @@ installer again:
     curl -fsSL https://buildersinabox.com/install.sh | sudo bash
 
 Your code is safe — it lives on GitHub. Reinstalling only loses local
-state (logs, the local Claude session, anything you haven't pushed).
+state (logs, the local AI session, anything you haven't pushed).
 
 To remove Builders in a Box from this machine without reinstalling
 the OS:
@@ -254,16 +372,18 @@ the OS:
     sudo /opt/buildersinabox/payload/install.sh --uninstall
 
 That removes everything BIAB-owned and leaves your home directory,
-Tailscale, and your GitHub and Claude logins untouched.
+Tailscale, and your GitHub and AI CLI logins untouched.
 
 ## What this box is — and isn't
 
 It's **yours**. You own the hardware, the data, the keys. Nothing here
-phones home except the Claude/Gemini API calls *you* make on *your*
-account, plus the Claude Code app's remote-control channel that *you*
-explicitly enabled.
+phones home except the AI API calls *you* make on *your* own account.
+<!-- BIB:claude:start -->
+The one extra channel is the Claude Code app's remote-control link, which
+*you* explicitly enabled during setup.
+<!-- BIB:end -->
 
-It's **not** a managed service. There's no support team. If a Claude
+It's **not** a managed service. There's no support team. If an upstream
 update changes a CLI flag and something breaks, you (or the person who
 gave it to you) need to fix it. The whole thing is open code under
 `/opt/buildersinabox/` (the full git repo) and `~/ai-platform/payload/`
@@ -271,6 +391,6 @@ gave it to you) need to fix it. The whole thing is open code under
 
 When you want to teach the device a new trick — a new skill, a shell
 helper, a wizard step, a bundled FEAT — type `/extend-yourself` in any
-Claude Code window. It's an interactive guide for everything you can
-add. The whole system is designed to be modified by its owner; nothing
-is meant to stay frozen.
+session. It's an interactive guide for everything you can add. The whole
+system is designed to be modified by its owner; nothing is meant to stay
+frozen.

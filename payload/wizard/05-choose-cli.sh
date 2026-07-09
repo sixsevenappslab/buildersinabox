@@ -25,9 +25,11 @@ cat <<'EOF'
 This is the CLI that will run in your tmux session after setup,
 and the one your coach (if you set it up later) will invoke headlessly.
 
-Both choices have OAuth device flows that work from your phone.
+Both choices have OAuth logins that work from your phone:
+  - claude       needs a paid Claude subscription (Pro or above).
+  - antigravity  Google's Antigravity CLI (agy) — needs a Google account.
 EOF
 
-prompt_choice "Pick one:" "claude" "gemini" || die "05-choose-cli: aborted"
+prompt_choice "Pick one:" "claude" "antigravity" || die "05-choose-cli: aborted"
 ai_cli_persist "$BIB_PROMPT_VALUE"
 log "05-choose-cli: chose $BIB_PROMPT_VALUE"

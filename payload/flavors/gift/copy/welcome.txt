@@ -28,7 +28,7 @@ The next 25 minutes are the setup. Here's the trip:
 You'll log in to two services from this monitor:
 
   1. Tailscale  (https://tailscale.com)  <- private network — your phone reaches the device
-  2. Claude or Gemini                    <- the AI you'll be talking to
+  2. Claude or Antigravity               <- the AI you'll be talking to
 
 GitHub comes later, inside the Claude Code app — easier from there.
 

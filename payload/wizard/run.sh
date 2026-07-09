@@ -111,8 +111,8 @@ run_step "36-phone-bridge.sh"      # pauses here on console (exit 78)
 #  - 40-scaffold builds the BASE workspace only. Project picker + FEAT
 #    spec copy + GitHub repo creation live inside Claude (/tutorial
 #    Beat 4 → /first-project).
-run_step "05-choose-cli.sh"        # claude (default) or gemini
-run_step "38-ai-cli-login.sh"      # long Claude URL, copy-paste in SSH
+run_step "05-choose-cli.sh"        # claude (default) or antigravity
+run_step "38-ai-cli-login.sh"      # OAuth URL, copy-paste in SSH
 run_step "40-scaffold.sh"          # base ai-platform/ skeleton, no project
 run_step "50-tmux.sh"              # single 'ai-platform' session, /tutorial
 
@@ -125,22 +125,82 @@ run_step "50-tmux.sh"              # single 'ai-platform' session, /tutorial
 rm -f "${BIB_STATE_DIR}/firstboot.pending"
 
 prompt_header "All set${BIB_NAME:+, ${BIB_NAME}}!"
-cat <<EOF
+
+# The finale is CLI-specific: Claude users attach through the Claude Code
+# app (Remote Control); antigravity users attach over SSH + tmux, since agy
+# has no remote-control channel and no companion app.
+_finale_ai_cli="$(state_get '.ai_cli')"
+: "${_finale_ai_cli:=claude}"
+
+if [[ "$_finale_ai_cli" == "antigravity" ]]; then
+    _finale_user="$(state_get '.bib_user')"
+    : "${_finale_user:=$(bib_user_resolve 2>/dev/null || echo "$USER")}"
+    _finale_host="$(hostname)"
+    cat <<EOF
+Stack installed. Antigravity (agy) logged in. Workspace scaffolded. A
+tmux session called 'ai-platform' is already running agy with the
+/tutorial skill.
+
+ONE MORE STEP — attach to it from your phone (or laptop).
+EOF
+
+    printf '\n%s+============================================================+%s\n' \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+    printf '%s|%s  %sSSH in over Tailscale, then: tmux attach -t ai-platform%s   %s|%s\n' \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+    printf '%s+============================================================+%s\n\n' \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+    cat <<EOF
+  How to connect:
+    1. Install Termius (or any SSH client) on your phone — or just use
+       the terminal on your laptop.
+    2. Make sure Tailscale is connected on that device, signed in with
+       the SAME account you used here. Your box is on your tailnet as:
+
+           ${_finale_host}
+
+    3. Connect:   ssh ${_finale_user}@${_finale_host}
+       Tailscale SSH handles the keys — no password paste needed.
+
+    4. Once you're in, attach the session:
+
+           tmux attach -t ai-platform
+
+  agy is already there with /tutorial running — it greets you and walks
+  you through GitHub, your first project, and the SDD skills. ~12 minutes,
+  conversational, skippable.
+
+  Advanced: want to drive it from Slack or Telegram instead? The
+  community 'ccgram' bridge can relay a tmux session to a chat app —
+  see that project to set it up. Builders in a Box neither ships nor
+  runs a bridge of its own.
+EOF
+    cat <<'EOF'
+
+Once you've attached from your phone, you're done with this terminal.
+If this device has a monitor and keyboard attached, you can unplug them
+now — from here on, your phone (or laptop) is the console.
+
+The full guide is at ~/README.md on this device if you need it later.
+EOF
+else
+    cat <<EOF
 Stack installed. Claude logged in. Workspace scaffolded. A tmux
 session called 'ai-platform' is waiting with Remote Control active.
 
 ONE MORE STEP — install the Claude Code app and attach.
 EOF
 
-# --- Single big CTA -------------------------------------------------------
-printf '\n%s+============================================================+%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s|%s  %sInstall Claude Code, sign in, attach to "ai-platform".%s    %s|%s\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-printf '%s+============================================================+%s\n\n' \
-    "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
-cat <<EOF
+    # --- Single big CTA -------------------------------------------------------
+    printf '\n%s+============================================================+%s\n' \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+    printf '%s|%s  %sInstall Claude Code, sign in, attach to "ai-platform".%s    %s|%s\n' \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}" "${BIB_BOLD:-}" "${BIB_RESET:-}" \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+    printf '%s+============================================================+%s\n\n' \
+        "${BIB_BRIGHT_CYAN:-}" "${BIB_RESET:-}"
+    cat <<EOF
   Where to get it:
     - Phone:   App Store / Google Play, search "Claude" by Anthropic
     - Laptop:  https://claude.ai/download  (Mac / Windows / Linux)
@@ -157,11 +217,11 @@ cat <<EOF
   (If you don't see the ai-platform session immediately, swipe down
   to refresh the sidebar — sometimes takes a few seconds.)
 EOF
-if command -v qrencode >/dev/null 2>&1; then
-    printf '\n     %sScan to open the download page:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
-    qrencode -t ANSI256 -l L -m 2 "https://claude.ai/download" 2>/dev/null | sed 's/^/       /'
-fi
-cat <<'EOF'
+    if command -v qrencode >/dev/null 2>&1; then
+        printf '\n     %sScan to open the download page:%s\n\n' "${BIB_DIM:-}" "${BIB_RESET:-}"
+        qrencode -t ANSI256 -l L -m 2 "https://claude.ai/download" 2>/dev/null | sed 's/^/       /'
+    fi
+    cat <<'EOF'
 
 When you're inside Claude on your phone, you're done with this
 terminal. If this device has a monitor and keyboard attached, you
@@ -169,3 +229,4 @@ can unplug them now — from here on, your phone is the console.
 
 The full guide is at ~/README.md on this device if you need it later.
 EOF
+fi

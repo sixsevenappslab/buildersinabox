@@ -160,7 +160,7 @@ prompt_confirm() {
 }
 
 # Ask a single-choice question. Echoes the chosen value to stdout.
-#   prompt_choice "Pick a CLI" "claude" "gemini"
+#   prompt_choice "Pick a CLI" "claude" "antigravity"
 # The first option is treated as the default if the user just presses Enter.
 # prompt_choice writes the chosen value into BIB_PROMPT_VALUE.
 # Returns non-zero on EOF.

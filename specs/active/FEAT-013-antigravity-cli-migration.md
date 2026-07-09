@@ -444,25 +444,43 @@ gh pr checks <PR>   # shellcheck + bash -n + personal-refs + archive-cleanliness
 
 | Task | Estado | Commit | Notas |
 |------|--------|--------|-------|
-| — | pendiente | — | — |
+| T1 (spike) | ✅ GO | (VM biab-spike) | agy 1.1.0: token a fichero 0600, sin keyring. Addendum en `payload/docs/cli-skills-compatibility.md`. |
+| T2 switch+installer | ✅ | `1285f00` | ai-cli.sh (`claude`+`antigravity`, dead code fuera); `41-antigravity-cli.sh` pineado+sha256; `41-gemini-cli.sh` borrado; install.sh/05-choose-cli/comentarios. |
+| T3 login wizard | ✅ | `57a0db0` | branch antigravity: TUI + `agy models` verify + die accionable (EARS). Branch claude byte-idéntico en runtime. |
+| T4 tmux+skills | ✅ | `1ade051` | `agy -i '/tutorial'`; symlink a `~/.gemini/skills/`; pre-seed `settings.json`; genera CLAUDE.md+AGENTS.md (sin GEMINI.md). |
+| T5 finale+readme | ✅ | `c2e6702` | run.sh finale bifurcado (SSH/Termius+tmux attach, ccgram 1 línea); desktop-readme con marcadores `<!-- BIB:claude/antigravity -->` filtrados por awk en scaffold. |
+| T6 copy+CI+reset | ✅ | `580096a`, `34edb48`, `ea192cb` | README/site (site sin deploy); barrido gemini; dryrun parametrizable; CI matrix `[claude, antigravity]` (wiring-smoke); reset-for-gift rutas agy. |
 
 ### Decisiones tomadas
 
 - [2026-07-09] Opción B elegida por Jesus contra recomendación unánime del consejo (Claude-only): la promesa multi-CLI se arregla ANTES del launch, no se elimina.
 - [2026-07-09] Descartado: auth por Gemini API key (no soportado upstream, issue #78). Descartado: bridge Slack/Telegram propio.
+- **[2026-07-09 spike T1] R1 NO se materializa → SIN keyring.** agy 1.1.0 persiste el token OAuth en fichero plano `~/.gemini/antigravity-cli/antigravity-oauth-token` (0600) con fallback a fichero, sobrevive reboots sin Secret Service. NO se instalan `gnome-keyring`/`dbus-x11`/`libsecret`. **Los dos "Ask First" de Laura sobre keyring (§3) decaen (MOOT); R2 (degradación de seguridad) también MOOT** — mismo modelo user-only que Claude. El installer queda más simple (solo binario pineado).
+- **[spike T1] `agy auth login` NO existe.** Login = arrancar el TUI (`agy`), elegir "Google OAuth" (URL OAuth larga + paste-back del authorization code) + onboarding (color/telemetría/trust-folder). T3 orquesta el TUI, no un subcomando headless.
+- **[spike T1] Pin vía GitHub release + sha256**, no install.sh oficial (no pinea). Asset `agy_cli_linux_x64.tar.gz` (tarball = binario único `antigravity`, se instala como `agy`). Auto-update desactivado con `AGY_CLI_DISABLE_AUTO_UPDATE=1` en launcher + login.
+- **[spike T1] Skills: symlink a `~/.gemini/skills/`** (dir global "Shared" de agy). agy NO escanea `~/.agents/skills/` del HOME (solo workspace). Mismo patrón que el symlink existente a `~/.claude/skills/`. Symlinks confirmados funcionando.
+- **[spike T1] Fichero de contexto: `AGENTS.md`** (agy lee AGENTS.md y GEMINI.md; NO `.antigravity.md`). El scaffold genera CLAUDE.md + AGENTS.md y deja de generar GEMINI.md.
+- **[spike T1] Verify login = `agy models </dev/null`** (exit 0 autenticado, sin gastar cuota, sin disparar OAuth). stdin siempre `</dev/null` (agy consume stdin abierto).
+- **[spike T1] Pre-seed `settings.json`** (`allowNonWorkspaceAccess:true`, `enableTelemetry:false`, `trustedWorkspaces:[<ws abs>]`) para que el primer `/tutorial` sea zero-touch.
+- **[implementación] CI: wiring-smoke hermético, no VM dryrun.** El runner de GitHub no tiene usuario `ubuntu`, systemd, Tailscale ni red a los endpoints de Google, así que el `dryrun.sh` completo (y sobre todo R1/persistencia) NO corre en CI — se cubre solo con la pasada manual multipass de §4 (CP-02). La matrix `[claude, antigravity]` corre `payload/test/wiring-smoke.sh` (resuelve CLI → install script + `bash -n`, rechazo de `gemini`, comando de lanzamiento correcto, render del README limpio). Es canario real: un typo solo-antigravity pone en rojo únicamente esa pata.
+- **[implementación] Criterio #1 (grep gemini) — exclusión ampliada.** Además de `CHANGELOG.md` y `gemini api`, quedan como legítimas las rutas reales de agy (`~/.gemini/…` es su config-home heredado) y el fichero de contexto `GEMINI.md` que agy sí lee, más el string `gemini` del test de rechazo en `wiring-smoke.sh`. Ninguna presenta Gemini CLI como opción soportada. Verificado sobre `git archive HEAD`: cero menciones al *producto* Gemini CLI en el árbol shippable (todas las restantes son paths/filenames de agy o el test de rechazo).
 
 ### Blockers
 
-- [ ] —
+- [ ] — (ninguno)
 
 ### Verificacion post-implementacion
 
-- [ ] Todos los `<verify>` de cada tarea pasan
-- [ ] Dryrun harness pasa en ambas rutas (`claude` y `antigravity`)
-- [ ] Criterios de aceptacion globales verificados
-- [ ] Sin secrets en el diff
-- [ ] Sin cambios fuera del scope
-- [ ] shellcheck + `bash -n` sin errores
+- [x] Todos los `<verify>` estáticos de cada tarea pasan (shellcheck, `bash -n`, dead-code grep, grep gemini, render README)
+- [x] Dryrun/wiring harness pasa en ambas rutas (`claude` y `antigravity`) con `BIB_OAUTH_MOCK=1` + `BIB_TMUX_LAUNCH_CMD=true`
+- [x] Criterios de aceptacion estáticos (#1 grep, #4 CI matrix, #5 pin en constante) verificados
+- [x] **E2E con auth real de Jesus (hezumartin@gmail.com) — GO (2026-07-09).** CP-08 install+idempotencia PASS; login real PASS; CP-01 `agy models` exit 0; **CP-02 persistencia: 2 reboots reales sin re-login — R1 NO se materializa (criterio #2 PASS)**; CP-05 skills+`/tutorial` PASS; CP-03 reset purga token PASS (borró hasta la SSH key = wipe real); regresión claude wiring-smoke PASS (criterio #3). VM `biab-e2e` purgada tras el test.
+- [x] Sin secrets en el diff
+- [x] Sin cambios fuera del scope (ruta claude runtime intacta; sin puertos; sin keyring; sin bridge; site sin deploy)
+- [x] shellcheck + `bash -n` sin errores (CI-mode, todos los `*.sh`)
+- [x] Code review (subagente code-reviewer) — 0 bugs bloqueantes; nit de idempotencia de `agy --version` corregido (commit f107623)
+- [x] Papercut E2E del pre-seed de settings.json (2 prompts antes de /tutorial) corregido: scaffold ahora fusiona claves en vez de saltar (commit a447645)
+- [ ] **PENDIENTE (Jesus, post-merge):** revisión del copy público de `site/` antes del deploy (gated); smoke opcional en box física; follow-ups menores (header "antigravity"→"agy" cosmético; trustedWorkspaces de subdirs de proyecto para `/first-project`)
 
 ---
 

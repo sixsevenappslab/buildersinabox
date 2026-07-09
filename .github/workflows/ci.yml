@@ -37,3 +37,28 @@ jobs:
             exit 1
           fi
           echo "git archive is clean"
+
+  # Per-CLI wiring canary (FEAT-013). Exercises the claude AND antigravity
+  # dispatch surfaces so a change that breaks the non-Claude path turns red
+  # instead of shipping silently (the failure mode the retired second-CLI path had).
+  #
+  # NOTE: this is the hermetic wiring smoke, NOT the full VM dry-run. A GitHub
+  # runner has no `ubuntu` user, no systemd/Tailscale, and no way to install
+  # the real stack or reach Google's release/OAuth endpoints, so the full
+  # `payload/test/dryrun.sh` (and, above all, agy token persistence across a
+  # reboot — risk R1) is validated only by the manual multipass E2E pass in the
+  # FEAT-013 QA plan (CP-02). This job asserts the wiring, not persistence.
+  dryrun:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ai_cli: [claude, antigravity]
+    steps:
+      - uses: actions/checkout@v4
+      - name: wiring smoke (${{ matrix.ai_cli }})
+        env:
+          BIB_AI_CLI: ${{ matrix.ai_cli }}
+          BIB_OAUTH_MOCK: "1"
+          BIB_TMUX_LAUNCH_CMD: "true"
+        run: bash payload/test/wiring-smoke.sh

@@ -25,7 +25,7 @@ About 15 minutes gets you to your first SSH session from your phone; the guided 
 
 - **A machine running Ubuntu Server 24.04 (x86-64).** A mini PC (Beelink, GEEKOM, Minisforum), a spare desktop, a homelab VM, or a cloud VPS all work. ~4 GB RAM is comfortable.
 - **A network connection.** An already-running machine or VPS uses whatever it has; the USB/gift image needs wired Ethernet for its first boot (Wi-Fi provisioning is on the roadmap).
-- **Accounts:** [Tailscale](https://tailscale.com) (the free plan is plenty) and either a **paid Claude subscription** (Pro or above — Claude Code is included in paid plans, not the free tier) or a **Google account** for Gemini CLI. GitHub is optional but recommended.
+- **Accounts:** [Tailscale](https://tailscale.com) (the free plan is plenty) and either a **paid Claude subscription** (Pro or above — Claude Code is included in paid plans, not the free tier) or a **Google account** for [Antigravity CLI](https://antigravity.google) (`agy`). GitHub is optional but recommended.
 
 ## Install
 
@@ -65,7 +65,7 @@ More detail in [`docs/architecture.md`](docs/architecture.md).
 
 Everything the installer touches, so you can audit it and undo it:
 
-- **Packages:** tmux, jq, the GitHub CLI, Tailscale, and your chosen AI CLI (Claude Code or Gemini).
+- **Packages:** tmux, jq, the GitHub CLI, Tailscale, and your chosen AI CLI (Claude Code or Antigravity CLI).
 - **Files:** the repo at `/opt/buildersinabox`; the `biab` and `bd` commands in `/usr/local/bin`; state in `/var/lib/buildersinabox`; logs in `/var/log/buildersinabox`; an autologin drop-in for `tty1` and a first-boot trigger in `/etc/profile.d/`; small shell helpers in `~/.bashrc.d/`.
 - **SSH:** once Tailscale is up, sshd is bound to your Tailscale address only (a drop-in in `/etc/ssh/sshd_config.d/`). If you're connected over SSH from outside your tailnet — typical on a VPS — the wizard warns you and asks before doing this.
 - **Workspace:** `~/ai-platform/` scaffolded in the target user's home.

@@ -41,7 +41,7 @@ From then on, the coach lives in `#coach`:
 **Reactive behavior** — when the user posts in `#coach`:
 - Daemon receives the message via Slack Socket Mode.
 - Gathers context: rolling memory (`memory.md`), last N messages of the thread, recent server signals (`git log -10 --all`, `uptime`, top 5 `systemctl --user` services state, active tmux sessions).
-- Invokes **the AI CLI the user chose in FEAT-001** in headless mode (`claude -p "..."` or `gemini -p "..."`) with a coach system prompt + context + the user's message. The CLI choice is read from `/var/lib/buildersinabox/state.json` so the daemon stays generic.
+- Invokes **the AI CLI the user chose in FEAT-001** in headless mode (`claude -p "..."` or `agy -p "..."`) with a coach system prompt + context + the user's message. The CLI choice is read from `/var/lib/buildersinabox/state.json` so the daemon stays generic.
 - Posts the response in-thread.
 - Updates `memory.md` with anything the coach thinks is worth remembering (the coach itself produces a `MEMORY_UPDATE:` block at the end of its response, the daemon parses and applies it).
 
@@ -66,7 +66,7 @@ The full prompt lives in `~/.config/biab-coach/system-prompt.md` so the user can
   - Treat the coach as **read-only** with respect to the server. It can `git log`, `systemctl --user status`, `ps`, read its own state dir. Nothing else.
   - Store all secrets (bot tokens) with file mode 600 in `~/.config/biab-coach/secrets.env`.
   - Use Slack Socket Mode (outbound WebSocket only — no inbound port, no public webhook, no Tailscale hole).
-  - Reuse the AI CLI the user already logged into during FEAT-001 (Claude Code or Gemini CLI) via its headless `-p` mode. No separate API key, no direct SDK calls. The coach's billing surface is whatever the user already pays for that CLI.
+  - Reuse the AI CLI the user already logged into during FEAT-001 (Claude Code or Antigravity CLI) via its headless `-p` mode. No separate API key, no direct SDK calls. The coach's billing surface is whatever the user already pays for that CLI.
   - Be skippable. If the user never runs `setup-slack-coach.sh`, the FEAT-001 device works perfectly.
   - Allow the user to edit `system-prompt.md` and `triggers.yaml` without touching code, and reload them on SIGHUP.
   - Log every AI CLI invocation (prompt + response) to `~/.local/state/biab-coach/conversations/YYYY-MM-DD.jsonl` for auditability and memory rebuilds.
@@ -76,7 +76,7 @@ The full prompt lives in `~/.config/biab-coach/system-prompt.md` so the user can
   - **Visibility = technical signals + user-supplied context.** Git log, processes, daemon status, uptime, commits, tmux idle. NOT arbitrary file reads, NOT code contents, NOT private dirs.
   - **Persistent memory** in `memory.md`, maintained by the coach itself via `MEMORY_UPDATE:` blocks.
   - **Single private `#coach` channel.** No DMs, no multi-channel routing in v1.
-  - **AI invocation via the chosen CLI's headless mode** (`claude -p` or `gemini -p`), not direct provider SDK. Abstracted behind `lib/ai-cli.mjs` so swapping CLIs later is a config change, not a code change.
+  - **AI invocation via the chosen CLI's headless mode** (`claude -p` or `agy -p`), not direct provider SDK. Abstracted behind `lib/ai-cli.mjs` so swapping CLIs later is a config change, not a code change.
 
 - **Never:**
   - Read source files or `cat` user code. The coach is for *meta* — habits, decisions, well-being — not code review.
@@ -119,7 +119,7 @@ payload/
     │   └── biab-coach.mjs              # Entry point (reads config, starts socket + scheduler)
     ├── lib/
     │   ├── slack.mjs                   # Socket Mode wrapper, message send/receive
-    │   ├── ai-cli.mjs                  # Wraps `claude -p` or `gemini -p` subprocess based on state. Parses MEMORY_UPDATE block
+    │   ├── ai-cli.mjs                  # Wraps `claude -p` or `agy -p` subprocess based on state. Parses MEMORY_UPDATE block
     │   ├── context.mjs                 # Builds the per-message context (memory, thread, signals)
     │   ├── server-signals.mjs          # Whitelisted read-only commands: git log, systemctl, ps, uptime
     │   ├── memory.mjs                  # Read/write memory.md, atomic file ops
@@ -163,9 +163,9 @@ payload/
 
 | Risk | Mitigation |
 |---|---|
-| `claude -p` or `gemini -p` flag changes or is removed | Wrap each invocation behind `lib/ai-cli.mjs`. Single function per CLI to patch if upstream changes. Pin tested versions in `package.json` engines field. |
+| `claude -p` or `agy -p` flag changes or is removed | Wrap each invocation behind `lib/ai-cli.mjs`. Single function per CLI to patch if upstream changes. Pin tested versions in `package.json` engines field. |
 | AI CLI OAuth expires / requires re-login | Daemon detects non-zero exit + login-needed pattern in stderr → posts to `#coach`: "I need you to jump into tmux and run `<cli>` once to refresh my login". |
-| User runs the coach with Gemini but Gemini's `-p` headless mode behaves differently (e.g. doesn't accept piped stdin, or different flag name) | Wave 2 spike: validate both CLIs in headless mode against the same prompt shape. If incompatible, ship coach for the working CLI only at v1 launch; track the other as a follow-up. |
+| User runs the coach with Antigravity but agy's `-p` headless mode behaves differently (e.g. doesn't accept piped stdin, or different flag name) | Wave 2 spike: validate both CLIs in headless mode against the same prompt shape. If incompatible, ship coach for the working CLI only at v1 launch; track the other as a follow-up. |
 | Slack Socket Mode disconnects | Built-in reconnect in `@slack/socket-mode`. Log disconnect events. After 5 consecutive failed reconnects, post a self-diagnostic to logs and stop (don't spam). |
 | Daemon crashes mid-conversation | systemd `Restart=on-failure` with `RestartSec=10`. Conversation state is in Slack itself (threads), not in daemon memory. |
 | `memory.md` grows unbounded | Soft cap at 8 KB; when exceeded, the coach is asked at next interaction to "compact memory.md while preserving what's critical" and rewrite it. |
@@ -183,10 +183,10 @@ payload/
 4. Write `docs/setting-up-coach-slack-app.md` step-by-step with placeholders for screenshots.
 
 **Wave 2 — Claude integration + memory.**
-5. Implement `lib/ai-cli.mjs` (reads chosen CLI from state, dispatches to `claude -p` or `gemini -p`, subprocess + timeout + stderr capture + MEMORY_UPDATE parsing).
+5. Implement `lib/ai-cli.mjs` (reads chosen CLI from state, dispatches to `claude -p` or `agy -p`, subprocess + timeout + stderr capture + MEMORY_UPDATE parsing).
 6. Implement `lib/memory.mjs` (atomic read/write + size check + compaction trigger).
 7. Implement `lib/prompt.mjs` and `lib/context.mjs` — assemble system + memory + last N thread messages + user msg.
-8. Wire `lib/slack.mjs` → `lib/prompt.mjs` → `lib/ai-cli.mjs` → reply in thread. Apply MEMORY_UPDATE. Test the loop with both Claude and Gemini selected.
+8. Wire `lib/slack.mjs` → `lib/prompt.mjs` → `lib/ai-cli.mjs` → reply in thread. Apply MEMORY_UPDATE. Test the loop with both Claude and Antigravity selected.
 9. Test the reactive loop end-to-end on a VM.
 
 **Wave 3 — Server signals + proactive triggers.**
