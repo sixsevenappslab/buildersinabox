@@ -2,6 +2,10 @@
 
 > **Your own AI dev box. One command, ~15 minutes to coding from your phone.**
 
+<!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
+     Drop the PNG here (under the tagline, above the curl one-liner) as:
+     <p align="center"><img src="site/assets/hero.png" alt="Claude Code on a phone over Tailscale" width="360"></p> -->
+
 Turn any Ubuntu 24.04 machine — a mini PC, a homelab box, a VPS — into a personal development server you reach from your phone, with [Claude Code](https://claude.com/claude-code) (or another AI CLI) ready to ship. One command sets it up; [Tailscale](https://tailscale.com) makes it reachable from anywhere; `tmux` keeps your sessions alive.
 
 ```bash
@@ -43,6 +47,10 @@ sudo /opt/buildersinabox/payload/install.sh
 ```
 
 The installer is interactive by default (it asks your name for the welcome screen). For unattended installs, see `payload/install.sh --help` (`--non-interactive`, `--update`, `--uninstall`, `--flavor`).
+
+**What the install looks like** — a real recording on a fresh Ubuntu 24.04 box, from the command to “stack installed” (the guided wizard runs right after):
+
+<p align="center"><a href="site/assets/install.svg"><img src="site/assets/install.svg" alt="Terminal recording: running the installer on a fresh Ubuntu 24.04 box, from the command to 'stack installed'." width="720"></a></p>
 
 ### Gift / USB edition
 

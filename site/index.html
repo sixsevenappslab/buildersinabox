@@ -24,6 +24,9 @@
   .btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); margin-left:.5em; }
   ul { padding-left:1.2em; } li { margin:.3em 0; }
   .note { color:var(--dim); font-size:.95rem; }
+  figure { margin:1.8em 0 2.2em; }
+  figure img { display:block; width:100%; max-width:100%; height:auto; border-radius:10px; border:1px solid rgba(128,128,128,.2); background:#06080f; }
+  figcaption { color:var(--dim); font-size:.9rem; margin-top:.6em; text-align:center; }
   .sub { display:flex; gap:.5em; margin:2.2em 0 .4em; flex-wrap:wrap; }
   .sub input[type=email] { flex:1 1 220px; padding:10px 12px; border-radius:8px; border:1px solid rgba(128,128,128,.4); background:var(--card); color:var(--fg); font:inherit; }
   .sub button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font:inherit; font-weight:600; cursor:pointer; }
@@ -37,10 +40,18 @@
   <h1>Your own AI dev box.</h1>
   <p class="tag">Secure by default: zero public ports, everything behind Tailscale. One command, ~15 minutes to coding from your phone — on any Ubuntu 24.04 machine you own.</p>
 
+  <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
+       Drop the PNG here (above the one-liner) as: <img class="hero" src="assets/hero.png" ...>. -->
+
   <div class="cmd">
     <code id="oneliner">curl -fsSL https://buildersinabox.com/install.sh | sudo bash</code>
     <button onclick="navigator.clipboard.writeText(document.getElementById('oneliner').textContent);this.textContent='copied'">copy</button>
   </div>
+
+  <figure>
+    <img src="assets/install.svg" alt="Terminal recording: running the installer on a fresh Ubuntu 24.04 box, from the command to 'stack installed'.">
+    <figcaption>The real installer running on a fresh Ubuntu 24.04 box, start to “stack installed”.</figcaption>
+  </figure>
 
   <div class="btns">
     <a class="btn" href="https://github.com/sixsevenappslab/buildersinabox">View on GitHub</a>
