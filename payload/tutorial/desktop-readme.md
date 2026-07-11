@@ -202,6 +202,39 @@ Use it when you want a side context — e.g. `tmuxc scratch ~/tmp` for a
 throwaway poke at something, while your `ai-platform` session keeps running.
 
 <!-- BIB:claude:start -->
+## Hooks — automatic guardrails and polish
+
+Your box ships four Claude Code hooks, on by default. They run automatically
+around what the agent does — no prompting needed:
+
+- **Guardrail** — before any shell command runs, it blocks the
+  unambiguously destructive ones (`rm -rf /`, `mkfs`, `dd` to a disk, a
+  fork bomb, `curl … | sudo bash`, a force-push to `main`/`master`) and asks
+  you to confirm the risky-but-legit ones (a plain `curl … | bash`, a
+  `--force-with-lease` push). Everyday commands pass straight through.
+- **Formatter** — after the agent edits or writes a file, it runs your
+  project's formatter (prettier / black / ruff / gofmt / rustfmt / shfmt) on
+  that file. No formatter installed? It does nothing.
+- **Lint feedback** — runs your project's linter on the edited file and hands
+  any findings back to the agent so it can self-correct. It never blocks the
+  edit.
+- **Session log** — when a session ends, it appends one line to
+  `~/.claude/logs/biab-sessions.log` (timestamp, session, folder, how many
+  edits/commands, which files were touched). Metadata only — never your
+  commands, file contents or secrets. Handy for auditing unattended work.
+
+Everything degrades cleanly: if a formatter or linter isn't installed, the
+hook simply does nothing.
+
+**To turn them off**, pick one:
+
+- Remove the `hooks` key from `~/.claude/settings.json` (or just the block
+  you don't want).
+- Set `BIAB_HOOKS_DISABLED=1` in your environment.
+- Create the sentinel file: `touch ~/.claude/hooks-disabled`.
+
+(Hooks are a Claude Code feature — Antigravity boxes don't get them yet.)
+
 ## Sharing a session live
 
 You can also share any active session with someone else (a friend, a

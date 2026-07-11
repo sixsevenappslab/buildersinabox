@@ -187,6 +187,40 @@ if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
     log "40-scaffold: merged agy settings at $agy_settings"
 fi
 
+# ---------------------------------------------------------------------------
+# Seed Claude Code hooks: guardrail + format + lint + session log.
+# Mirrors the agy settings merge — our `hooks` key wins, the user's other
+# settings survive. Scripts are referenced by absolute path so `biab update`
+# refreshes them in place. Claude Code only: agy's hook format differs (§2.5).
+# ---------------------------------------------------------------------------
+install_hooks() {
+    local hooks_src="${PAYLOAD_DIR}/hooks"
+    [[ -d "$hooks_src" ]] || { warn "40-scaffold: payload/hooks/ missing, skipping hooks"; return 0; }
+    if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
+        log "40-scaffold: antigravity box — Claude-format hooks not applicable, skipping (see FEAT-015 §2.5)"
+        return 0
+    fi
+    chmod +x "$hooks_src"/*.sh 2>/dev/null || true   # git preserves +x, belt-and-braces
+    local claude_dir="${target_home}/.claude"
+    local settings="${claude_dir}/settings.json"
+    mkdir -p "$claude_dir"
+    local ours
+    ours="$(jq -n --arg d "$hooks_src" '{
+      hooks: {
+        PreToolUse:  [ { matcher: "Bash",       hooks: [ { type: "command", command: ($d + "/biab-guardrail.sh") } ] } ],
+        PostToolUse: [ { matcher: "Edit|Write", hooks: [ { type: "command", command: ($d + "/biab-format.sh") },
+                                                          { type: "command", command: ($d + "/biab-lint.sh") } ] } ],
+        Stop:        [ {                         hooks: [ { type: "command", command: ($d + "/biab-session-log.sh") } ] } ]
+      } }')"
+    if [[ -f "$settings" ]] && jq -e . "$settings" >/dev/null 2>&1; then
+        printf '%s\n' "$(jq --argjson ours "$ours" '. * $ours' "$settings")" > "$settings"
+    else
+        printf '%s\n' "$ours" > "$settings"
+    fi
+    log "40-scaffold: seeded Claude hooks at $settings"
+}
+install_hooks
+
 # Bundled FEAT specs do NOT get copied here — they live in
 # /opt/buildersinabox/payload/examples/ until /first-project
 # offers them to the user. Moving the choice into the AI CLI lets the
