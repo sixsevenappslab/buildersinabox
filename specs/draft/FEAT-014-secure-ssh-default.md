@@ -347,6 +347,8 @@ ls /etc/ssh/sshd_config.d/                        # un solo 01-… ; sin 02-… 
 
 ### Decisiones tomadas
 - [2026-07-11] Jesus eligió "arreglar código + copy precisa" (no solo suavizar copy): el default seguro se hace verdad antes del flip. Detona porque la landing invita a VPS y el hook es seguridad.
+- [2026-07-11] **HOLD-OPEN endurecido (decisión Jesus):** el wizard NO debe completar en estado HOLD-OPEN (VPS solo-password) de forma silenciosa. Exige **confirmación explícita** del usuario ("entiendo que mi SSH sigue expuesto a internet con contraseña") antes de terminar; sin esa confirmación, el wizard no da el setup por bueno. Convierte el hueco residual que marcó QA (E1/edge, saltar Beat 2) en elección consciente. → **Añadir a §2 una task**: en `35-ssh-finalize.sh`, rama HOLD-OPEN, confirmación bloqueante (`prompt_choice`, con escape documentado para modo no-interactivo) + no marcar el wizard como completo mientras la exposición residual siga sin reconocerse. Actualizar el EARS Unwanted de §1 en consecuencia.
+- [2026-07-11] **FORCE ciego se queda documentado (decisión Jesus):** `BIB_SSH_FORCE_TAILSCALE=1` sigue siendo bind directo sin verificación de reachability por tailnet. Flag de usuario avanzado, auto-infligido; se documenta el riesgo (§2/recuperación) y NO se endurece.
 
 ---
 
