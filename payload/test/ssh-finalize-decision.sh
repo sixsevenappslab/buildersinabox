@@ -42,11 +42,18 @@ exit 0
 EOS
 cat > "$MOCK_BIN/tailscale" <<'EOS'
 #!/usr/bin/env bash
-# Only `tailscale ip -4` is used; unused here (decide takes the IP directly).
+# `tailscale ip -4` — used by _rebind_public_socket's anti-lockout re-check.
+# Returns MOCK_TAILSCALE_IP (empty by default => interface "down", guard fails).
+if [[ "$1" == "ip" ]]; then
+    [[ -n "${MOCK_TAILSCALE_IP:-}" ]] && printf '%s\n' "$MOCK_TAILSCALE_IP"
+fi
 exit 0
 EOS
 chmod +x "$MOCK_BIN/systemctl" "$MOCK_BIN/tailscale"
 export PATH="$MOCK_BIN:$PATH"
+# Anti-lockout re-check inputs, reset per new scenario (empty = default).
+export MOCK_TAILSCALE_IP=""
+export MOCK_SS_LISTEN=""
 
 # sshd mock — `sshd -t` exit code is configurable so a scenario can simulate a
 # rejected config (the DANGER-ZONE revert path). Defaults to accepting.
@@ -56,28 +63,41 @@ set_sshd() {
 }
 set_sshd 0
 
-# Rewrite the `ss` mock. Arg = the peer address (the connecting client) for an
-# established :22 line. Real `ss -Htn state established '( sport = :22 )'` output
-# has NO State column — verified live output looks like:
-#     0 0 100.70.218.107:22 100.95.54.83:46466
-# so the fields are: Recv-Q Send-Q Local:Port Peer:Port, and column 4 is the
-# Peer Address:Port — the same $4 that _ssh_peer_addrs reads. Empty arg => no
-# established sessions.
-set_ss() {
-    local peer_addr="$1"
-    if [[ -z "$peer_addr" ]]; then
-        printf '#!/usr/bin/env bash\nexit 0\n' > "$MOCK_BIN/ss"
-    else
-        cat > "$MOCK_BIN/ss" <<EOS
+# The `ss` mock answers TWO distinct queries the code makes:
+#
+#  * established-peer query — `ss -Htn state established '( sport = :22 )'`,
+#    read by _ssh_peer_addrs. Real output has NO State column:
+#        0 0 100.70.218.107:22 100.95.54.83:46466
+#    (Recv-Q Send-Q Local:Port Peer:Port); column 4 is the peer. Driven by
+#    MOCK_SS_PEER (empty => no established sessions).
+#
+#  * listening-socket query — `ss -tlnH 'sport = :22'`, read by
+#    _public_listener_present (FEAT-016). Real output:
+#        LISTEN 0 4096 0.0.0.0:22 0.0.0.0:*
+#    column 4 is the LOCAL addr:port. Driven by MOCK_SS_LISTEN (empty => no
+#    listener; 0.0.0.0/[::] => a lingering public socket; 100.x => tailnet-only).
+#
+# It is written once and branches on its args; set_ss / set_ss_listen just flip
+# the env vars it reads.
+cat > "$MOCK_BIN/ss" <<'EOS'
 #!/usr/bin/env bash
-# Mimic: ss -Htn state established '( sport = :22 )' (no State column)
-# Columns: Recv-Q Send-Q Local:Port Peer:Port
-# column 4 = Peer Address:Port (the connecting client)
-echo "0 0 100.70.218.107:22 ${peer_addr}:54321"
-EOS
+if [[ "$*" == *established* ]]; then
+    [[ -n "${MOCK_SS_PEER:-}" ]] && echo "0 0 100.70.218.107:22 ${MOCK_SS_PEER}:54321"
+    exit 0
+fi
+# listening-socket query: ss -tlnH 'sport = :22'
+if [[ -n "${MOCK_SS_LISTEN:-}" ]]; then
+    if [[ "$MOCK_SS_LISTEN" == *:* && "$MOCK_SS_LISTEN" != *.* ]]; then
+        echo "LISTEN 0 4096 [${MOCK_SS_LISTEN}]:22 [::]:*"   # IPv6 local, bracketed
+    else
+        echo "LISTEN 0 4096 ${MOCK_SS_LISTEN}:22 0.0.0.0:*"
     fi
-    chmod +x "$MOCK_BIN/ss"
-}
+fi
+exit 0
+EOS
+chmod +x "$MOCK_BIN/ss"
+set_ss()        { export MOCK_SS_PEER="${1:-}"; }
+set_ss_listen() { export MOCK_SS_LISTEN="${1:-}"; }
 
 # --- Source the finalize functions as a library ----------------------------
 export BIB_SSH_FINALIZE_LIB=1
@@ -299,6 +319,87 @@ if [[ -n "$SSHD_BIN" ]]; then
 else
     ok "real sshd -T check skipped (no sshd binary on this runner)"
 fi
+
+# === Scenario 11: BIND escalates to restart when a public socket lingers =====
+# FEAT-016 core: after the BIND reload, sshd -T is tailnet-only but the kernel
+# keeps the old 0.0.0.0:22 socket (a reload can't re-bind sockets). With the
+# tailnet addr still present and sshd -t passing, BIND must RESTART ssh.service
+# to release that socket now — safe because BIND has no external peer.
+export MOCK_SYSTEMCTL_LOG="$_SCRATCH/systemctl-calls-11.log"
+: > "$MOCK_SYSTEMCTL_LOG"
+set_ss ""                       # no external peer => BIND path (rebind allowed)
+set_ss_listen "0.0.0.0"         # a lingering public listener after the reload
+export MOCK_TAILSCALE_IP="100.100.5.5"   # tailnet addr still up => guard passes
+run_decide "100.100.5.5" "$KEY_EMPTY"
+[[ "$BIB_SSH_STATE" == "BIND" ]] && ok "lingering-socket BIND stays BIND" || bad "lingering-socket expected BIND, got '$BIB_SSH_STATE'"
+[[ "$(phase ssh_finalized)" == "true" ]] && ok "lingering-socket BIND stamped ssh_finalized" || bad "lingering-socket BIND did not stamp ssh_finalized"
+grep -q 'restart ssh.service' "$MOCK_SYSTEMCTL_LOG" \
+    && ok "lingering public socket + tailnet up -> ssh.service RESTART (socket released now)" \
+    || bad "lingering public socket did NOT trigger a restart: $(tr '\n' ';' < "$MOCK_SYSTEMCTL_LOG")"
+unset MOCK_SYSTEMCTL_LOG
+set_ss_listen ""; export MOCK_TAILSCALE_IP=""
+
+# === Scenario 12: guard fails (tailnet addr gone) -> NO restart ==============
+# Anti-lockout: never restart into a config that can't bind. If, immediately
+# before the restart, the tailnet addr is no longer present, keep the
+# reload-applied (reboot-deferred) narrowing and do NOT restart.
+export MOCK_SYSTEMCTL_LOG="$_SCRATCH/systemctl-calls-12.log"
+: > "$MOCK_SYSTEMCTL_LOG"
+set_ss ""
+set_ss_listen "0.0.0.0"                 # public socket lingers...
+export MOCK_TAILSCALE_IP=""             # ...but tailnet addr is gone => guard fails
+run_decide "100.100.5.5" "$KEY_EMPTY"
+[[ "$BIB_SSH_STATE" == "BIND" ]] && ok "guard-fail: bind still applied (BIND)" || bad "guard-fail expected BIND, got '$BIB_SSH_STATE'"
+[[ "$(phase ssh_finalized)" == "true" ]] && ok "guard-fail: reload-applied bind still stamped ssh_finalized" || bad "guard-fail did not stamp ssh_finalized"
+! grep -q 'restart ssh.service' "$MOCK_SYSTEMCTL_LOG" \
+    && ok "guard-fail (tailnet addr gone): NO restart (no lockout; narrows on reboot)" \
+    || bad "guard-fail wrongly restarted: $(tr '\n' ';' < "$MOCK_SYSTEMCTL_LOG")"
+unset MOCK_SYSTEMCTL_LOG
+set_ss_listen ""
+
+# === Scenario 13: listener already tailnet-only -> NO restart ================
+# If ss shows only the tailnet ListenAddress (the reload did re-bind, or a fresh
+# boot), there is no public socket to release: the escalation is a no-op.
+export MOCK_SYSTEMCTL_LOG="$_SCRATCH/systemctl-calls-13.log"
+: > "$MOCK_SYSTEMCTL_LOG"
+set_ss ""
+set_ss_listen "100.100.5.5"             # only the tailnet address is listening
+export MOCK_TAILSCALE_IP="100.100.5.5"
+run_decide "100.100.5.5" "$KEY_EMPTY"
+[[ "$BIB_SSH_STATE" == "BIND" ]] && ok "tailnet-only listener stays BIND" || bad "tailnet-only listener expected BIND, got '$BIB_SSH_STATE'"
+! grep -q 'restart ssh.service' "$MOCK_SYSTEMCTL_LOG" \
+    && ok "no public socket present -> NO restart (idempotent no-op)" \
+    || bad "tailnet-only listener wrongly restarted: $(tr '\n' ';' < "$MOCK_SYSTEMCTL_LOG")"
+unset MOCK_SYSTEMCTL_LOG
+set_ss_listen ""; export MOCK_TAILSCALE_IP=""
+
+# === Scenario 14: FORCE path keeps reload-only (NO restart) ==================
+# FORCE may run from a public session being migrated; a restart would break its
+# "revertible while connected" guarantee. So even with a lingering public socket
+# and the tailnet addr up, FORCE must NOT escalate to a restart (§2 decision).
+export MOCK_SYSTEMCTL_LOG="$_SCRATCH/systemctl-calls-14.log"
+: > "$MOCK_SYSTEMCTL_LOG"
+set_ss ""
+set_ss_listen "0.0.0.0"
+export MOCK_TAILSCALE_IP="100.100.5.5"
+BIB_SSH_FORCE_TAILSCALE=1 run_decide "100.100.5.5" "$KEY_EMPTY"
+[[ "$BIB_SSH_STATE" == "BIND" ]] && ok "FORCE with lingering socket still BIND" || bad "FORCE expected BIND, got '$BIB_SSH_STATE'"
+! grep -q 'restart ssh.service' "$MOCK_SYSTEMCTL_LOG" \
+    && ok "FORCE keeps reload-only -> NO socket-rebind restart (stays revertible)" \
+    || bad "FORCE wrongly restarted: $(tr '\n' ';' < "$MOCK_SYSTEMCTL_LOG")"
+unset MOCK_SYSTEMCTL_LOG
+set_ss_listen ""; export MOCK_TAILSCALE_IP=""
+
+# === Scenario 15: ss absent -> _public_listener_present is a safe no-op ======
+# The escalation must degrade gracefully when `ss` is missing (return "not
+# present" so _rebind_public_socket warns and defers to the reboot narrowing).
+_EMPTY_PATH="$(mktemp -d)"
+if ( PATH="$_EMPTY_PATH"; _public_listener_present ); then
+    bad "ss absent: _public_listener_present should return non-zero (no escalation)"
+else
+    ok "ss absent: _public_listener_present returns 'not present' (escalation skipped safely)"
+fi
+rmdir "$_EMPTY_PATH"
 
 # --- Summary ----------------------------------------------------------------
 echo "ssh-finalize-decision: ${pass} passed, ${fail} failed"

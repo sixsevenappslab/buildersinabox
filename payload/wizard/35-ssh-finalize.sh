@@ -14,7 +14,13 @@
 #                   arrives over the tailnet (positive proof of reachability).
 #                   => write ListenAddress <tailscale-ip>, drop the public
 #                   hardening file if present, sshd -t + reload, stamp
-#                   `ssh_finalized`. Public exposure removed.
+#                   `ssh_finalized`. Public exposure removed. Because a SIGHUP
+#                   reload does NOT re-bind sshd's listening sockets, the old
+#                   public 0.0.0.0:22 socket would linger until the next reboot
+#                   (FEAT-014 E2E finding). So BIND also RESTARTS ssh.service to
+#                   release it immediately — safe ONLY here, because BIND is
+#                   reached exclusively with no external SSH peer, so no live
+#                   external session can be dropped (FEAT-016).
 #
 #   HOLD-HARDENED — the only SSH session is external (a VPS you're driving
 #                   over its public IP) AND a usable key is already in
@@ -52,7 +58,10 @@
 # bind). It stays deliberately blind — it is an advanced, self-inflicted flag.
 # Because we `reload` (never `restart`) sshd, an active public session
 # survives the bind, so a mistaken FORCE can be reverted while still connected
-# (see recovery above).
+# (see recovery above). The FEAT-016 socket-rebind restart is therefore NOT
+# applied on the FORCE path (only on the non-FORCE BIND path, which is proven to
+# have no external peer): a mistaken FORCE must stay revertible while connected,
+# so FORCE keeps reload-only and its public socket narrows on the next reboot.
 
 set -euo pipefail
 
@@ -222,12 +231,89 @@ _sshd_check_and_reload() {
 }
 
 # ---------------------------------------------------------------------------
+# Socket rebind (FEAT-016)
+# ---------------------------------------------------------------------------
+
+# True (0) when sshd still has a public (all-interfaces / non-tailnet) :22
+# listening socket. A SIGHUP reload updates sshd's effective config but does
+# NOT re-bind its listening sockets, so after a BIND reload `sshd -T` shows the
+# tailnet-only ListenAddress while the kernel keeps the previous 0.0.0.0:22
+# socket until the next reboot. Detect that lingering socket so BIND can close
+# it now. Guards for `ss` being absent (returns 1 => "nothing to escalate").
+_public_listener_present() {
+    command -v ss >/dev/null 2>&1 || return 1
+    local local_addr
+    while read -r local_addr; do
+        [[ -z "$local_addr" ]] && continue
+        # Strip the :port suffix. IPv6 locals are bracketed: [::]:22 / [fd7a:..]:22.
+        if [[ "$local_addr" == \[* ]]; then
+            local_addr="${local_addr#[}"; local_addr="${local_addr%%]*}"
+        else
+            local_addr="${local_addr%:*}"
+        fi
+        case "$local_addr" in
+            127.*|::1)          continue ;;   # loopback — never public
+            0.0.0.0|'*'|::)     return 0 ;;   # all-interfaces wildcard => public
+        esac
+        # Any remaining non-tailnet listener is also public exposure.
+        _is_tailnet_addr "$local_addr" || return 0
+    done < <(ss -tlnH 'sport = :22' 2>/dev/null | awk '{print $4}')
+    return 1
+}
+
+# After a successful BIND reload, force sshd to release any lingering public
+# :22 socket by RESTARTING ssh.service (a reload/SIGHUP cannot re-bind sockets).
+#
+# Why a restart is safe HERE and nowhere else: this runs only on the non-FORCE
+# BIND path, which ssh_finalize_decide reaches exclusively when there is NO
+# external SSH peer (NAT/console => no session at all, or a tailnet-only session
+# that reconnects over a proven-up tailnet). By construction no live external
+# session depends on the public listener, so a restart cannot cut anyone off —
+# the exact condition the "reload, never restart" rule protects elsewhere.
+#
+# Anti-lockout guards, re-checked IMMEDIATELY before the restart (FEAT-014
+# invariant): (a) the tailnet address we bound still exists locally, so bind()
+# will succeed — never restart into a config that cannot bind; and (b) sshd -t
+# still passes. If either fails, do NOT restart: keep the reload-applied
+# (reboot-deferred) narrowing and warn. The boot-ordering drop-in
+# (_install_ssh_boot_ordering: After=tailscaled, ExecStartPre waits <=60s for
+# the addr, Restart=on-failure) is the recovery net for a bind that still races.
+# Best-effort: never changes BIB_SSH_STATE or the ssh_finalized stamp.
+_rebind_public_socket() {
+    local tailscale_ip="$1"
+    if ! command -v ss >/dev/null 2>&1; then
+        warn "35-ssh-finalize: ss unavailable; cannot confirm/close the lingering public :22 socket — it narrows on the next reboot"
+        return 0
+    fi
+    _public_listener_present || return 0   # already tailnet-only, nothing to do
+
+    local ip_now=""
+    if command -v tailscale >/dev/null 2>&1; then
+        ip_now="$(tailscale ip -4 2>/dev/null | head -1 || true)"
+    fi
+    if [[ "$ip_now" != "$tailscale_ip" ]] || ! sshd -t 2>/dev/null; then
+        warn "35-ssh-finalize: public :22 socket still open after reload, but the tailnet-addr / sshd -t re-check failed — NOT restarting (no lockout); it narrows on the next reboot"
+        return 0
+    fi
+    if systemctl restart ssh.service 2>/dev/null; then
+        log "35-ssh-finalize: restarted ssh.service to release the lingering public :22 socket (now tailnet-only; no external session existed to drop)"
+    else
+        warn "35-ssh-finalize: lingering public :22 socket detected but ssh.service restart failed — it narrows on the next reboot; check 'systemctl status ssh.service'"
+    fi
+    return 0
+}
+
+# ---------------------------------------------------------------------------
 # State handlers
 # ---------------------------------------------------------------------------
 
 # BIND: restrict sshd to the Tailscale address and remove public exposure.
+# allow_socket_rebind=1 additionally restarts ssh.service to release the
+# lingering public socket (see _rebind_public_socket) — passed only by the
+# non-FORCE BIND path, which is proven to have no external peer.
 _ssh_bind_tailnet() {
     local tailscale_ip="$1"
+    local allow_socket_rebind="${2:-0}"
     mkdir -p "$SSHD_DROPIN_DIR"
 
     # Back up the base drop-in so a failed reload can be reverted cleanly.
@@ -259,6 +345,10 @@ EOF
         phase_done "ssh_finalized"
         BIB_SSH_STATE="BIND"
         log "35-ssh-finalize: sshd bound to Tailscale address ${tailscale_ip} (public exposure removed)"
+        # A reload does not re-bind sockets, so the old public 0.0.0.0:22 socket
+        # lingers until reboot. On the non-FORCE BIND path (no external peer) it
+        # is safe to restart ssh.service now to release it (FEAT-016).
+        [[ "$allow_socket_rebind" == "1" ]] && _rebind_public_socket "$tailscale_ip"
         return 0
     fi
 
@@ -412,9 +502,12 @@ ssh_finalize_decide() {
         return 0
     fi
 
-    # FORCE re-run: bind directly (blind — no tailnet-reachability check).
+    # FORCE re-run: bind directly (blind — no tailnet-reachability check). Keep
+    # reload-only (allow_socket_rebind=0): FORCE may run from a public session
+    # being migrated, and a restart would break its "revertible while connected"
+    # guarantee. The public socket narrows on the next reboot instead (FEAT-016).
     if [[ "${BIB_SSH_FORCE_TAILSCALE:-0}" == "1" ]]; then
-        _ssh_bind_tailnet "$tailscale_ip" || true
+        _ssh_bind_tailnet "$tailscale_ip" "0" || true
         return 0
     fi
 
@@ -422,9 +515,11 @@ ssh_finalize_decide() {
     external_peer="$(_external_ssh_peer)"
 
     # No external session depends on the public listener (NAT, or an inbound
-    # tailnet session proves reachability) => safe to bind.
+    # tailnet session proves reachability) => safe to bind, AND safe to restart
+    # ssh.service to release the lingering public socket now (allow_socket_rebind
+    # =1): with no external peer there is no live external session to drop.
     if [[ -z "$external_peer" ]]; then
-        _ssh_bind_tailnet "$tailscale_ip" || true
+        _ssh_bind_tailnet "$tailscale_ip" "1" || true
         return 0
     fi
 
