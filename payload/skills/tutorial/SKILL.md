@@ -1,6 +1,6 @@
 ---
 name: tutorial
-description: The post-install conversational onboarding for a brand-new Builders in a Box. Runs as the initial prompt of the 'ai-platform' tmux session and walks the user through 8 beats — orient, GitHub auth, decide a first project (own idea or an example), create it (via /first-project), teach folder-context, optional second project, demo tmuxc, and a tour of the installed skills plus how to opt into the SDD workflow. Designed to be resumable, skippable, and idempotent.
+description: The post-install conversational onboarding for a brand-new Builders in a Box. Runs as the initial prompt of the 'ai-platform' tmux session and walks the user through 8 beats — orient, GitHub auth, decide a first project (own idea or an example), create it (via /first-project), teach folder-context, optional second project, demo tmuxc, and a tour of the installed skills including the built-in SDD workflow. Designed to be resumable, skippable, and idempotent.
 ---
 
 # /tutorial — guided onboarding inside Claude Code
@@ -253,17 +253,9 @@ Mark Beat 7 done.
 
 > *Last beat. You have a set of skills pre-installed — type `/` anywhere to see them. The everyday ones: `/code-review` and `/code-simplifier` for code quality, `/ux-review` and `/ui-ux-consultant` for interfaces, `/backend-engineer`, `/executive`, `/product-marketing` for on-demand expertise, `/documentator` for docs, `/morning-check` for a daily status. Plus `/first-project` and `/second-project` to spin up new work.*
 
-Then introduce the optional SDD workflow — but DON'T demo it live, it's not installed by default:
+Then point at the SDD workflow — it's already installed, but keep it a soft mention, not a lesson:
 
-> *There's also an opt-in workflow this device is opinionated about: SDD (Spec-Driven Development). It's a team of five "voices" — a product lead, a tech lead, a QA lead, a growth voice, and a docs voice — that take an idea from "I want to build X" all the way to a reviewed spec before you write code. It's powerful but heavier than you need on day one, so it's not pre-installed.*
->
-> *When you want it, one command adds it:*
-
-```bash
-biab add sdd
-```
-
-> *After that, `/sdd-coordinator` becomes your entry door — describe a feature and it walks you through turning it into a real spec. Try it whenever you're ready; no rush.*
+> *One of those skills is the heart of how this box likes to work: SDD (Spec-Driven Development). It's a team of five "voices" — a product lead, a tech lead, a QA lead, a growth voice, and a docs voice — that take an idea from "I want to build X" all the way to a reviewed spec before you write a line of code. It's already installed; `/sdd-coordinator` is the entry door. You don't have to work this way — plenty gets built by just describing what you want — but it's there the day you want a real spec behind a feature. No rush.*
 
 Mark Beat 8 done.
 
@@ -287,7 +279,7 @@ If `skipped` is empty (or they're done revisiting):
 jq '.current_beat = null' ~/.config/biab-tutorial/state.json > /tmp/s.json && mv /tmp/s.json ~/.config/biab-tutorial/state.json
 ```
 
-> *Done. You know how to attach, how to make new sessions, how to push to GitHub, how the folder-context thing works, and that the SDD workflow is one `biab add sdd` away when you want it. The next time you have an idea for a thing to build, the move is: `tmuxc <name> ~/some/folder` → open Claude there → describe it. I'll be here.*
+> *Done. You know how to attach, how to make new sessions, how to push to GitHub, how the folder-context thing works, and that the SDD workflow is built in (`/sdd-coordinator`) for whenever you want a spec behind a feature. The next time you have an idea for a thing to build, the move is: `tmuxc <name> ~/some/folder` → open Claude there → describe it. I'll be here.*
 >
 > *I'm leaving you in the `ai-platform` session. The full guide is at `~/README.md` if you want to skim it later.*
 

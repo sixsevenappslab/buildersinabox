@@ -35,44 +35,23 @@ exec_bootstrap() {
 }
 
 do_add() {
-    # biab add sdd — install the optional Spec-Driven Development skills
-    # (sdd-base, sdd-coordinator, sdd-docs, sdd-growth, sdd-qa, sdd-spec-writer)
-    # that are shipped but not installed by default.
+    # `biab add <group>` installs a bundled optional skill group. No group
+    # ships as optional today — the SDD workflow became core in v0.2, so it's
+    # already installed on every box. The framework stays for future groups.
     local group="${1:-}"
-    if [[ "$group" != "sdd" ]]; then
-        echo "biab add: unknown group '${group}'. Available: sdd" >&2
-        echo "Usage: biab add sdd" >&2
-        exit 1
-    fi
-    local skills_src=/opt/buildersinabox/payload/skills
-    local manifest="${skills_src}/manifest.tsv"
-    local home agents_dir claude_dir agy_dir ai_cli
-    home="$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)"
-    agents_dir="${home}/.agents/skills"
-    claude_dir="${home}/.claude/skills"
-    # Mirror 40-scaffold: on antigravity boxes also symlink into agy's global
-    # skills dir (~/.gemini/skills), since agy doesn't scan ~/.agents/skills.
-    agy_dir="${home}/.gemini/skills"
-    ai_cli="$(jq -r '.ai_cli // "claude"' /var/lib/buildersinabox/state.json 2>/dev/null || echo claude)"
-    mkdir -p "$agents_dir" "$claude_dir"
-    [[ "$ai_cli" == "antigravity" ]] && mkdir -p "$agy_dir"
-    local added=0
-    while IFS=$'\t' read -r name tier; do
-        [[ -z "$name" || "$name" == \#* ]] && continue
-        [[ "$tier" == "optional" && "$name" == sdd-* ]] || continue
-        if [[ -e "${agents_dir}/${name}" || -L "${agents_dir}/${name}" ]]; then
-            echo "biab add: ${name} already installed, skipping"
-        else
-            cp -r "${skills_src}/${name}" "${agents_dir}/${name}"
-            [[ -e "${claude_dir}/${name}" || -L "${claude_dir}/${name}" ]] || ln -s "${agents_dir}/${name}" "${claude_dir}/${name}"
-            if [[ "$ai_cli" == "antigravity" ]]; then
-                [[ -e "${agy_dir}/${name}" || -L "${agy_dir}/${name}" ]] || ln -s "${agents_dir}/${name}" "${agy_dir}/${name}"
-            fi
-            echo "biab add: installed ${name}"
-            added=$((added+1))
-        fi
-    done < "$manifest"
-    echo "==> Added ${added} SDD skill(s). Type / in your AI CLI to see them."
+    case "$group" in
+        sdd)
+            # Was `biab add sdd` before v0.2. Now a friendly no-op.
+            echo "SDD skills are installed by default since v0.2 — nothing to do."
+            echo "Type / in your AI CLI and look for /sdd-coordinator to get started."
+            exit 0
+            ;;
+        *)
+            echo "biab add: unknown group '${group}'. No optional groups available right now." >&2
+            echo "Usage: biab add <group>" >&2
+            exit 1
+            ;;
+    esac
 }
 
 do_update() {
@@ -116,7 +95,8 @@ biab — Builders in a Box CLI
   biab status    print state.json
   biab logs      follow the bootstrap log
   biab update    pull latest BIAB + re-run install scripts (no reinstall needed)
-  biab add sdd   install the optional spec-driven-development skills
+  biab add       install an optional bundled skill group (none available yet;
+                 the SDD workflow is core since v0.2)
   biab help      this message
 EOF
         ;;

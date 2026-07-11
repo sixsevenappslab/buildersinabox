@@ -21,6 +21,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `biab update` and re-running the bootstrap over an existing checkout now hard-sync to the published ref. Previously a tag-pinned clone kept a tag-only fetch refspec (making every update a silent no-op) and the snapshot-based release history could never fast-forward.
 
 ### Changed
+- The Spec-Driven Development skills (`sdd-*`) now install by default on every box instead of being opt-in behind `biab add sdd`. `/sdd-coordinator` is the entry door; the tutorial mentions the workflow softly without imposing it. `biab add sdd` is now a friendly no-op (the `biab add` framework stays for future skill groups).
 - Interactive installs now ask which AI CLI to run (claude or gemini) instead of silently persisting the default — which made the wizard's choice step always skip.
 - README and landing state the account requirements plainly (paid Claude subscription or Google account for Gemini; Tailscale's free plan is plenty), and the "~15 minutes" claim now refers to time-to-first-SSH.
 - Interactive prompts in `install.sh` read from `/dev/tty`, so they work under `curl | sudo bash`.

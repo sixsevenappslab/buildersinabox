@@ -23,7 +23,7 @@ About 15 minutes gets you to your first SSH session from your phone; the guided 
 - **Claude Code reachable from your phone.** SSH in from [Termius](https://termius.com) (or any SSH client) over your private Tailscale network — no port forwarding, no public IP, end-to-end encrypted.
 - **A `tmux` session that never dies.** Your work persists across disconnects. Pick up exactly where you left off, from the couch, a coffee shop, or a flight.
 - **A scaffolded workspace** (`~/ai-platform/`) with sensible defaults and a guided `/tutorial` that walks you from "set up" to "building your first project" inside Claude Code itself.
-- **Useful skills out of the box** — code review, simplification, UX review, and more. An opinionated spec-driven-development workflow is one `biab add sdd` away when you want it.
+- **Useful skills out of the box** — code review, simplification, UX review, and more, plus an opinionated spec-driven-development workflow (the `sdd-*` skills, `/sdd-coordinator` to start) installed by default for whenever you want a real spec behind a feature.
 
 ## What you need
 

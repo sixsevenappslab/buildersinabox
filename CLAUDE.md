@@ -46,7 +46,7 @@ that were dropped. If you touch onboarding copy, keep it consistent with this.
 - **Bash** for device scripts. `set -euo pipefail` always. Keep them readable
   and idempotent — install/wizard steps can re-run.
 - All user-facing strings in **English** by default — this is for an
-  international audience. (The optional `biab add sdd` skills are Spanish; that
+  international audience. (The bundled `sdd-*` skills are still Spanish; that
   translation is deliberately deferred.)
 - Commit format: `feat:`, `fix:`, `docs:`, `chore:`, `refactor:`.
 
@@ -54,8 +54,9 @@ that were dropped. If you touch onboarding copy, keep it consistent with this.
 
 - Quality gate: PR always, CI green before merge. CI runs shellcheck, a
   personal-refs guard, `bash -n`, and an archive-cleanliness check.
-- SDD (spec-driven development) is **opt-in** on a user's box (`biab add sdd`)
-  and optional here too — small fixes don't need a spec.
+- SDD (spec-driven development) skills ship **by default** on a user's box
+  (core since v0.2); using them is still optional here too — small fixes
+  don't need a spec.
 - Anything in `.gitattributes` marked `export-ignore` (maintainer docs, specs)
   never ships in the published tree; don't put user-facing content there.
 

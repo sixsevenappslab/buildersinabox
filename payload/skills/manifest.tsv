@@ -2,7 +2,9 @@
 # Format: <skill-dir-name>\t<core|optional>
 #   core     → installed on every box during scaffold.
 #   optional → shipped in the repo but NOT installed by default;
-#              the user opts in with `biab add <group>` (e.g. `biab add sdd`).
+#              the user opts in with `biab add <group>`.
+# (No optional skills ship today — the SDD workflow became core in v0.2.
+#  The `optional` tier + `biab add` framework stay for future skill groups.)
 # Override for testing/maintenance: BIB_INSTALL_SKILLS=all installs everything.
 backend-engineer	core
 code-review	core
@@ -20,9 +22,9 @@ ui-ux-consultant	core
 ux-review	core
 welcome	core
 whats-ahead	core
-sdd-base	optional
-sdd-coordinator	optional
-sdd-docs	optional
-sdd-growth	optional
-sdd-qa	optional
-sdd-spec-writer	optional
+sdd-base	core
+sdd-coordinator	core
+sdd-docs	core
+sdd-growth	core
+sdd-qa	core
+sdd-spec-writer	core
