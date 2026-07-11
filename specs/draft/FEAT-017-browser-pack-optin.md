@@ -3,7 +3,8 @@
 ## Metadata
 
 - **Proyecto:** buildersinabox
-- **Prioridad:** CHECKPOINT-GATED — NO construir antes de que BIAB pase su gate de 6 semanas (≥500 stars O ≥50 installs + ≥100 email subs + ≥3 testimonios) **Y** haya señal real de que usuarios piden acciones de navegador. Hasta entonces, esta carta se queda en la recámara.
+- **Prioridad:** ~~CHECKPOINT-GATED~~ **DESBLOQUEADA 2026-07-11** — Jesús decidió explícitamente construir e incluir en el próximo release (v0.2.0) ANTES del checkpoint de 6 semanas, revirtiendo el gate original (decisión del strategy-council + spike). Contexto histórico del gate original conservado abajo para trazabilidad.
+  > Gate original (ya no vigente): NO construir antes de que BIAB pasara su gate de 6 semanas (≥500 stars O ≥50 installs + ≥100 email subs + ≥3 testimonios) **Y** hubiera señal real de demanda de acciones de navegador.
 - **Complejidad:** media
 - **E2E mode:** none (spike de feasibility ya hecho, ver §2.0)
 - **Reconciliation owner:** sdd-coordinator
