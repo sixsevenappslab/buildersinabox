@@ -11,6 +11,8 @@
 - **Fase:** tecnica
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-11
+  <!-- QA §4 rellenada 2026-07-11 (Pablo) -->
+
 - **Validado por Jesus:** [ ]
 
 ---
@@ -32,8 +34,8 @@
 - [x] Criterios globales verificables
 
 ### QA (§4) — owner Pablo
-- [ ] ≥1 funcional + ≥1 edge + ≥1 regresion
-- [ ] Criterios de testing ejecutables
+- [x] ≥1 funcional + ≥1 edge + ≥1 regresion
+- [x] Criterios de testing ejecutables
 
 ### Growth (§1.Growth) — Andrea (si aplica)
 - [ ] Canal + metrica + target o N/A
@@ -309,7 +311,243 @@ El formato de hooks de agy **no** es el `settings.json` de Claude Code (agy cons
 
 ## 4. QA (Pablo)
 
-> Pendiente — spawn sdd-qa después de §2.
+### 4.0 Estrategia
+
+Son 4 scripts bash de hook + un merge de config JSON. La verificación se hace en dos planos:
+
+1. **Contrato del hook (aislado, reproducible en CI-local):** cada hook es una caja `stdin JSON → exit code + stdout JSON`. Se dispara con `printf '<json>' | hook.sh`, se inspecciona `$?` y se parsea el stdout con `jq`. Esto es determinista y no necesita una sesión Claude. Es la columna vertebral de los casos funcionales y de degradación.
+2. **Efecto E2E (sesión real):** disparar los 4 hooks en una sesión `claude`/`claude -p` sobre una caja (o fixture de `HOME`) y observar el efecto de cara al agente (bloqueo, fichero formateado, contexto de lint inyectado, línea de log). Cubre que el wiring de `settings.json` está bien y que Claude respeta `permissionDecision`/`additionalContext`.
+
+`shellcheck -S warning` y `bash -n` (CI existente, `find` sobre `payload/hooks/*.sh`) cubren la corrección estática de los scripts — QA no la re-verifica salvo como gate de merge.
+
+**Convención de estas pruebas:** `HK=payload/hooks` en un shell con `set -uo pipefail`. Los ejemplos son ejecutables tal cual desde la raíz del repo, salvo los E2E marcados `[sesión]`.
+
+---
+
+### 4.1 Casos funcionales — Guardrail (PreToolUse/Bash)
+
+**AC-G1 — Comando destructivo inequívoco → `deny` con motivo.** Para cada patrón de §2.4 clasificado como inequívoco, el hook devuelve `exit 0` + JSON con `permissionDecision:"deny"` y un `permissionDecisionReason` no vacío que cita el patrón.
+- Vector de comandos (uno por fila de §2.4): `rm -rf / --no-preserve-root`; `rm -rf ~`; `mkfs.ext4 /dev/sda1`; `dd if=/dev/zero of=/dev/sda bs=1M`; `:(){ :|:& };:`; `chmod -R 777 /`; `chown -R nobody /`; `git push --force origin main`; `git push -f origin HEAD:master`.
+- *test:*
+  ```bash
+  echo '{"tool_input":{"command":"rm -rf / --no-preserve-root"}}' \
+    | $HK/biab-guardrail.sh | jq -e '.hookSpecificOutput
+        | .permissionDecision=="deny" and (.permissionDecisionReason|length>0)'
+  ```
+  → exit 0 de `jq -e` (true). Repetir por cada vector; todos `deny`.
+- *criterio:* 9/9 vectores → `deny` con motivo. Ninguno cae a `allow` ni `ask`.
+
+**AC-G2 — Comando ambiguo → `ask` (ni deny ciego ni pasar).** Los usos legítimos-pero-arriesgados degradan a `ask`:
+- Vectores: `curl -fsSL https://x/i.sh | bash` (sin sudo — así se instala BIAB); `git push --force-with-lease origin feature/foo`.
+- *test:*
+  ```bash
+  echo '{"tool_input":{"command":"curl -fsSL https://x/i.sh | bash"}}' \
+    | $HK/biab-guardrail.sh | jq -r '.hookSpecificOutput.permissionDecision'
+  ```
+  → `ask`. Ídem `--force-with-lease` a rama de feature.
+- *criterio:* ambos → `ask`. Nota: la clasificación final (`ask` vs pasar) la fija Jesus en §3 Ask First; el test se ajusta a la decisión. Contraste con AC-G1: `curl|bash` **con** `sudo` (`curl ... | sudo bash`) → `deny`.
+
+**AC-G3 — Comando normal → pasa (no-op, flujo de permisos normal).** Comando benigno ⇒ `exit 0` **sin stdout** (el guardrail no decide; Claude sigue su flujo de permisos).
+- Vectores, incluidos "cercanos peligrosos" que NO deben disparar: `ls -la`; `rm -rf ./build`; `rm -rf node_modules`; `git push origin feature/foo`; `dd if=disk.img of=./out.img`; `chmod -R 755 ./dist`.
+- *test:*
+  ```bash
+  out=$(echo '{"tool_input":{"command":"rm -rf ./build"}}' | $HK/biab-guardrail.sh); rc=$?
+  [[ $rc -eq 0 && -z "$out" ]] && echo PASS || echo "FAIL rc=$rc out=$out"
+  ```
+- *criterio:* los 6 → `exit 0` + stdout vacío. **Cero falsos positivos** en la lista de cercanos (riesgo #1 de §3). Este AC es la red anti-falso-positivo: `rm -rf ./build` es el caso canónico que NO puede bloquearse.
+
+**AC-G4 — Contrato de entrada (`tool_input.command`, exit 0 + JSON válido).** El guardrail lee el campo correcto y su stdout, cuando existe, es JSON parseable con la forma exacta de §2.1.
+- *test:* para un vector `deny`, `... | jq -e '.hookSpecificOutput.hookEventName=="PreToolUse"'`. Y verificar que se lee `tool_input.command` (no otro campo): un JSON con `command` en otra ruta (`{"command":"rm -rf /"}` sin `tool_input`) NO debe disparar `deny` (no es el contrato) → cae al camino parse/campo-ausente (ver AC-G5).
+
+---
+
+### 4.2 Casos funcionales — Formateo (PostToolUse/Edit|Write) + Log (Stop)
+
+**AC-F1 — Proyecto CON formatter → el fichero se formatea.** En un dir con `black` disponible, un `.py` desalineado editado queda reformateado.
+- *setup:* dir temporal con `pyproject.toml` vacío; `bad.py` con `x=1;y=2` (mal formateado); `black` en PATH.
+- *test:*
+  ```bash
+  d=$(mktemp -d); printf 'x=1;y=2\n' > "$d/bad.py"
+  before=$(md5sum "$d/bad.py")
+  printf '{"cwd":"%s","tool_input":{"file_path":"%s/bad.py"}}' "$d" "$d" \
+    | $HK/biab-format.sh; rc=$?
+  after=$(md5sum "$d/bad.py")
+  [[ $rc -eq 0 && "$before" != "$after" ]] && echo PASS || echo FAIL
+  ```
+  El contenido pasa a estar formateado (dos líneas `x = 1` / `y = 2`).
+- *criterio:* fichero modificado, `exit 0`. Repetir para `.js`/`.ts` con `prettier` y `.sh` con `shfmt` (≥3 lenguajes, cubre tabla §2.3).
+
+**AC-L1 — Log Stop registra resumen local SIN secretos.** La sesión que para añade una línea al log con timestamp/session/cwd/contadores/basenames y nada más.
+- *test:*
+  ```bash
+  printf '{"session_id":"t1","cwd":"/tmp","transcript_path":"/nonexistent"}' \
+    | HOME=$(mktemp -d) $HK/biab-session-log.sh; echo "rc=$?"
+  ```
+  → añade 1 línea a `$HOME/.claude/logs/biab-sessions.log`.
+- *criterio:* la línea contiene `session_id` y `cwd`; el fichero es `0600` (`stat -c %a` → `600`); transcript inexistente degrada a línea mínima + `exit 0` (no rompe el Stop). El caso "sin secretos" se prueba a fondo en AC-LOG1 (§4.5).
+
+**AC-LI1 — Lint devuelve el error como `additionalContext` (no bloqueante).** Un fichero con error de lint produce `exit 0` + JSON `additionalContext` con el error; la edición NO se marca fallida.
+- *setup:* dir con config de linter (p.ej. `.eslintrc.json` mínimo o proyecto `ruff`), fichero con violación clara (import sin usar / var indefinida).
+- *test:*
+  ```bash
+  printf '{"cwd":"%s","tool_input":{"file_path":"%s/bad.py"}}' "$d" "$d" \
+    | $HK/biab-lint.sh | jq -e '.hookSpecificOutput.additionalContext | length>0'
+  ```
+  → true; y el `exit` del hook es `0` (nunca `2`).
+- *criterio:* `additionalContext` no vacío con el texto del linter, `exit 0`. Si NO hay error de lint → `additionalContext` ausente/vacío y `exit 0` (silencio, no ruido). Confirmar que **nunca** usa `exit 2` (grep del script: no debe existir `exit 2`).
+
+---
+
+### 4.3 Degradación (edge crítico — fail-open)
+
+**AC-D1 — Proyecto SIN formatter/linter → no-op silencioso, la acción NO se rompe.** Con la toolchain ausente, format y lint no tocan el fichero, no emiten stdout, y salen `0`.
+- *test (formatter ausente):*
+  ```bash
+  d=$(mktemp -d); printf 'x=1;y=2\n' > "$d/bad.py"; before=$(md5sum "$d/bad.py")
+  printf '{"cwd":"%s","tool_input":{"file_path":"%s/bad.py"}}' "$d" "$d" \
+    | env -i PATH=/usr/bin HOME="$d" $HK/biab-format.sh; rc=$?
+  after=$(md5sum "$d/bad.py")
+  [[ $rc -eq 0 && "$before" == "$after" ]] && echo PASS || echo FAIL
+  ```
+  (PATH acotado a `/usr/bin` para garantizar ausencia de `black`/`prettier` locales; ajustar si el runner los tuviera en `/usr/bin`.)
+- *criterio:* fichero **sin cambios**, stdout vacío, `exit 0`. Ídem `biab-lint.sh` → sin `additionalContext`, `exit 0`. Nunca deja el fichero a medias (regla de oro §2.3).
+
+**AC-D2 — Extensión desconocida → no-op.** `tool_input.file_path` con ext no mapeada (`foo.xyz`, `Makefile`, sin extensión) → `exit 0`, sin cambios, sin stdout, tanto en format como en lint.
+
+**AC-D3 — Hook que falla internamente → fail-open (salvo guardrail).** Un fallo del propio script (binario del formatter presente pero que peta, config corrupta, jq falla en un campo opcional) degrada a no-op con `exit 0` en format/lint/log. **Nunca** `exit 2`.
+- *test:* alimentar stdin malformado a los fail-open: `printf 'not-json' | $HK/biab-format.sh; echo $?` → `0`; ídem `biab-lint.sh` y `biab-session-log.sh`. Y `printf '{}' | $HK/biab-format.sh; echo $?` → `0` (campos ausentes).
+- *criterio:* los 3 fail-open salen `0` ante stdin vacío/`{}`/basura. El guardrail NO entra aquí — su fallo se cubre en AC-E1 (fail-closed).
+
+**AC-D4 — Kill-switch corta en seco.** Con `BIAB_HOOKS_DISABLED=1` o el sentinel `~/.claude/hooks-disabled`, los 4 hooks hacen no-op inmediato (`exit 0`, sin efecto), incluido el guardrail.
+- *test:*
+  ```bash
+  echo '{"tool_input":{"command":"rm -rf / --no-preserve-root"}}' \
+    | BIAB_HOOKS_DISABLED=1 $HK/biab-guardrail.sh; rc=$?
+  out=$(echo '{"tool_input":{"command":"rm -rf / --no-preserve-root"}}' | BIAB_HOOKS_DISABLED=1 $HK/biab-guardrail.sh)
+  [[ $rc -eq 0 && -z "$out" ]] && echo PASS || echo FAIL
+  ```
+- *criterio:* con kill-switch, el guardrail NO emite `deny` (no-op) — comportamiento esperado y documentado (el usuario apagó los hooks a conciencia). Verificar también con el sentinel-file.
+
+---
+
+### 4.4 Edge — guardrail parse-error, merge de settings
+
+**AC-E1 — Guardrail con parse-error → fail-closed ACOTADO (`ask`, no `deny` ciego ni pasar).** stdin no parseable o comando ininteligible ⇒ `permissionDecision:"ask"`.
+- *test:*
+  ```bash
+  echo 'garbage-not-json' | $HK/biab-guardrail.sh | jq -r '.hookSpecificOutput.permissionDecision'   # ask
+  printf '{}' | $HK/biab-guardrail.sh | jq -r '.hookSpecificOutput.permissionDecision'                 # ask (command ausente)
+  printf '{"tool_input":{}}' | $HK/biab-guardrail.sh | jq -r '.hookSpecificOutput.permissionDecision'  # ask
+  ```
+- *criterio:* los tres → `ask`. **Nunca** `deny` (bloquearía todo por un bug — anti-brick) ni `allow`/exit-0-silencioso (dejaría pasar un destructivo si el parseo del comando peligroso falla). Este es el balance de §2.4: un bug del script no abre la puerta ni brickea la caja.
+
+**AC-E2 — Merge jq en caja fresca (único caso soportado).** Sobre un `HOME` fixture sin `~/.claude/settings.json` previo, `install_hooks()` crea el fichero con los 3 eventos y comandos por ruta absoluta real.
+- *test:*
+  ```bash
+  # tras correr el scaffold con ai_cli=claude contra el HOME fixture:
+  jq -e '.hooks.PreToolUse[0].hooks[0].command | endswith("/biab-guardrail.sh")' $H/.claude/settings.json
+  jq -e '.hooks.PostToolUse[0].hooks | length == 2' $H/.claude/settings.json
+  jq -e '.hooks.Stop[0].hooks[0].command | endswith("/biab-session-log.sh")' $H/.claude/settings.json
+  jq -e '(.hooks.PreToolUse[0].hooks[0].command | startswith("/"))' $H/.claude/settings.json   # abs path
+  ```
+- *criterio:* 3 eventos presentes, PostToolUse con 2 hooks (format+lint), todos abs-path apuntando a scripts existentes (`test -x` sobre cada `command`). Idempotencia: segunda corrida → hash del `.hooks` idéntico (AC-R2).
+
+**AC-E3 — Merge jq con settings de usuario preexistentes → reemplaza arrays; documentar el riesgo.** Laura marcó `. * $ours`: jq `*` sobre arrays hace que **gane el de la derecha** (nuestros arrays reemplazan los del usuario evento a evento), pero conserva otras claves top-level y otros eventos de hook.
+- *test:*
+  ```bash
+  # fixture: settings.json de usuario con una clave propia + un hook PreToolUse propio
+  printf '%s' '{"env":{"FOO":"bar"},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"/user/mine.sh"}]}]}}' > $H/.claude/settings.json
+  # correr install_hooks, luego:
+  jq -e '.env.FOO=="bar"' $H/.claude/settings.json                                             # clave propia SOBREVIVE
+  jq -e '[.hooks.PreToolUse[].hooks[].command] | index("/user/mine.sh") | not' $H/.claude/settings.json  # su PreToolUse fue REEMPLAZADO
+  ```
+- *criterio:* `.env.FOO` sobrevive; el `PreToolUse` propio del usuario se pierde (reemplazado por el nuestro). **Riesgo documentado:** el scaffold es caja-fresca (`phase_is_done`, corre una vez), así que en el flujo soportado el usuario no tiene hooks previos. Pero si alguien re-scaffoldea o llega con un `settings.json` que ya trae `PreToolUse`/`PostToolUse`/`Stop`, esos arrays se sobrescriben silenciosamente. QA marca esto como **hueco conocido** (ver §4.7) — mitigación (merge por-array en vez de reemplazo) es candidata a v0.2, no bloquea el FEAT porque el caso soportado es caja nueva.
+
+---
+
+### 4.5 Edge — log nunca captura secretos
+
+**AC-LOG1 — El log NUNCA persiste strings de comando, contenido, env ni tokens.** Aunque una sesión ejecute un comando con un token, el log solo tiene metadatos.
+- *test (transcript sintético con secreto):*
+  ```bash
+  H=$(mktemp -d); mkdir -p "$H/.claude/logs"
+  tp="$H/transcript.jsonl"
+  # transcript falso con un tool_use Bash que lleva un token en el comando:
+  printf '%s\n' '{"type":"tool_use","name":"Bash","input":{"command":"curl -H \"Authorization: Bearer sk-SECRET-TOKEN-12345\" https://api.x"}}' > "$tp"
+  printf '{"session_id":"t","cwd":"/tmp","transcript_path":"%s"}' "$tp" \
+    | HOME="$H" $HK/biab-session-log.sh
+  grep -Ei 'sk-SECRET-TOKEN|Bearer|Authorization|curl|password|BEGIN' "$H/.claude/logs/biab-sessions.log" \
+    && echo "FAIL: secret leaked" || echo "PASS: no secret in log"
+  ```
+- *criterio:* `grep` del token falso (y de `Bearer`/`Authorization`/el string del comando) sobre el log → **vacío**. El log solo debe contener timestamp, session_id, cwd, contadores y basenames de ficheros. Este AC es el gate duro de §3 Never ("persistir secretos").
+
+**AC-LOG2 — Basenames sí, rutas/contenido no problemático.** Si el transcript toca `secrets/prod.env`, el log puede registrar el basename `prod.env` (metadato) pero NO su contenido. Verificar que solo aparecen basenames, no diffs ni valores.
+
+---
+
+### 4.6 Regresión
+
+**AC-R1 — Ruta `claude` y scaffold existente intactos.** Tras añadir `install_hooks()`, el scaffold sigue: symlinkeando skills (`~/.claude/skills/<name>` → `~/.agents/skills/`), pre-sembrando el `settings.json` de **agy** (`~/.gemini/antigravity-cli/settings.json`) sin tocar, y el `chown -R` de `~/.claude` cubre el nuevo `settings.json`.
+- *test:* correr el scaffold completo contra fixture `ai_cli=claude`; verificar: (a) los symlinks de skills siguen existiendo y apuntan bien (`readlink`); (b) el merge de agy no cambió; (c) `stat -c %U ~/.claude/settings.json` → el usuario objetivo (no root).
+- *criterio:* skills, agy pre-seed y ownership sin regresión. El único fichero nuevo es `~/.claude/settings.json`.
+
+**AC-R2 — Idempotencia del seed.** Segunda corrida de `install_hooks()` → `.hooks` idéntico (merge determinista).
+- *test:* `h1=$(jq -S '.hooks' $s | md5sum); <re-run>; h2=$(jq -S '.hooks' $s | md5sum); [[ "$h1" == "$h2" ]]`.
+- *criterio:* hash igual; sin duplicar hooks en los arrays.
+
+**AC-R3 — Caja antigravity: sin hooks pero sin romper.** Con `ai_cli=antigravity`, `install_hooks()` hace no-op, loguea el skip, y **no** crea `~/.claude/settings.json`; el resto del scaffold agy (skills en `~/.gemini/`, merge de su settings) intacto.
+- *test:* scaffold con fixture `ai_cli=antigravity` → `[[ ! -f ~/.claude/settings.json ]]`; log contiene "skipping"/"not applicable"; el `~/.gemini/antigravity-cli/settings.json` de agy se sembró bien.
+- *criterio:* cero `settings.json` de Claude en caja agy, scaffold agy completo, skip logueado. Cubre riesgo #3 de §3 (agy sin guardrail — documentado, no roto).
+
+**AC-R4 — CI verde.** `shellcheck -S warning payload/hooks/*.sh`, `bash -n` sobre cada script, guard de refs personales y archive-cleanliness siguen pasando con los 5 scripts nuevos.
+
+---
+
+### 4.7 Rendimiento (riesgo #2 de §3 — medir)
+
+**AC-P1 — Latencia añadida por format+lint por edición.** Medir el coste que format+lint añaden a cada Edit/Write, que corren en serie tras cada edición.
+- *test:*
+  ```bash
+  d=<repo JS mediano con prettier+eslint config>; f="$d/src/index.js"
+  time ( printf '{"cwd":"%s","tool_input":{"file_path":"%s"}}' "$d" "$f" | $HK/biab-format.sh
+         printf '{"cwd":"%s","tool_input":{"file_path":"%s"}}' "$d" "$f" | $HK/biab-lint.sh )
+  ```
+  Medir p50 y p95 sobre ≥20 iteraciones en: (a) fichero pequeño repo pequeño, (b) fichero en repo grande (eslint con muchos plugins).
+- *umbral aceptable:* **format+lint combinados < 1.5 s p95 por edición** en un repo típico; el **no-op (sin toolchain) < 150 ms p95** (camino que debe ser barato — es el común en cajas recién montadas). Si un repo real supera el umbral, documentar y considerar (v0.2) lint asíncrono o debounce. El no-op rápido es requisito no-funcional (§1) — su medición es gate.
+- *criterio:* p95 reportado para los dos escenarios; no-op bajo umbral; hallazgo anotado si se supera.
+
+**AC-P2 — El guardrail no añade latencia perceptible.** El guardrail corre en cada Bash. Medir su coste (solo regex/jq, sin toolchain externa).
+- *umbral:* **< 100 ms p95** por comando. *criterio:* reportado.
+
+---
+
+### 4.8 E2E — sesión Claude real (observar efecto)
+
+**AC-X1 [sesión].** En `claude`/`claude -p` sobre la caja con los hooks activos: (a) pedir `rm -rf /tmp/biab-test --no-preserve-root` → **bloqueado**, el agente ve el motivo del guardrail; (b) editar un `.py` desalineado en un proyecto con `black` → sale formateado y el error de lint aparece como contexto en el siguiente turno; (c) editar un fichero de ext sin toolchain → sin ruido, edición normal; (d) terminar la sesión → línea nueva en `~/.claude/logs/biab-sessions.log`.
+- *criterio:* los 4 efectos observados de cara al agente/usuario (no solo el contrato aislado). `bash payload/test/wiring-smoke.sh` (matriz claude/antigravity) verde.
+
+---
+
+### 4.9 Criterios de testing (resumen ejecutable)
+
+- **Contrato por hook:** `printf '<json>' | hook.sh`, inspeccionar `$?` y `jq -e` sobre stdout. Fixtures de stdin por caso en `payload/hooks/tests/`.
+- **Guardrail:** matriz `deny`/`ask`/`pasa` con `jq -r '.hookSpecificOutput.permissionDecision'`; parse-error → `ask`.
+- **Format/lint no-op:** `env -i PATH=/usr/bin` + `md5sum` antes/después (fichero intacto) + stdout vacío + `exit 0`; grep de `exit 2` en los fail-open → **debe ser vacío**.
+- **Log sin secretos:** transcript sintético con token falso → `grep -Ei 'token|Bearer|password|BEGIN|sk-|<command-string>' log` → **vacío**; `stat -c %a log` → `600`.
+- **Seed:** `jq -e` sobre `~/.claude/settings.json` (3 eventos, PostToolUse len 2, abs-paths a scripts `test -x`); idempotencia por hash `jq -S '.hooks' | md5sum`.
+- **Regresión agy:** fixture `ai_cli=antigravity` → `[[ ! -f ~/.claude/settings.json ]]` + skip logueado.
+- **Rendimiento:** `time` × ≥20 iteraciones, reportar p50/p95; umbrales AC-P1/AC-P2.
+- **CI:** `shellcheck -S warning payload/hooks/*.sh` + `bash -n` verdes.
+
+---
+
+### 4.10 Huecos de testabilidad detectados en §2 (para Laura/Elena)
+
+1. **Merge jq destructivo con hooks de usuario preexistentes (AC-E3):** el diseño `. * $ours` **reemplaza** los arrays `PreToolUse/PostToolUse/Stop` completos. En el flujo soportado (caja fresca, `phase_is_done` una vez) es inocuo, pero no hay test que garantice el caso "usuario que ya trae sus propios hooks" porque ese caso **no está soportado**. Riesgo real si `biab update` o un re-scaffold futuro tocan settings con hooks ajenos. Recomendación QA: (a) documentar explícito en §5/README "el seed asume caja nueva; si tienes hooks propios, mergéalos a mano", y (b) considerar en v0.2 merge por-array (append en vez de replace) o un guard `if .hooks.PreToolUse existe y no es nuestro → warn`.
+2. **`additionalContext` como canal de lint depende de comportamiento no verificado de Claude:** el contrato aislado (AC-LI1) confirma que el hook **emite** el JSON correcto, pero que Claude **inyecte y actúe** sobre ese contexto solo se comprueba E2E (AC-X1b), que es manual/no-CI. No hay forma barata de automatizar "el agente autocorrigió". Aceptable, pero es el eslabón menos cubierto — marcar como verificación manual obligatoria en el PR.
+3. **Detección de secretos en el log es por diseño (metadatos-only), no por scrubbing:** AC-LOG1 verifica que un token no aparece, pero el hook nunca debe *intentar* extraer strings de comando del transcript. Si la implementación de §2.6 parsea el transcript para contar `tool_use`, hay que asegurar que NO llega a serializar `input.command`. Riesgo: un cambio futuro que "enriquezca" el log podría filtrar. Recomendación: test AC-LOG1 debe quedar como **regresión permanente** en CI-local (no solo one-off), y un comentario en el script marcando la línea como frontera de seguridad.
+4. **Umbrales de rendimiento (AC-P1) sin baseline previo:** §2 marca el riesgo pero no fija número. QA propone < 1.5 s p95 (format+lint) y < 150 ms (no-op), pero son estimaciones sin medición en hardware real (mini PC). Hueco: hay que medir en la caja objetivo, no solo en el server de dev, porque el hardware BIAB es más lento (ver memoria hardware). El umbral puede necesitar ajuste tras la primera medición real.
+5. **`env -i PATH=/usr/bin` para simular ausencia de toolchain (AC-D1) es frágil:** si el runner de CI tiene `black`/`prettier` en `/usr/bin` el test da falso PASS. Recomendación: usar un `PATH` a un dir vacío controlado (`mktemp -d`) en vez de `/usr/bin`, para garantizar ausencia real de binarios.
 
 ---
 
