@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Builders in a Box — your own AI dev box</title>
-<meta name="description" content="One command, ~15 minutes to coding from your phone. Installs on any Ubuntu 24.04.">
-<meta property="og:title" content="Builders in a Box">
-<meta property="og:description" content="Your own AI dev box. One command, ~15 minutes to coding from your phone.">
+<meta name="description" content="You already code with an agent — but it's stuck on your laptop. Give it a persistent, secure home you reach from your phone. One command, any Ubuntu 24.04.">
+<meta property="og:title" content="Builders in a Box — give your coding agent a home">
+<meta property="og:description" content="Your agent lives on your laptop. Move it to a persistent, secure box you drive from your phone. One command, ~15 minutes.">
 <style>
   :root { color-scheme: light dark; --fg:#111; --dim:#666; --bg:#fafafa; --card:#fff; --accent:#1769ff; --code:#0b1020; }
   @media (prefers-color-scheme: dark){ :root{ --fg:#eee; --dim:#999; --bg:#0d0d10; --card:#16161c; --accent:#5b9bff; --code:#06080f; } }
@@ -37,8 +37,8 @@
 </head>
 <body>
 <main>
-  <h1>Your own AI dev box.</h1>
-  <p class="tag">Secure by default: zero public ports, everything behind Tailscale. One command, ~15 minutes to coding from your phone — on any Ubuntu 24.04 machine you own.</p>
+  <h1>Give your coding agent a home.</h1>
+  <p class="tag">You already build with an agent — it just lives on your laptop. It dies when you close the lid, you can't reach it from your phone, and going remote the naive way is how 42,665 agent boxes ended up exposed on the open internet. This turns any Ubuntu 24.04 machine you own into a persistent, secure home for it. One command, ~15 minutes.</p>
 
   <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
        Drop the PNG here (above the one-liner) as: <img class="hero" src="assets/hero.png" ...>. -->
@@ -58,11 +58,20 @@
     <a class="btn ghost" href="https://buildersinabox.com/install.sh">Read the script</a>
   </div>
 
-  <p><strong>What you get:</strong></p>
+  <p><strong>If you already code with an agent, you've hit this:</strong></p>
   <ul>
-    <li>Claude Code (or another AI CLI) reachable from your phone over Tailscale — no port forwarding, no public IP, nothing listening on the open internet.</li>
-    <li>A <code>tmux</code> session that survives disconnects. Pick up from the couch, a coffee shop, a flight.</li>
-    <li>A scaffolded workspace and a guided tutorial that gets you building your first project.</li>
+    <li>It's chained to your laptop. Close the lid and the run dies; you can't kick off a refactor from your phone on the train.</li>
+    <li>Long jobs want a machine that's always on — a battery-and-heat tax on your laptop, a security project on a raw VPS.</li>
+    <li>Going remote safely is a minefield. Open SSH, expose a port — that's exactly how 42,665 agent boxes ended up publicly reachable with auth bypass.</li>
+    <li>Doing it right — Tailscale, tmux, the agent, auth, persistence — is the yak-shave you keep postponing.</li>
+  </ul>
+
+  <p><strong>So this gives your agent a home:</strong></p>
+  <ul>
+    <li>A persistent, always-on box where your agent lives — Claude Code or Antigravity CLI in <code>tmux</code>, reachable from your phone over Tailscale. Zero public ports, nothing on the open internet. Structurally not one of the 42,665.</li>
+    <li>Your phone is the console: start on the train, check it at lunch, still running when you get home.</li>
+    <li>One command, ~15 minutes, on hardware you already own. No new subscription — bring your Claude sub or a Google account for Antigravity.</li>
+    <li>It's yours: your box, your files, your LAN, your credentials. A scaffolded workspace and a guided tutorial get you moving. Open source, MIT — no one can pull the rug.</li>
   </ul>
 
   <p class="note">Bring your own Ubuntu 24.04 box — a mini PC, a homelab VM, or a VPS. You'll also need a paid Claude subscription (Pro or above) or a Google account for Antigravity CLI; Tailscale's free plan is plenty. Open source, MIT.</p>
