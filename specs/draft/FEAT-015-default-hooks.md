@@ -8,7 +8,7 @@
 - **E2E mode:** none
   > Scripts + config de hooks de Claude Code. Verificación = disparar cada hook en una sesión real y observar el efecto.
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** tecnica
+- **Fase:** validacion
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-11
   <!-- QA §4 rellenada 2026-07-11 (Pablo) -->
@@ -38,7 +38,7 @@
 - [x] Criterios de testing ejecutables
 
 ### Growth (§1.Growth) — Andrea (si aplica)
-- [ ] Canal + metrica + target o N/A
+- [x] Canal + metrica + target o N/A ("hooks" = ítem real de la propuesta de valor; N/A métrica directa)
 
 ---
 
@@ -558,6 +558,7 @@ Son 4 scripts bash de hook + un merge de config JSON. La verificación se hace e
 
 ### Decisiones tomadas
 - [2026-07-11] Jesus eligió los 4 hooks (guardrail + formateo + lint + log) para shippar antes del flip, para anunciar "hooks" con verdad.
+- [2026-07-11] **Lista del guardrail aprobada por Jesus (Ask First resuelto):** DENY — `rm -rf` de raíz/`--no-preserve-root`, `mkfs`/`wipefs`/`dd of=/dev/*`/`fdisk`, fork bomb, `curl|wget | sudo bash`, `chmod/chown -R` sobre `/`, `git push --force` a `main`/`master`. ASK — `curl|bash` sin sudo, `git push --force-with-lease` en feature. Parse-error → ask. Lista conservadora a propósito (un guardrail agresivo se desactiva y deja de proteger).
 
 ---
 
