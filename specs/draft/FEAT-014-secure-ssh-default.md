@@ -8,7 +8,7 @@
 - **E2E mode:** none
   > Scripts de dispositivo (bash). Verificación real = pasada E2E en VM con IP "pública" simulada + box detrás de NAT.
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** requisitos
+- **Fase:** tecnica
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-11
 - **Validado por Jesus:** [ ]
@@ -25,11 +25,11 @@
 - [x] Boundaries §3 con Always/Ask First/Never
 
 ### Spec Tecnica (§2) — owner Laura
-- [ ] Investigacion previa con rutas verificadas
-- [ ] Tabla archivos afectados
-- [ ] ≥1 task con verify/done
-- [ ] Patron de codigo real
-- [ ] Criterios globales verificables
+- [x] Investigacion previa con rutas verificadas
+- [x] Tabla archivos afectados
+- [x] ≥1 task con verify/done
+- [x] Patron de codigo real
+- [x] Criterios globales verificables
 
 ### QA (§4) — owner Pablo
 - [ ] ≥1 funcional + ≥1 edge + ≥1 regresion
@@ -83,7 +83,132 @@ Hacer que el estado seguro (sshd atado a la interfaz de Tailscale, sin listener 
 
 ## 2. Spec Tecnica (Laura)
 
-> Pendiente — spawn sdd-spec-writer.
+### Investigacion previa (rutas verificadas)
+
+- `payload/install/50-ssh.sh` — instala `openssh-server`, genera host keys si faltan, escribe el drop-in base `/etc/ssh/sshd_config.d/00-buildersinabox.conf` (`PasswordAuthentication yes`, `KbdInteractiveAuthentication yes`, `PermitRootLogin prohibit-password`, `PubkeyAuthentication yes`) y conmuta de `ssh.socket` a `ssh.service` (necesario para que un futuro `ListenAddress` tenga efecto). **El listener queda en `0.0.0.0:22` con contraseña.** No hace bind al tailnet.
+- `payload/wizard/35-ssh-finalize.sh` — corre tras `tailscale up` (10-tailscale-up.sh). Prepara `~/.ssh/authorized_keys` (vacío; la importación real es en /tutorial Beat 2). Obtiene `tailscale ip -4`. Helper `_is_tailnet_addr` reconoce CGNAT `100.64.0.0/10` e IPv6 `fd7a:115c:a1e0::/48`. Helper `_ssh_peer_addrs` lista peers de sesiones SSH establecidas (`ss -Htn state established '( sport = :22 )'`). Si hay un peer **externo** (fuera del tailnet) y `BIB_SSH_FORCE_TAILSCALE!=1`, hoy **por defecto elige `keep-current-access`**: NO ata el listener, NO endurece, y estampa `phase_done "ssh_finalized"`. Si procede, escribe `01-buildersinabox-tailscale.conf` con `ListenAddress ${tailscale_ip}`, valida `sshd -t` y hace `reload` (las sesiones vivas sobreviven).
+- `payload/skills/tutorial/SKILL.md` Beat 2 — tras `gh auth status` verde, importa `gh api /user/keys` a `~/.ssh/authorized_keys` (idempotente, `grep -Fqx`). Es el momento en que el target user pasa a tener una credencial de clave. Ocurre **después** del wizard.
+- `payload/lib/common.sh` — `phase_done <name>` escribe `.phases.<name>=true` en `state.json`; `phase_is_done`, `state_get`, `log/warn/die`, `require_root`. `payload/lib/prompt.sh` — `prompt_header`, `prompt_choice` (default = 1ª opción, valor en `BIB_PROMPT_VALUE`, retorna !=0 en EOF).
+- `README.md` §"Security model" (líneas 89-96) y `site/index.html` (línea 74 hero, línea 82 note) — hoy afirman **"Zero public ports"** en absoluto, falso durante la ventana VPS.
+- Test infra: `payload/test/dryrun.sh` + `payload/test/wiring-smoke.sh` (hermético, `BIB_OAUTH_MOCK=1`; **no** ejercita 35-ssh-finalize). CI (`.github/workflows/ci.yml`) = shellcheck `-S warning` + `bash -n` + guard de refs personales + archive-cleanliness. La verificación real de sshd es **manual en VM (multipass)**, como ya se hace para FEAT-013 CP-02.
+
+### Diseño elegido (anti-lockout)
+
+**Invariante de seguridad:** nunca eliminar la última credencial funcional del único admin sobre su último camino funcional. El riesgo de lockout NO viene de endurecer *auth* (métodos), sino de cambiar el *ListenAddress* (qué interfaz escucha). Se separan las dos palancas.
+
+`35-ssh-finalize.sh` decide entre **tres estados** (solo cuando hay `tailscale_ip`; en `BIB_OAUTH_MOCK=1` se salta igual que hoy):
+
+1. **BIND (seguro — default cuando es seguro).** Se dispara si (i) **no hay ninguna sesión SSH externa** (caso NAT/mini PC, o VPS operado desde la consola web del proveedor — `_ssh_peer_addrs` vacío), **o** (ii) **existe una sesión entrante desde el tailnet** (prueba positiva de que el usuario ya alcanza la caja por Tailscale — VPS ya reconectado, o app de Claude conectada por el tailnet). → escribe `01-buildersinabox-tailscale.conf` (`ListenAddress ${tailscale_ip}`), **elimina** el drop-in de endurecimiento público si existía (para que el listener tailnet vuelva a aceptar contraseña, que es el modelo documentado para clientes de móvil), `sshd -t` + `reload`, y estampa `ssh_finalized`. Exposición pública eliminada.
+
+2. **HOLD-HARDENED (seguro-suficiente — VPS con solo sesión pública pero con clave usable).** La única sesión es externa **y** `~/.ssh/authorized_keys` del target user **no está vacío**. → escribe `02-buildersinabox-public-hardening.conf` con `PasswordAuthentication no` + `KbdInteractiveAuthentication no` (el listener sigue en `0.0.0.0`, pero **key-only → no brute-forceable**). Imprime instrucciones de reconectar por el tailnet + re-run `BIB_SSH_FORCE_TAILSCALE=1`. **No** ata todavía (sin lockout: el usuario conserva su clave sobre el camino público). Estampa `ssh_public_hardened` pero **NO** `ssh_finalized`, para que el re-run complete el BIND.
+
+3. **HOLD-OPEN (VPS con solo sesión pública y SIN clave usable — la contraseña es la única credencial).** `authorized_keys` vacío (típico durante el wizard, pre-Beat-2). Deshabilitar contraseña dejaría al usuario sin ninguna credencial → **no se toca auth**. Se mantiene contraseña + listener público, pero **NO se estampa como securizado**; se imprime aviso prominente + comandos exactos de reconexión/FORCE. Es la única ventana con exposición residual: explícita, corta y cerrada automáticamente en Beat 2.
+
+**Cierre automático del bucle (Beat 2).** Tras importar las GitHub keys, /tutorial dispara `sudo BIB_SSH_FORCE_TAILSCALE=1 …/35-ssh-finalize.sh` si la caja no está `ssh_finalized`. En Beat 2 el usuario ya opera por el tailnet (app de Claude) → normalmente cae en **BIND** y queda securizado sin intervención. Si aún así no hay sesión tailnet, ahora al menos hay clave → HOLD-HARDENED (key-only, no expuesto a fuerza bruta).
+
+**Semántica de `BIB_SSH_FORCE_TAILSCALE=1`** (escape hatch / recuperación): salta el prompt y ata al tailnet (comportamiento actual). Se mantiene `reload` (no `restart`) para que la sesión activa sobreviva: si el usuario forzó por error y el tailnet no enruta, lo detecta **mientras sigue conectado** y puede revertir. La ruta de recuperación se documenta (abajo).
+
+**Por qué este diseño y no alternativas:** atar siempre al tailnet aunque el usuario venga por la IP pública (opción más simple en código) se rechaza por violar el invariante — si su cliente no enruta el tailnet, lockout. Endurecer a key-only siempre se rechaza porque durante el wizard el usuario puede no tener clave (import en Beat 2). El diseño de 3 estados es el mínimo que hace *seguro-por-defecto* cada target sin ninguna ruta de lockout: NAT y consola-VPS → BIND; VPS-por-SSH con clave → key-only inmediato; VPS-por-SSH sin clave → ventana explícita y auto-cerrada en Beat 2.
+
+### Archivos afectados
+
+| Archivo | Cambio |
+|---------|--------|
+| `payload/wizard/35-ssh-finalize.sh` | **[DANGER ZONE]** Máquina de estados BIND/HOLD-HARDENED/HOLD-OPEN; gate de presencia de clave; drop-in `02-…-public-hardening.conf`; estampado diferenciado (`ssh_finalized` vs `ssh_public_hardened`); mensajes de reconexión+recuperación. |
+| `payload/skills/tutorial/SKILL.md` | Beat 2: tras import de keys, hook `BIB_SSH_FORCE_TAILSCALE=1` re-run si `!ssh_finalized`; copy del cierre. |
+| `payload/install/50-ssh.sh` | Solo comentario de cabecera (modelo de seguridad actualizado). Sin cambio funcional del drop-in base. |
+| `README.md` | §"Security model": sustituir el absoluto "Zero public ports" por postura precisa (tailnet-bound end state; key-only durante setup en VPS). |
+| `site/index.html` | Hero (línea 74) + note (línea 82): wording preciso sin absoluto incumplible. |
+| `payload/tutorial/desktop-readme.md` / `SECURITY.md` | Documentar ruta de recuperación (consola del proveedor, FORCE re-run, borrar drop-in). |
+| `payload/test/ssh-finalize-decision.sh` (nuevo) | Driver unitario que mockea `ss`/`tailscale`/`authorized_keys` y asserta el estado elegido en los 3 escenarios. |
+
+### Plan de tareas (waves)
+
+**Wave 1 — lógica del dispositivo**
+
+- [ ] **T1 — Refactor de la máquina de estados en `35-ssh-finalize.sh` [DANGER ZONE]**
+  Sustituir el bloque `keep-current-access` por la decisión BIND/HOLD-HARDENED/HOLD-OPEN. BIND cuando no hay peer externo o hay peer tailnet; HOLD-HARDENED cuando solo peer externo + `authorized_keys` no vacío (drop-in `02-…-public-hardening.conf` con password/kbd off, sin bind, estampa `ssh_public_hardened`); HOLD-OPEN cuando solo peer externo + sin clave (no toca auth, no estampa `ssh_finalized`, aviso ruidoso). BIND elimina `02-…-public-hardening.conf` antes del `reload`. Todo con `sshd -t` previo y `reload` (no `restart`).
+  - **verify:** `shellcheck -S warning payload/wizard/35-ssh-finalize.sh && bash -n payload/wizard/35-ssh-finalize.sh`
+  - **done:** los 3 estados existen, ninguno deja `PasswordAuthentication yes` sobre `0.0.0.0` estampado como securizado, y solo BIND estampa `ssh_finalized`.
+
+- [ ] **T5 — Driver de test unitario del decisor (`payload/test/ssh-finalize-decision.sh`, nuevo)**
+  Mockea `ss` (peer externo / peer tailnet / vacío), `tailscale ip -4` y el contenido de `authorized_keys`; ejecuta el decisor y asserta estado + drop-ins escritos + fase estampada para los 3 escenarios. Sin tocar el sshd real (usar un `sshd_config.d` temporal / dry-run).
+  - **verify:** `bash payload/test/ssh-finalize-decision.sh` sale 0
+  - **done:** 3 asserts en verde (BIND / HOLD-HARDENED / HOLD-OPEN) + caso FORCE=1 → BIND.
+
+**Wave 2 — cierre del bucle y recuperación**
+
+- [ ] **T2 — Hook de auto-finish en /tutorial Beat 2**
+  Tras el import de GitHub keys (SKILL.md líneas ~116-129), si `phase_is_done ssh_finalized` es falso, ejecutar `sudo BIB_SSH_FORCE_TAILSCALE=1 /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh`. Ajustar copy para explicar el cierre (SSH pasa a tailnet-only ahora que hay clave).
+  - **verify:** `grep -n "BIB_SSH_FORCE_TAILSCALE" payload/skills/tutorial/SKILL.md` muestra el hook tras el import
+  - **done:** Beat 2 dispara el re-run condicionado a `!ssh_finalized`; copy coherente con el modelo de un-solo-tmux.
+
+- [ ] **T3 — Ruta de recuperación documentada + mensajes impresos**
+  Los mensajes de HOLD (T1) imprimen los comandos exactos de recuperación; documentar en `payload/tutorial/desktop-readme.md` y/o `SECURITY.md`: (a) consola web/serie del proveedor VPS → `sudo rm /etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf && sudo systemctl reload ssh`; (b) re-aplicar con `BIB_SSH_FORCE_TAILSCALE=1`; (c) consola física en mini PC.
+  - **verify:** `grep -rn "BIB_SSH_FORCE_TAILSCALE\|01-buildersinabox-tailscale" SECURITY.md payload/tutorial/desktop-readme.md`
+  - **done:** las 3 rutas de recuperación aparecen en doc y en el mensaje HOLD del script.
+
+**Wave 3 — copy pública y verificación real**
+
+- [ ] **T4 — Copy pública precisa (README + landing)**
+  README §"Security model": reemplazar "Zero public ports" absoluto por postura por-target (NAT/homelab: nada escucha en internet; VPS: sshd atado al tailnet como estado final, key-only durante el setup mientras reconectas por Tailscale). Actualizar bullet "Lockout-safe hardening". `site/index.html` línea 74 + note línea 82: wording preciso, sin absoluto. Mantener el gancho vendible (Andrea) pero verdadero.
+  - **verify:** `grep -n "Zero public ports" README.md site/index.html` sin coincidencias (o reformulado con matiz)
+  - **done:** ninguna afirmación absoluta incumplible; postura VPS descrita explícitamente; hook de seguridad intacto.
+
+- [ ] **T6 — Verificación E2E en VM (multipass) — REQUERIDA antes de fiarse [DANGER ZONE]**
+  Dos escenarios, imitando FEAT-013 CP-02:
+  1. **NAT/mini PC:** sin sesión SSH externa (o entrando por tailnet) → esperar **BIND**, `ListenAddress` tailnet, `ss -tlnp` sin `0.0.0.0:22`, reconexión por tailnet OK.
+  2. **IP pública (VPS simulado):** entrar por SSH desde una IP no-tailnet; (a) sin clave → **HOLD-OPEN** (password sigue, no `ssh_finalized`, aviso); (b) con clave en `authorized_keys` → **HOLD-HARDENED** (`PasswordAuthentication no`, listener aún público, key-only funciona, password rechazada). Luego `BIB_SSH_FORCE_TAILSCALE=1` con sesión tailnet presente → **BIND**. Comprobar que la sesión pública activa sobrevive al `reload` (no lockout).
+  - **verify:** ejecución manual documentada en §4 con salidas de `ss -tlnp`, `sshd -T | grep -i passwordauth`, y prueba de reconexión antes/después.
+  - **done:** ambos escenarios pasan sin lockout y el estado final de cada target es el esperado; resultado anotado en §6.
+
+### Patron de codigo real (a preservar)
+
+El bloque de escritura de drop-in con validación `sshd -t` + `reload` de `35-ssh-finalize.sh` (líneas 135-152) es el patrón que T1 debe replicar para el nuevo `02-…-public-hardening.conf` y mantener para el bind:
+
+```bash
+if [[ -n "$tailscale_ip" ]]; then
+    drop_in=/etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf
+    cat > "${drop_in}.tmp" <<EOF
+# Managed by Builders in a Box (payload/wizard/35-ssh-finalize.sh).
+# Restrict sshd to listen only on the Tailscale interface address.
+ListenAddress ${tailscale_ip}
+EOF
+    mv "${drop_in}.tmp" "$drop_in"
+    if sshd -t 2>/dev/null; then
+        systemctl reload ssh.service 2>/dev/null || systemctl restart ssh.service
+        log "35-ssh-finalize: sshd bound to Tailscale address ${tailscale_ip}"
+    else
+        rm -f "$drop_in"
+        warn "35-ssh-finalize: sshd config check failed, reverted Tailscale bind"
+    fi
+else
+    log "35-ssh-finalize: no Tailscale IP available, leaving sshd on its default bind"
+fi
+```
+
+Y el clasificador tailnet ya existente, que T1 reutiliza para distinguir peer externo de peer tailnet:
+
+```bash
+# Tailnet address spaces: IPv4 CGNAT 100.64.0.0/10, IPv6 fd7a:115c:a1e0::/48.
+_is_tailnet_addr() {
+    local ip="${1#::ffff:}"
+    [[ "$ip" == fd7a:115c:a1e0:* ]] && return 0
+    [[ "$ip" == 100.* ]] || return 1
+    local second="${ip#100.}"
+    second="${second%%.*}"
+    [[ "$second" =~ ^[0-9]+$ ]] && (( second >= 64 && second <= 127 ))
+}
+```
+
+### Criterios globales verificables
+
+- `shellcheck -S warning` y `bash -n` en verde para todos los `.sh` tocados (gate CI).
+- Tras el flujo completo en un VPS simulado: `ss -tlnp | grep ':22'` muestra **solo** la IP tailnet (BIND), o si en HOLD, `sshd -T | grep -i passwordauthentication` = `no` (HOLD-HARDENED) — **nunca** `passwordauthentication yes` sobre `0.0.0.0` estampado como securizado.
+- En NAT: sin regresión — mismo resultado que hoy (BIND directo).
+- Ninguna ejecución deja al único admin sin ruta de acceso (verificado en T6, ambos escenarios).
+- Idempotencia: re-ejecutar 35-ssh-finalize no cambia el estado final.
+- `git archive HEAD | tar -t` no incluye `specs/` ni maintainer paths (gate CI).
 
 ---
 
@@ -94,6 +219,9 @@ Hacer que el estado seguro (sshd atado a la interfaz de Tailscale, sin listener 
 - Mantener una ruta de recuperación de acceso siempre (nunca lockout del único admin).
 - Copy pública precisa; nada de absolutos incumplibles.
 - Centralizar la lógica SSH en los scripts existentes (`50-ssh.sh` / `35-ssh-finalize.sh`), no dispersarla.
+- **El bind tailnet-only (ListenAddress) solo se aplica con prueba positiva de alcanzabilidad por el tailnet** (peer entrante tailnet) o cuando no hay ninguna sesión SSH externa que dependa del listener público.
+- `sshd -t` antes de recargar y `reload` (no `restart`) para que las sesiones vivas sobrevivan; revertir el drop-in si `sshd -t` falla.
+- El drop-in de endurecimiento público (`02-…-public-hardening.conf`) existe **solo** mientras exista listener público; BIND lo elimina.
 
 ### Ask First
 - **[DANGER ZONE] Cualquier cambio a `sshd` (config, listener, auth) requiere OK explícito de Jesus antes de merge** — puede dejar una caja inaccesible.
@@ -102,6 +230,8 @@ Hacer que el estado seguro (sshd atado a la interfaz de Tailscale, sin listener 
 
 ### Never
 - Dejar `PasswordAuthentication yes` sobre una interfaz pública (0.0.0.0) como estado final por defecto.
+- **Deshabilitar `PasswordAuthentication` sin una clave usable presente en `authorized_keys` del target user** (dejaría al usuario sin credencial → lockout). Esa es la razón de HOLD-OPEN vs HOLD-HARDENED.
+- **Estampar `ssh_finalized` (securizado) mientras sshd siga con contraseña abierta sobre interfaz pública.**
 - Lockout del único usuario admin sin ruta de recuperación.
 - Abrir puertos nuevos.
 - Tocar la ruta de la app de Claude / otras partes fuera de SSH+copy.
