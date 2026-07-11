@@ -123,6 +123,18 @@ echo "==> Regenerating sshd host keys"
 rm -f /etc/ssh/ssh_host_* 2>/dev/null || true
 ssh-keygen -A
 
+# Drop the FEAT-014 SSH bind state: the Tailscale-only ListenAddress points at
+# YOUR tailnet IP (useless — and a reboot lockout — for the new owner), the
+# legacy public-hardening file, and the systemd ordering drop-in that waits for
+# the tailnet at boot. The recipient's first boot re-runs 50-ssh (public
+# password listener) and 35-ssh-finalize (re-binds to THEIR tailnet).
+echo "==> Removing BIAB SSH bind drop-ins (Tailscale-only bind, boot ordering)"
+rm -f /etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf \
+      /etc/ssh/sshd_config.d/02-buildersinabox-public-hardening.conf \
+      /etc/systemd/system/ssh.service.d/10-buildersinabox-tailscale-wait.conf 2>/dev/null || true
+rmdir /etc/systemd/system/ssh.service.d 2>/dev/null || true
+systemctl daemon-reload 2>/dev/null || true
+
 # ---- 5. BIAB wizard state + logs ------------------------------------------
 
 echo "==> Resetting BIAB wizard state"

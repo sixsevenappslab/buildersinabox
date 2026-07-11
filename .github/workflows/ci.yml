@@ -29,6 +29,14 @@ jobs:
       - name: No personal references in the shippable tree
         run: bash tools/check-no-personal-refs.sh
 
+      # FEAT-014: SSH-finalize decision logic. Includes a real `sshd -T`
+      # precedence check (when sshd is present) that reproduces the HOLD-HARDENED
+      # no-op bug — a later drop-in saying "no" is ignored, so the disable must
+      # land in the base 00 drop-in. Skips the real-sshd asserts gracefully where
+      # no sshd binary exists.
+      - name: SSH finalize decision unit tests (FEAT-014)
+        run: bash payload/test/ssh-finalize-decision.sh
+
       - name: git archive cleanliness
         run: |
           # The shippable tarball must not contain maintainer-only paths.

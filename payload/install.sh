@@ -140,18 +140,37 @@ do_uninstall() {
         /usr/local/bin/bd
         /etc/profile.d/biab-firstboot.sh
         /etc/systemd/system/getty@tty1.service.d/autologin.conf
+        # FEAT-014 SSH drop-ins: the Tailscale-only bind, the (legacy) public
+        # hardening file, and the systemd ordering drop-in that makes ssh.service
+        # wait for the tailnet at boot. Removing the bind restores a public
+        # listener so the box stays reachable after uninstall.
+        /etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf
+        /etc/ssh/sshd_config.d/02-buildersinabox-public-hardening.conf
+        /etc/systemd/system/ssh.service.d/10-buildersinabox-tailscale-wait.conf
         "$BIB_LOG_DIR"
         "$BIB_STATE_DIR"
         /opt/buildersinabox
     )
     local p
+    local removed_ssh_dropin=0
     for p in "${paths_to_remove[@]}"; do
         if [[ -e "$p" ]]; then
             printf 'uninstall: removing %s\n' "$p"
             rm -rf -- "$p"
             found_anything=1
+            [[ "$p" == /etc/ssh/sshd_config.d/* || "$p" == /etc/systemd/system/ssh.service.d/* ]] \
+                && removed_ssh_dropin=1
         fi
     done
+
+    # If we removed any SSH drop-in, refresh systemd + sshd so the unit no longer
+    # waits on the (now-removed) Tailscale bind and the listener returns to its
+    # public default immediately (reload keeps live sessions — no lockout).
+    if [[ "$removed_ssh_dropin" -eq 1 ]] && command -v systemctl >/dev/null 2>&1; then
+        rmdir /etc/systemd/system/ssh.service.d 2>/dev/null || true
+        systemctl daemon-reload 2>/dev/null || true
+        systemctl reload ssh.service 2>/dev/null || true
+    fi
 
     # User-level shell snippets installed under ~${target_user}/.bashrc.d/biab-*.
     if [[ -n "$target_user" ]] && getent passwd "$target_user" >/dev/null; then

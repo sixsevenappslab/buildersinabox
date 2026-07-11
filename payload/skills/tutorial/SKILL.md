@@ -128,6 +128,29 @@ else
 fi
 ```
 
+Now close the SSH loop. On a VPS the box may still be on a public listener
+(it held SSH open during the console wizard because there was no key yet).
+Now that a key is in place — and the user is reaching the box over the
+tailnet through the Claude Code app — bind sshd to the Tailscale address if
+it isn't secured yet. `BIB_SSH_FORCE_TAILSCALE=1` applies the bind directly;
+because sshd is `reload`ed (never restarted), the current session survives.
+
+```bash
+STATE_JSON=/var/lib/buildersinabox/state.json
+if [ -f "$STATE_JSON" ] && [ "$(jq -r '.phases.ssh_finalized // false' "$STATE_JSON")" != "true" ]; then
+  echo "Securing SSH: binding it to your private Tailscale address now that a key is in place…"
+  sudo BIB_SSH_FORCE_TAILSCALE=1 /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh \
+    && echo "SSH is now Tailscale-only." \
+    || echo "(Couldn't finalize SSH automatically — see ~/README.md 'If SSH ever fails' to bind it manually.)"
+else
+  echo "SSH is already bound to your Tailscale network — nothing to do."
+fi
+```
+
+Tell the user plainly: on a home box behind NAT this was already done during
+setup; on a VPS this is the moment SSH stops listening on the public internet
+and moves to your tailnet only.
+
 Then mark Beat 2 done. If `gh auth status` is not green: surface the actual gh error and offer one of:
 - retry `gh auth login --web` (sometimes the polling times out)
 - fallback to Personal Access Token: walk the user through `https://github.com/settings/tokens/new` (scopes: `repo`, `read:org`, `gist`, `workflow`), then `echo <TOKEN> | gh auth login --with-token --hostname github.com`

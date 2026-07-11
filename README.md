@@ -88,11 +88,11 @@ It leaves your home directory, Tailscale, and your GitHub and Claude logins unto
 
 ## Security model
 
-Early-2026 scans found tens of thousands of self-hosted AI agent boxes exposed to the public internet, most with authentication bypasses. Builders in a Box is designed so there is nothing to expose:
+Early-2026 scans found tens of thousands of self-hosted AI agent boxes exposed to the public internet, most with authentication bypasses. Builders in a Box is designed so the end state is nothing exposed:
 
-- **Zero public ports.** Nothing listens on the open internet. Once Tailscale is up, sshd binds to your private Tailscale address only — and Ubuntu's `ssh.socket` activation is disabled so that bind actually holds. No port forwarding, no public IP, no reverse proxy.
-- **Auth stays inside your tailnet.** SSH (Tailscale SSH, your GitHub public keys, or your sudo password) is only reachable from devices on your private Tailscale network. Root login over SSH is key-only (`prohibit-password`).
-- **Lockout-safe hardening.** If you're connected from outside the tailnet — typical on a VPS — the wizard warns and asks before restricting sshd, instead of cutting you off mid-session.
+- **sshd binds to your tailnet, not the internet.** Once Tailscale is up, sshd is restricted to your private Tailscale address only — and Ubuntu's `ssh.socket` activation is disabled so that bind actually holds. On a home box or homelab behind NAT, nothing ever listens on the open internet: no port forwarding, no public IP, no reverse proxy. On a VPS with a public IP, the box reaches that same Tailscale-only end state — see the next point for how it gets there without locking you out.
+- **Lockout-safe on a VPS.** If you set the box up over its public IP, it never silently locks SSH to the tailnet mid-session (that could cut you off). Instead: if one of your SSH keys is present, the public listener is hardened to **key-only** (no password, not brute-forceable); if only a password exists, SSH is held open with a loud warning and is **not** reported as secured until you acknowledge it. It moves to Tailscale-only automatically when you finish `/tutorial` (which imports your GitHub key) or when you re-run the finalize step from a tailnet session. Recovery routes are documented in [SECURITY.md](SECURITY.md).
+- **Auth stays inside your tailnet.** In the end state, SSH (Tailscale SSH, your GitHub public keys, or your sudo password) is reachable only from devices on your private Tailscale network. Root login over SSH is key-only (`prohibit-password`).
 - **Auditable install.** The script served at `buildersinabox.com/install.sh` is pinned to the release tag it shipped with, so the code you read is the code it fetches. [What it changes](#what-it-changes-on-your-system) lists every path it touches; `--uninstall` reverses it.
 
 ## Roadmap

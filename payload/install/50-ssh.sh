@@ -5,13 +5,16 @@
 # public-key auth. The Tailscale-only ListenAddress is applied later
 # in 35-ssh-finalize.sh, after `tailscale up`.
 #
-# Security model: sshd is reachable only via the Tailscale interface
-# (the user's private network). On that interface, password auth is
-# acceptable because only the user's own devices are on the tailnet
-# by default. Phone-side SSH clients (Termius / ConnectBot / etc.)
-# typically only support password or key auth, not Tailscale SSH —
-# we choose password for simplicity, with the sudo password the user
-# sets in 01-set-password as the credential.
+# Security model: this base drop-in opens a password-capable listener on
+# 0.0.0.0 so the operator can complete the console/SSH wizard. It is NOT the
+# end state — 35-ssh-finalize.sh restricts the listener to the Tailscale
+# interface once Tailscale is up, choosing an anti-lockout path (BIND /
+# HOLD-HARDENED / HOLD-OPEN) so a VPS operated over its public IP is never
+# cut off mid-session. On the tailnet interface, password auth is acceptable
+# because only the user's own devices are on the tailnet by default, and
+# phone-side SSH clients (Termius / ConnectBot / etc.) typically support only
+# password or key auth, not Tailscale SSH — the sudo password from
+# 01-set-password is the credential. See 35-ssh-finalize.sh for the full model.
 
 set -euo pipefail
 

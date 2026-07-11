@@ -246,6 +246,28 @@ Your primary path IS SSH over Tailscale, so keep these handy:
 - If `agy` says you're signed out, SSH in and run `agy` once
   interactively to redo the Google OAuth (choose "Google OAuth", paste
   the authorization code).
+
+**Locked out after SSH was bound to Tailscale (VPS)?** Once Tailscale is up,
+sshd is restricted to your private Tailscale address only. If the tailnet
+isn't routing and you can't get back in, any one of these restores access
+without reinstalling:
+
+1. From your VPS provider's web/serial console, reopen the public listener:
+
+       sudo rm -f /etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf \
+                  /etc/systemd/system/ssh.service.d/10-buildersinabox-tailscale-wait.conf
+       sudo systemctl daemon-reload && sudo systemctl reload ssh
+
+2. Once you can reach the box over the tailnet again, re-apply the bind:
+
+       sudo BIB_SSH_FORCE_TAILSCALE=1 \
+           /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+
+   (`BIB_SSH_FORCE_TAILSCALE=1` binds without re-checking tailnet routing —
+   use it only with alternative access confirmed. sshd is reloaded, not
+   restarted, so an active session survives.)
+
+3. On a mini PC, plug in a keyboard + monitor and make the same edit as (1).
 <!-- BIB:end -->
 
 ## Where things live

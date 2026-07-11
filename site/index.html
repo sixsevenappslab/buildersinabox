@@ -71,7 +71,7 @@
     <li><strong>Your agent, wherever you are.</strong> Drive it from your phone over Tailscale — start a job on the train, check it at lunch, it's still running when you get home. Never chained to your desk.</li>
     <li><strong>Work that doesn't stop when you do.</strong> Persistent <code>tmux</code> sessions keep long runs alive across disconnects. Kick it off, walk away, come back to the result.</li>
     <li><strong>A dev workflow that's already good, out of the box.</strong> Not a blank agent — a practice. Curated, battle-worn skills for spec-driven development, code review, QA and UX; GitHub wired up; a project scaffold with a real pull-request flow.</li>
-    <li><strong>Secure without thinking about it.</strong> Zero public ports, everything behind Tailscale — structurally not one of the 42,665 exposed boxes.</li>
+    <li><strong>Secure without thinking about it.</strong> sshd binds to your private Tailscale network, not the open internet — behind NAT nothing is ever exposed, and on a VPS it reaches the same tailnet-only end state without locking you out. Structurally not one of the 42,665 exposed boxes.</li>
     <li><strong>Yours, on hardware you already own.</strong> One command, ~15 minutes. No new subscription — bring your Claude sub or a Google account for Antigravity. Your box, your files, your credentials. Open source, MIT — no one can pull the rug.</li>
   </ul>
 
