@@ -10,7 +10,7 @@
 - **Fase:** tecnica (draft)
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-11
-- **Validado por Jesus:** [ ]  (deliberadamente sin validar — decisión del strategy-council: lanzar headless primero; esto es hipótesis de checkpoint, no trabajo pre-launch)
+- **Validado por Jesus:** [x] (2026-07-11 — valida que la spec es correcta y DoR-completa; NO autoriza build, sigue CHECKPOINT-GATED, ver arriba)
 
 ## Origen (por qué existe este draft)
 
