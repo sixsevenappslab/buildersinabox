@@ -8,10 +8,10 @@
 - **E2E mode:** none
   > Scripts de dispositivo (bash). Verificación real = pasada E2E en VM con IP "pública" simulada + box detrás de NAT.
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** validacion
+- **Fase:** implementacion
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-11
-- **Validado por Jesus:** [ ]
+- **Validado por Jesus:** [x] (2026-07-11)
 
 ---
 

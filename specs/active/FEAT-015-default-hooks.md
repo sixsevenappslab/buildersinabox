@@ -13,7 +13,7 @@
 - **Actualizado:** 2026-07-11
   <!-- QA §4 rellenada 2026-07-11 (Pablo) -->
 
-- **Validado por Jesus:** [ ]
+- **Validado por Jesus:** [x] (2026-07-11)
 
 ---
 
