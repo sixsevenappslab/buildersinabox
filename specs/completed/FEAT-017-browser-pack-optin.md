@@ -8,7 +8,7 @@
 - **Complejidad:** media
 - **E2E mode:** none (spike de feasibility ya hecho, ver §2.0)
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** tecnica (draft)
+- **Fase:** completado (merged #25 e2a9b0b, 2026-07-12 — VM-verified, danger-zone OK explícito de Jesús)
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-12 — motor por defecto cambiado de `chromium-headless-shell` a Chromium completo (ver §2.9 addendum, footprint ~646MB)
 - **Validado por Jesus:** [x] (2026-07-11 — spec correcta y DoR-completa. 2026-07-12: Jesús desbloqueó el build explícitamente, ver Prioridad arriba — esta línea SÍ autoriza construir, la nota "NO autoriza build" quedó obsoleta y se corrige aquí.)
