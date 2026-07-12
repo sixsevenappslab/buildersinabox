@@ -1,0 +1,10 @@
+{
+  "name": "biab-browser-driver",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Headless browser driver for the Builders in a Box browser pack (opt-in, FEAT-017). Not published.",
+  "type": "module",
+  "dependencies": {
+    "playwright-core": "1.61.1"
+  }
+}

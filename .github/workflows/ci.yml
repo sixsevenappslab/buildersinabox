@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get update && sudo apt-get install -y shellcheck
+
+      - name: shellcheck all shell scripts
+        run: |
+          mapfile -t files < <(find . -name '*.sh' -not -path './.git/*' -not -path './payload/flavors/gift/maintainer/*')
+          # Extensionless scripts (no .sh suffix) aren't matched by the '*.sh'
+          # glob above. FEAT-017 code review: bin/biab-browse — the single
+          # most security-sensitive file in the pack (re-execs itself as
+          # root) — was never shellchecked because of exactly this gap.
+          # Match by shebang instead of hardcoding a path list, so any future
+          # extensionless script in the same shape (e.g. payload/scripts/bd)
+          # is picked up automatically.
+          while IFS= read -r -d '' f; do
+              if head -1 "$f" 2>/dev/null | grep -qE '^#!.*\b(bash|sh)\b'; then
+                  files+=("$f")
+              fi
+          done < <(find . -type f -perm -u+x ! -name '*.*' -not -path './.git/*' -not -path './payload/flavors/gift/maintainer/*' -print0)
+          printf '%s\n' "${files[@]}"
+          shellcheck -S warning "${files[@]}"
+
+      - name: bash -n entry points
+        run: |
+          bash -n payload/install.sh
+          bash -n payload/lib/common.sh
+          bash -n payload/pack/browser/bin/biab-browse
+          bash -n payload/pack/browser/install.sh
+          bash -n payload/pack/browser/uninstall.sh
+          bash -n payload/pack/browser/lib.sh
+          [ -f installer/web/install.sh ] && bash -n installer/web/install.sh || true
+
+      - name: No personal references in the shippable tree
+        run: bash tools/check-no-personal-refs.sh
+
+      # FEAT-014: SSH-finalize decision logic. Includes a real `sshd -T`
+      # precedence check (when sshd is present) that reproduces the HOLD-HARDENED
+      # no-op bug — a later drop-in saying "no" is ignored, so the disable must
+      # land in the base 00 drop-in. Skips the real-sshd asserts gracefully where
+      # no sshd binary exists.
+      - name: SSH finalize decision unit tests (FEAT-014)
+        run: bash payload/test/ssh-finalize-decision.sh
+
+      - name: git archive cleanliness
+        run: |
+          # The shippable tarball must not contain maintainer-only paths.
+          if git archive HEAD | tar -t | grep -E '(^|/)(specs/|payload/flavors/gift/maintainer/)'; then
+            echo "ERROR: maintainer-only paths leaked into git archive" >&2
+            exit 1
+          fi
+          echo "git archive is clean"
+
+  # Per-CLI wiring canary (FEAT-013). Exercises the claude AND antigravity
+  # dispatch surfaces so a change that breaks the non-Claude path turns red
+  # instead of shipping silently (the failure mode the retired second-CLI path had).
+  #
+  # NOTE: this is the hermetic wiring smoke, NOT the full VM dry-run. A GitHub
+  # runner has no `ubuntu` user, no systemd/Tailscale, and no way to install
+  # the real stack or reach Google's release/OAuth endpoints, so the full
+  # `payload/test/dryrun.sh` (and, above all, agy token persistence across a
+  # reboot — risk R1) is validated only by the manual multipass E2E pass in the
+  # FEAT-013 QA plan (CP-02). This job asserts the wiring, not persistence.
+  dryrun:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        ai_cli: [claude, antigravity]
+    steps:
+      - uses: actions/checkout@v4
+      - name: wiring smoke (${{ matrix.ai_cli }})
+        env:
+          BIB_AI_CLI: ${{ matrix.ai_cli }}
+          BIB_OAUTH_MOCK: "1"
+          BIB_TMUX_LAUNCH_CMD: "true"
+        run: bash payload/test/wiring-smoke.sh
+
+  # FEAT-017 code review gap: the browser pack's own test harness (Section A
+  # static regression checks — opt-in invariants, the --no-sandbox static
+  # grep, the screenshot-destination validation added by this same review)
+  # was never invoked in CI. Section C (real install, root-only) is still
+  # exercised only by the manual multipass VM E2E pass, not here — this
+  # runner has no throwaway box to install the real system user/sudoers rule
+  # on. Section B (local-fixture CLI contract, needs Node + a real Chromium)
+  # is attempted for real below; if the driver/Chromium install step fails
+  # (e.g. a flaky network pull), it's logged clearly and test-pack.sh's own
+  # SKIP path takes over — not silently green either way.
+  browser-pack-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install browser pack driver dependencies (Section B, best-effort real install)
+        working-directory: payload/pack/browser/driver
+        run: |
+          set -x
+          if npm install --no-audit --no-fund && npx playwright install --with-deps chromium; then
+            echo "browser-pack-tests: driver deps + Chromium installed — Section B will run for real"
+          else
+            echo "::warning::browser-pack-tests: driver dependency install failed — test-pack.sh's Section B will SKIP cleanly instead of running for real (see its own SKIP lines below)"
+          fi
+
+      - name: Run browser pack test suite (FEAT-017)
+        run: bash payload/pack/browser/tests/test-pack.sh

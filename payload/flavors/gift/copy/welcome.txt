@@ -1,0 +1,45 @@
+This isn't just a mini PC, ${BIB_NAME}.
+
+What you have in front of you is a workshop. Inside runs a senior
+engineer — an AI that thinks, writes code, designs systems, ships
+products. From tonight, when you say "I want to build X", it builds
+it with you. Side by side. On your hardware. With your accounts.
+
+You can talk to it from this monitor, from your phone, OR from your
+laptop — same conversations, same context, anywhere you are. From
+the sofa. From a coffee shop. From bed. From a flight. As long as you can
+type, you can build.
+
+Two projects are already waiting for you — full specs written, ready
+to go: a Slack coach that knows what you're working on, and a personal
+finance dashboard you'll ship to a real domain you own. Pick one. Pick
+both. Or describe something else entirely — anything you can imagine.
+
+The next 25 minutes are the setup. Here's the trip:
+
+  [now]         3-5 min on this monitor       <- you are here
+                  password, Tailscale login, SSH
+  [bridge]      install Termius on your phone
+  [SSH ~3 min]  Claude login + workspace + tmux setup
+  [Claude]    ~12 min in the Claude Code app
+                  on your phone OR laptop — same app, same sessions
+                  GitHub, the two starter projects, the AI skills tour
+
+You'll log in to two services from this monitor:
+
+  1. Tailscale  (https://tailscale.com)  <- private network — your phone reaches the device
+  2. Claude or Antigravity               <- the AI you'll be talking to
+
+GitHub comes later, inside the Claude Code app — easier from there.
+
+Don't have a Tailscale or Claude account yet? The login pages let you
+sign up in 30 seconds. Have your phone ready and an email you can check.
+
+You can interrupt at any point with Ctrl+C. To pick up from the last
+completed step:
+
+    sudo /opt/buildersinabox/payload/install.sh
+
+No step is ever repeated.
+
+Hands ready. Phone in pocket. Let's begin.

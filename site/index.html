@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Builders in a Box — your own AI dev box</title>
+<meta name="description" content="You already code with an agent — but it's stuck on your laptop. Give it a persistent, secure home you reach from your phone. One command, any Ubuntu 24.04.">
+<meta property="og:title" content="Builders in a Box — give your coding agent a home">
+<meta property="og:description" content="Your agent lives on your laptop. Move it to a persistent, secure box you drive from your phone. One command, ~15 minutes.">
+<style>
+  :root { color-scheme: light dark; --fg:#111; --dim:#666; --bg:#fafafa; --card:#fff; --accent:#1769ff; --code:#0b1020; }
+  @media (prefers-color-scheme: dark){ :root{ --fg:#eee; --dim:#999; --bg:#0d0d10; --card:#16161c; --accent:#5b9bff; --code:#06080f; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
+  main { max-width:680px; margin:0 auto; padding:14vh 24px 8vh; }
+  h1 { font-size:2.1rem; line-height:1.15; margin:0 0 .4em; letter-spacing:-.02em; }
+  .tag { color:var(--dim); font-size:1.15rem; margin:0 0 2em; }
+  .cmd { display:flex; align-items:center; gap:.5em; background:var(--code); color:#e6e6e6; border-radius:10px; padding:14px 16px; font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow-x:auto; }
+  .cmd code { white-space:nowrap; }
+  .cmd button { margin-left:auto; flex:none; background:#23304d; color:#cfe0ff; border:0; border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
+  .cmd button:hover { background:#2c3c63; }
+  .btns { margin:1.6em 0 2.4em; }
+  .btn { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; padding:11px 18px; border-radius:8px; font-weight:600; }
+  .btn.ghost { background:transparent; color:var(--accent); border:1px solid var(--accent); margin-left:.5em; }
+  ul { padding-left:1.2em; } li { margin:.3em 0; }
+  .note { color:var(--dim); font-size:.95rem; }
+  figure { margin:1.8em 0 2.2em; }
+  figure img { display:block; width:100%; max-width:100%; height:auto; border-radius:10px; border:1px solid rgba(128,128,128,.2); background:#06080f; }
+  figcaption { color:var(--dim); font-size:.9rem; margin-top:.6em; text-align:center; }
+  .sub { display:flex; gap:.5em; margin:2.2em 0 .4em; flex-wrap:wrap; }
+  .sub input[type=email] { flex:1 1 220px; padding:10px 12px; border-radius:8px; border:1px solid rgba(128,128,128,.4); background:var(--card); color:var(--fg); font:inherit; }
+  .sub button { background:var(--accent); color:#fff; border:0; border-radius:8px; padding:10px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  .hp { position:absolute; left:-9999px; }
+  footer { margin-top:3em; color:var(--dim); font-size:.9rem; border-top:1px solid rgba(128,128,128,.2); padding-top:1.4em; }
+  a { color:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Give your coding agent a home.</h1>
+  <p class="tag">You already build with an agent — it just lives on your laptop. It dies when you close the lid, you can't reach it from your phone, and going remote the naive way is how 42,665 agent boxes ended up exposed on the open internet. This turns any Ubuntu 24.04 machine you own into a persistent, secure home for it. One command, ~15 minutes.</p>
+
+  <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
+       Drop the PNG here (above the one-liner) as: <img class="hero" src="assets/hero.png" ...>. -->
+
+  <div class="cmd">
+    <code id="oneliner">curl -fsSL https://buildersinabox.com/install.sh | sudo bash</code>
+    <button onclick="navigator.clipboard.writeText(document.getElementById('oneliner').textContent);this.textContent='copied'">copy</button>
+  </div>
+
+  <figure>
+    <img src="assets/install.svg" alt="Terminal recording: running the installer on a fresh Ubuntu 24.04 box, from the command to 'stack installed'.">
+    <figcaption>The real installer running on a fresh Ubuntu 24.04 box, start to “stack installed”.</figcaption>
+  </figure>
+
+  <div class="btns">
+    <a class="btn" href="https://github.com/sixsevenappslab/buildersinabox">View on GitHub</a>
+    <a class="btn ghost" href="https://buildersinabox.com/install.sh">Read the script</a>
+  </div>
+
+  <p><strong>If you already code with an agent, you've hit this:</strong></p>
+  <ul>
+    <li>It's chained to your laptop. Close the lid and the run dies; you can't kick off a refactor from your phone on the train.</li>
+    <li>Long jobs want a machine that's always on — a battery-and-heat tax on your laptop, a security project on a raw VPS.</li>
+    <li>Going remote safely is a minefield. Open SSH, expose a port — that's exactly how 42,665 agent boxes ended up publicly reachable with auth bypass.</li>
+    <li>Doing it right — a private network, sessions that survive a dropped connection, the agent, auth, hardening — is the yak-shave you keep postponing.</li>
+  </ul>
+
+  <p><strong>Here's what you get out of it:</strong></p>
+  <ul>
+    <li><strong>Your agent, wherever you are.</strong> Drive it from your phone or your laptop over your own private network — start a refactor on the train, check it at lunch, it's still running when you get home. Never chained to your desk.</li>
+    <li><strong>Work that doesn't stop when you do.</strong> Sessions persist on the box, so long runs stay alive across dropped connections and closed laptops. Kick it off, walk away, come back to the result.</li>
+    <li><strong>A senior workflow baked in — spec-driven development.</strong> The standout skill: instead of the agent diving straight into code, it writes a short spec you approve <em>first</em> — the problem, the plan, the edge cases — so you catch a misunderstanding in a paragraph instead of in a 400-line diff. That's how bigger features stay on the rails when you're steering from your phone. It comes with a full cast of review skills (code review, QA, UX, growth) that critique the work before you merge, plus GitHub wired up and a real pull-request flow — a way of working teams take years to build, on your box from minute one.</li>
+    <li><strong>A practice that keeps itself honest.</strong> Unfinished specs are resurfaced every time you open a session, so long-running work never rots in a folder you forgot about, and an optional incident log turns each thing that breaks into a rule you won't trip over twice.</li>
+    <li><strong>Know exactly what your agent burns.</strong> A built-in usage coach reads your own session history and shows where your plan is going — by model and by project, on the status line and on demand (<em>“how much have I burned this week?”</em>). It nudges you off an expensive model for routine work, so an opaque bill turns into a decision instead of a surprise rate-limit at the worst moment.</li>
+    <li><strong>Give it eyes on the web — when you want them.</strong> One command (<code>biab pack add browser</code>) lets the agent read, click, fill and screenshot live pages. Off by default; when it's on it runs sandboxed under its own locked-down user that can't touch your keys or your code.</li>
+    <li><strong>Secure without thinking about it.</strong> Your box answers only on your own private network, never on the open internet — behind NAT nothing is ever exposed, and on a VPS it reaches the same private-only end state without locking you out. Structurally not one of the 42,665 exposed boxes.</li>
+    <li><strong>Works with the agent you already pay for.</strong> Claude Code or Google's Antigravity — you choose at setup, and the whole practice works the same either way. One command, ~15 minutes, on hardware you already own. Your box, your files, your credentials. Open source, MIT — no one can pull the rug.</li>
+  </ul>
+
+  <p class="note"><strong>New in v0.2:</strong> the usage coach, the opt-in web-browsing pack, and session-start reminders for unfinished specs — all included, nothing extra to sign up for. Wi-Fi first-boot and more capability packs are next.</p>
+
+  <p class="note">Bring your own Ubuntu 24.04 box — a mini PC, a homelab VM, or a VPS — and the agent you already use: a paid Claude subscription (Pro or above) or a Google account for Antigravity. The private networking is free for personal use, and the installer walks you through it. Open source, MIT.</p>
+
+  <p class="note">The README lists <a href="https://github.com/sixsevenappslab/buildersinabox#what-it-changes-on-your-system">everything the installer changes</a> and the <a href="https://github.com/sixsevenappslab/buildersinabox#security-model">security model</a>; <code>--uninstall</code> removes it all.</p>
+
+  <p class="note">Just want an agent working in the background? Hosted options like Anthropic's Cowork do that without a server. This is for when the agent needs <em>your</em> machine — your files, your local network, your credentials, your cron jobs.</p>
+
+  <form class="sub" id="subform" method="post" action="/subscribe">
+    <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address">
+    <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button type="submit">Get release notes</button>
+  </form>
+  <p class="note" id="submsg">Launch news + release notes, a few emails a year. No spam, unsubscribe anytime.</p>
+
+  <script>
+  (function () {
+    var form = document.getElementById('subform');
+    var msg = document.getElementById('submsg');
+    var done = function (ok) {
+      msg.textContent = ok
+        ? "You're in — we'll email you when there's something worth reading."
+        : "That didn't work — check the address and try again.";
+      if (ok) form.style.display = 'none';
+    };
+    var q = new URLSearchParams(location.search).get('subscribed');
+    if (q !== null) done(q === '1');
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var btn = form.querySelector('button');
+      btn.disabled = true; btn.textContent = '…';
+      fetch('/subscribe', {
+        method: 'POST',
+        headers: { 'accept': 'application/json', 'content-type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email.value,
+          website: form.website.value
+        })
+      }).then(function (r) { return r.json(); })
+        .then(function (d) { done(!!d.ok); })
+        .catch(function () { done(false); })
+        .finally(function () { btn.disabled = false; btn.textContent = 'Get release notes'; });
+    });
+  })();
+  </script>
+
+  <footer>
+    Builders in a Box, by SixSeven Apps.
+    <br>Run <code>curl -fsSL https://buildersinabox.com/install.sh</code> (without the pipe) to read it before you run it.
+  </footer>
+</main>
+</body>
+</html>
