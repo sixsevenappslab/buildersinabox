@@ -8,6 +8,10 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 ## [Unreleased]
 
 ### Added
+- **Usage coach** (`quota` skill, core): reconstructs Claude plan spend from the box's own session transcripts (by model and project), a `UserPromptSubmit` nudge that suggests a cheaper model for routine work when you're on an expensive one, and an optional status-line segment showing the running weekly total (installed only when you don't already have a status line). No new account or API — it reads what's already on the box.
+- **Opt-in browser pack** (`biab pack add browser`): gives the agent a sandboxed headless Chromium it can read/click/fill/screenshot live pages with, without a desktop. Off by default; runs as a dedicated locked-down `biab-browser` user (no sudo, no access to the operator's `~/.ssh` or project files), with the setuid sandbox enabled and a fail-closed default (never `--no-sandbox`). `biab pack {list,add,remove}` manages it; `--uninstall`-clean.
+- **Session-start spec reminder**: a `SessionStart` hook surfaces any unfinished specs (`specs/draft`/`specs/active`) when you open a session, so long-running work doesn't rot unseen. Silent when there's nothing pending; fail-open (never blocks a session).
+- **Optional `incident` skill** (`biab add incident`): keeps a running `INCIDENTS.md` log (symptom, root cause, fix, rule learned) with auto-numbered `ERR-NNN` entries.
 - Email capture on the landing page: a release-notes signup form backed by a Cloudflare Pages Function (`/subscribe`) and a Resend audience.
 - Lockout guard: if someone is connected over SSH from outside the tailnet (typical on a VPS), the wizard now warns and asks before restricting sshd to the Tailscale address, and prints the exact command (`BIB_SSH_FORCE_TAILSCALE=1`) to apply the restriction later.
 - Root-only hosts (fresh VPS images): the installer now offers to create the target user account instead of failing with an error.

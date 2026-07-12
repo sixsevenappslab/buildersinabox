@@ -63,25 +63,28 @@
     <li>It's chained to your laptop. Close the lid and the run dies; you can't kick off a refactor from your phone on the train.</li>
     <li>Long jobs want a machine that's always on — a battery-and-heat tax on your laptop, a security project on a raw VPS.</li>
     <li>Going remote safely is a minefield. Open SSH, expose a port — that's exactly how 42,665 agent boxes ended up publicly reachable with auth bypass.</li>
-    <li>Doing it right — Tailscale, tmux, the agent, auth, persistence — is the yak-shave you keep postponing.</li>
+    <li>Doing it right — a private network, sessions that survive a dropped connection, the agent, auth, hardening — is the yak-shave you keep postponing.</li>
   </ul>
 
   <p><strong>Here's what you get out of it:</strong></p>
   <ul>
-    <li><strong>Your agent, wherever you are.</strong> Drive it from your phone over Tailscale — start a job on the train, check it at lunch, it's still running when you get home. Never chained to your desk.</li>
-    <li><strong>Work that doesn't stop when you do.</strong> Persistent <code>tmux</code> sessions keep long runs alive across disconnects. Kick it off, walk away, come back to the result.</li>
-    <li><strong>A dev workflow that's already good, out of the box.</strong> Not a blank agent — a practice. Curated, battle-worn skills for spec-driven development, code review, QA and UX; GitHub wired up; a project scaffold with a real pull-request flow.</li>
-    <li><strong>Secure without thinking about it.</strong> sshd binds to your private Tailscale network, not the open internet — behind NAT nothing is ever exposed, and on a VPS it reaches the same tailnet-only end state without locking you out. Structurally not one of the 42,665 exposed boxes.</li>
-    <li><strong>Yours, on hardware you already own.</strong> One command, ~15 minutes. No new subscription — bring your Claude sub or a Google account for Antigravity. Your box, your files, your credentials. Open source, MIT — no one can pull the rug.</li>
+    <li><strong>Your agent, wherever you are.</strong> Drive it from your phone or your laptop over your own private network — start a refactor on the train, check it at lunch, it's still running when you get home. Never chained to your desk.</li>
+    <li><strong>Work that doesn't stop when you do.</strong> Sessions persist on the box, so long runs stay alive across dropped connections and closed laptops. Kick it off, walk away, come back to the result.</li>
+    <li><strong>A senior workflow baked in — spec-driven development.</strong> The standout skill: instead of the agent diving straight into code, it writes a short spec you approve <em>first</em> — the problem, the plan, the edge cases — so you catch a misunderstanding in a paragraph instead of in a 400-line diff. That's how bigger features stay on the rails when you're steering from your phone. It comes with a full cast of review skills (code review, QA, UX, growth) that critique the work before you merge, plus GitHub wired up and a real pull-request flow — a way of working teams take years to build, on your box from minute one.</li>
+    <li><strong>A practice that keeps itself honest.</strong> Unfinished specs are resurfaced every time you open a session, so long-running work never rots in a folder you forgot about, and an optional incident log turns each thing that breaks into a rule you won't trip over twice.</li>
+    <li><strong>Know exactly what your agent burns.</strong> A built-in usage coach reads your own session history and shows where your plan is going — by model and by project, on the status line and on demand (<em>“how much have I burned this week?”</em>). It nudges you off an expensive model for routine work, so an opaque bill turns into a decision instead of a surprise rate-limit at the worst moment.</li>
+    <li><strong>Give it eyes on the web — when you want them.</strong> One command (<code>biab pack add browser</code>) lets the agent read, click, fill and screenshot live pages. Off by default; when it's on it runs sandboxed under its own locked-down user that can't touch your keys or your code.</li>
+    <li><strong>Secure without thinking about it.</strong> Your box answers only on your own private network, never on the open internet — behind NAT nothing is ever exposed, and on a VPS it reaches the same private-only end state without locking you out. Structurally not one of the 42,665 exposed boxes.</li>
+    <li><strong>Works with the agent you already pay for.</strong> Claude Code or Google's Antigravity — you choose at setup, and the whole practice works the same either way. One command, ~15 minutes, on hardware you already own. Your box, your files, your credentials. Open source, MIT — no one can pull the rug.</li>
   </ul>
 
-  <p class="note"><strong>Coming:</strong> a starter project drops an AI coach into your Slack — the spec ships in the box, ready to build in a couple of evenings. Telegram and more are on the way.</p>
+  <p class="note"><strong>New in v0.2:</strong> the usage coach, the opt-in web-browsing pack, and session-start reminders for unfinished specs — all included, nothing extra to sign up for. Wi-Fi first-boot and more capability packs are next.</p>
 
-  <p class="note">Bring your own Ubuntu 24.04 box — a mini PC, a homelab VM, or a VPS. You'll also need a paid Claude subscription (Pro or above) or a Google account for Antigravity CLI; Tailscale's free plan is plenty. Open source, MIT.</p>
+  <p class="note">Bring your own Ubuntu 24.04 box — a mini PC, a homelab VM, or a VPS — and the agent you already use: a paid Claude subscription (Pro or above) or a Google account for Antigravity. The private networking is free for personal use, and the installer walks you through it. Open source, MIT.</p>
 
   <p class="note">The README lists <a href="https://github.com/sixsevenappslab/buildersinabox#what-it-changes-on-your-system">everything the installer changes</a> and the <a href="https://github.com/sixsevenappslab/buildersinabox#security-model">security model</a>; <code>--uninstall</code> removes it all.</p>
 
-  <p class="note">Just want Claude working in the background? Anthropic's Cowork does that without a server. This is for when the agent needs <em>your</em> machine — your files, your LAN, your credentials, your cron jobs.</p>
+  <p class="note">Just want an agent working in the background? Hosted options like Anthropic's Cowork do that without a server. This is for when the agent needs <em>your</em> machine — your files, your local network, your credentials, your cron jobs.</p>
 
   <form class="sub" id="subform" method="post" action="/subscribe">
     <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address">
