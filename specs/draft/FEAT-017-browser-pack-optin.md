@@ -10,8 +10,8 @@
 - **Reconciliation owner:** sdd-coordinator
 - **Fase:** tecnica (draft)
 - **Creado:** 2026-07-11
-- **Actualizado:** 2026-07-11
-- **Validado por Jesus:** [x] (2026-07-11 — valida que la spec es correcta y DoR-completa; NO autoriza build, sigue CHECKPOINT-GATED, ver arriba)
+- **Actualizado:** 2026-07-12 — motor por defecto cambiado de `chromium-headless-shell` a Chromium completo (ver §2.9 addendum, footprint ~646MB)
+- **Validado por Jesus:** [x] (2026-07-11 — spec correcta y DoR-completa. 2026-07-12: Jesús desbloqueó el build explícitamente, ver Prioridad arriba — esta línea SÍ autoriza construir, la nota "NO autoriza build" quedó obsoleta y se corrige aquí.)
 
 ## Origen (por qué existe este draft)
 
@@ -89,7 +89,7 @@ Un **"browser pack" OPT-IN** (`biab pack add browser`), **headless**, que NO req
 - **A) Playwright headless — FUNCIONA.** Navegó example.com + news.ycombinator.com (JS), extrajo texto, click→página 2, rellenó búsqueda. Disco: **~262 MB** (chromium-headless-shell) o 646 MB si instalas el chromium completo; `node_modules` 18 MB. RAM pico **~688 MB**, run ~2 s. **← path recomendado.**
 - **B) Chromium headful bajo Xvfb — FUNCIONA** como fallback. Chrome real (UA `X11; Linux x86_64`), driven por CDP. Coste extra: ~2× RAM (~1.3 GB) + gestionar el ciclo de Xvfb. Usar el chromium bundled de Playwright, **NO el snap** (confinamiento AppArmor = dolor headless).
 - **claude-in-chrome (MCP de Chrome) NO sirve aquí:** es una extensión + MCP para el Chrome REAL e interactivo del usuario (permisos por UI, sesión logueada, humano en el bucle). No encaja en un server headless autónomo. En la caja BIAB el camino es **Playwright/CDP**, no la extensión. (claude-in-chrome sigue siendo la herramienta correcta en el portátil/Mac del propio usuario — otra superficie.)
-- **Concurrencia:** ~700 MB/run → en 4 GB caben ~2-3 navegadores headless a la vez antes de presión.
+- **Concurrencia:** ~700 MB/run (headless-shell, cifra del spike) → en 4 GB caben ~2-3 navegadores headless a la vez antes de presión. **Revisado 2026-07-12:** con el motor por defecto = Chromium completo, medido en VM real ~1.0-1.2 GB pico/run (ver §4.8 AC-FP2) — en 4 GB caben ~2-3 navegadores igualmente cómodo pero con menos margen; no cambia la decisión v1 de serializar (§2.9 punto 3).
 
 ### 2.1 Límites del spike (a cerrar cuando/si se construye)
 
@@ -134,7 +134,7 @@ Un **"browser pack" OPT-IN** (`biab pack add browser`), **headless**, que NO req
 
 - Subcomando `biab pack {add,remove,list}` en el wrapper `biab` (dispatcher fino a scripts del pack).
 - Directorio del pack `payload/pack/browser/` que SHIPEA pero no se auto-instala: `install.sh`, `uninstall.sh`, el CLI `biab-browse`, el driver Node sobre Playwright, la skill `browser/`.
-- Motor **Playwright headless-shell (Chromium)** pinneado, instalado bajo el usuario dedicado; footprint dentro de las cifras del spike (~262 MB disco, ~700 MB RAM/run).
+- Motor **Playwright + Chromium completo** pinneado (no headless-shell — ver §2.9 punto 7, resolución 2026-07-12), instalado bajo el usuario dedicado; footprint revisado ~646 MB disco, ~1.0-1.2 GB RAM pico/run (medido en VM real, ver §4.8).
 - Usuario de sistema `biab-browser` (nologin, sin sudo, sin acceso a credenciales del operador) + sandbox de Chromium activo como no-root.
 - Interfaz agente-facing: CLI `biab-browse` con verbos `open/read_text/click/fill/screenshot` + skill `browser` (SKILL.md) que enseña a usarlo.
 - Seguridad por defecto: **perfil efímero y aislado** (`--user-data-dir` en `mktemp -d`, limpiado al salir), sin heredar cookies/sesiones ambientales.
@@ -156,7 +156,7 @@ Un **"browser pack" OPT-IN** (`biab pack add browser`), **headless**, que NO req
 | Archivo | Acción | Propósito |
 |---------|--------|-----------|
 | `payload/install/05-biab-command.sh` | MODIFICAR | Añadir `do_pack()` + case `pack)` al `case` del wrapper heredoc. Sin refactor del resto. |
-| `payload/pack/browser/install.sh` | CREAR | Instalador idempotente del pack: crea usuario `biab-browser`, instala Playwright + headless-shell pinneado bajo su home, configura sandbox, instala `biab-browse` en PATH, copia+symlinka la skill. |
+| `payload/pack/browser/install.sh` | CREAR | Instalador idempotente del pack: crea usuario `biab-browser`, instala Playwright + Chromium completo pinneado bajo su home (no headless-shell — ver §2.9 punto 7), configura sandbox, instala `biab-browse` en PATH, copia+symlinka la skill. |
 | `payload/pack/browser/uninstall.sh` | CREAR | Teardown: borra `biab-browse`, la skill, los perfiles, el home del usuario y el usuario. Idempotente. |
 | `payload/pack/browser/bin/biab-browse` | CREAR | CLI agente-facing (dispatcher). Re-ejecuta como `biab-browser`, monta perfil efímero, invoca el driver Node. Verbos `open/read_text/click/fill/screenshot`; flag `--headful-xvfb`. |
 | `payload/pack/browser/driver/browse.mjs` | CREAR | Driver Node sobre `playwright-core`: abre Chromium headless, ejecuta el verbo, imprime resultado (texto/JSON/ruta screenshot). |
@@ -172,7 +172,7 @@ Un **"browser pack" OPT-IN** (`biab pack add browser`), **headless**, que NO req
 
 ### 2.5 Dependencias
 
-- **Nuevas (aisladas en el usuario del pack, no globales):** `playwright-core` (versión pinneada exacta) + Chromium **headless-shell** vía `npx playwright install chromium-headless-shell` (NO el snap; NO el chromium completo salvo que se justifique).
+- **Nuevas (aisladas en el usuario del pack, no globales):** `playwright-core` (versión pinneada exacta) + Chromium **completo** vía `npx playwright install chromium` (NO el snap; NO `chromium-headless-shell` — descartado 2026-07-12 por no shipear el helper setuid del sandbox, ver §2.9 punto 7).
 - **Sistema (fallback):** `xvfb` (apt, ~2 MB) — instalado SOLO si el usuario usa `--headful-xvfb`, no en el install base del pack.
 - **Ya disponibles:** Node 20 (`00-base.sh`), `jq`, `curl`, `git` (`00-base.sh`). Sin cambios en el stack base.
 
@@ -191,13 +191,15 @@ Un **"browser pack" OPT-IN** (`biab pack add browser`), **headless**, que NO req
 </task>
 
 <task id="2">
-  <name>Instalador del pack: Playwright headless-shell pinneado bajo usuario dedicado</name>
+  <name>Instalador del pack: Playwright + Chromium completo pinneado bajo usuario dedicado</name>
   <files>payload/pack/browser/install.sh, payload/pack/browser/driver/package.json, payload/pack/browser/driver/browse.mjs</files>
   <action>
-    `install.sh` idempotente (`set -euo pipefail`, `require_root`): (1) crea el proyecto Node del pack en `/var/lib/biab-browser/driver` con `package.json` pinneando `playwright-core` a una versión exacta; (2) `npm ci`/`npm install` + `npx playwright install chromium-headless-shell` con `PLAYWRIGHT_BROWSERS_PATH` bajo el home del usuario dedicado; (3) instala `bin/biab-browse` en `/usr/local/bin/biab-browse` (0755). `browse.mjs` implementa el arranque headless de Chromium y un verbo `open`+`read_text` mínimo. Verificar footprint contra el spike. NO instalar el chromium completo ni el snap.
+    `install.sh` idempotente (`set -euo pipefail`, `require_root`): (1) crea el proyecto Node del pack en `/var/lib/biab-browser/driver` con `package.json` pinneando `playwright-core` a una versión exacta; (2) `npm ci`/`npm install` + `npx playwright install chromium` (Chromium **completo**, NO `chromium-headless-shell`, NO el snap) con `PLAYWRIGHT_BROWSERS_PATH` bajo el home del usuario dedicado; (3) instala `bin/biab-browse` en `/usr/local/bin/biab-browse` (0755). `browse.mjs` implementa el arranque headless de Chromium y un verbo `open`+`read_text` mínimo. Verificar footprint contra el spike.
+    <br>
+    **Addendum 2026-07-12 (resolución del hallazgo de sandbox, decisión de Jesús — ver §2.9 punto 7):** el spike original eligió `chromium-headless-shell` por su footprint menor (~250-300MB). Testing real en VM Ubuntu 24.04 encontró que `chromium-headless-shell` NO shipea el helper setuid del sandbox de Chromium, y el AppArmor de Ubuntu 24.04 (`kernel.apparmor_restrict_unprivileged_userns=1`, enforced) bloquea el sandbox sin él — el path por defecto abortaba (fail-closed, exit 3) en toda caja real. Se cambia el motor por defecto a Chromium completo (shipea su propio helper setuid, `chrome_sandbox`, habilitado con `chown root; chmod 4755`), que funciona sin flags ni escape hatch. Coste: footprint sube a ~646MB. Se mantiene intacto el boundary "Never: `--no-sandbox` por defecto".
   </action>
   <verify>sudo /opt/buildersinabox/payload/pack/browser/install.sh &amp;&amp; du -sh /var/lib/biab-browser/.cache/ms-playwright 2>/dev/null; biab-browse open https://example.com read_text | head</verify>
-  <done>Instalación sin error; caché de navegadores ≈250-300 MB (headless-shell, no el full ~646 MB); `biab-browse open example.com read_text` imprime texto de la página SIN display (sin `$DISPLAY`).</done>
+  <done>Instalación sin error; caché de navegadores ≈646 MB (Chromium completo, elegido para que el sandbox setuid embebido funcione de fábrica en el AppArmor de Ubuntu 24.04 — ver decisión de sandbox en §2.9); `biab-browse open example.com read_text` imprime texto de la página SIN display (sin `$DISPLAY`) y SIN flags ni escape hatch.</done>
 </task>
 
 #### Wave 2 — Seguridad + interfaz (dependen de Wave 1)
@@ -299,7 +301,7 @@ install -d -o biab-browser -g biab-browser -m 0750 /var/lib/biab-browser
 - [ ] **Headless sin escritorio:** `biab-browse open https://example.com read_text` imprime texto con `$DISPLAY` vacío y sin ningún paquete de entorno gráfico instalado.
 - [ ] **Usuario dedicado + sandbox:** el proceso del navegador corre como `biab-browser` (no root, no operador), con sandbox de Chromium ACTIVO (sin `--no-sandbox` en el path por defecto), y `biab-browser` no puede leer `~operador/.ssh`.
 - [ ] **Perfil efímero por defecto:** cada `biab-browse` usa un `--user-data-dir` temporal borrado al salir; no hay estado de sesión persistente entre invocaciones sin opt-in explícito.
-- [ ] **Footprint dentro del spike:** caché de navegadores ≈250-300 MB (headless-shell), RAM pico por run ≲ ~700 MB.
+- [ ] **Footprint (revisado 2026-07-12, ver §2.9 punto 7):** caché de navegadores ≈646 MB (Chromium completo, no headless-shell — cambio de motor para que el sandbox setuid funcione de fábrica en Ubuntu 24.04), RAM pico por run ≈1.0-1.2 GB (medido en VM real, sube desde el techo de ~700MB del spike porque Chromium completo consume más que headless-shell — ver §4.8 AC-FP2).
 - [ ] **Fallback:** `biab-browse --headful-xvfb ...` funciona bajo Xvfb sin escritorio.
 - [ ] **Uninstall limpio:** `biab pack remove browser` deja `getent passwd biab-browser` vacío, sin `biab-browse` en PATH y sin la skill.
 - [ ] `shellcheck` limpio en todo `payload/pack/browser/**` y en `05-biab-command.sh`.
@@ -314,6 +316,10 @@ QA (§4.12) señaló 6 gaps de testabilidad. Decisiones para el momento del buil
 4. **Handoff de screenshot (cross-user).** El motor corre como `biab-browser`, el agente como operador → los ficheros de salida (screenshots) deben caer en un dir de handoff con ownership definido y legible por el operador (p.ej. `/var/lib/biab-browser/out`, group-readable al operador, o copia con `install -o operador`). Se añade AC a §4 y contrato de salida a Task 4.
 5. **Fixtures locales, no webs vivas.** Los casos de contrato del CLI usan un `python3 -m http.server` local (determinista); example.com/HN/httpbin quedan solo para el E2E manual (`[sesión]`). Evita flakiness en CI.
 6. **Assert permanente de opt-in en CI.** Añadir a CI una aserción permanente (patrón AC-LOG1 de FEAT-015) de que `browser` NUNCA aparece en `payload/skills/` ni en `manifest.tsv` — el opt-in no puede depender solo de una convención de ubicación. Se folda en Task 6.
+
+7. **Resolución del hallazgo de sandbox: motor por defecto cambia a Chromium completo (decisión de Jesús, 2026-07-12).** El punto 1/2 de arriba fijó el diseño fail-closed (nunca `--no-sandbox` silencioso), correcto y sin cambios. Lo que cambió es el motor: testing real en VM (Ubuntu 24.04, `kernel.apparmor_restrict_unprivileged_userns=1` enforced) confirmó que `chromium-headless-shell` (elegido en el spike original por footprint, Task 2) no shipea el helper setuid del sandbox de Chromium, y sin él el sandbox no puede inicializarse bajo el AppArmor restrictivo de Ubuntu 24.04 — el path por defecto abortaba (exit 3, fail-closed, comportamiento correcto) en toda caja real, no solo en casos raros. El agente que implementó esto se negó correctamente a degradar a `--no-sandbox`, tal y como manda el boundary "Never" de §1. Jesús decidió: **cambiar el motor por defecto a Chromium completo**, que shipea su propio helper setuid (`chrome_sandbox`) y por tanto funciona sin flags ni escape hatch en Ubuntu 24.04 de fábrica, al coste de un footprint mayor (~646MB en vez de ~250-300MB — ver §2.6 Task 2, §2.8, §4.8 actualizados). `--headful-xvfb` se mantiene (útil para sitios que bloquean el modo headless específicamente, no ya por el motor), pero ahora reutiliza el mismo binario/caché de Chromium completo en vez de descargar una segunda copia.
+   - **Coste adicional descubierto al implementar (VM real, 2026-07-12), no anticipado por este punto cuando se escribió:** Chromium completo está enlazado contra la pila de librerías compartidas de escritorio (GTK/ATK/X11/fuentes) incluso corriendo siempre con `--headless=new` — a diferencia de `chromium-headless-shell`, que las recorta a propósito. En una VM Ubuntu 24.04 *server* limpia (sin ningún paquete de escritorio), el binario `chrome` fallaba con `error while loading shared libraries: libatk-1.0.so.0` — no era el sandbox, era una dependencia de arranque. Fix: `install.sh` ahora corre `npx playwright install-deps chromium` (como root, antes de descargar el navegador) — el mecanismo soportado por Playwright para instalar el set exacto de paquetes apt requeridos por el build pinneado. Esto trae ~70 paquetes apt adicionales (libs GTK/ATK/X11, fuentes, y **`xvfb` mismo** — Playwright lo incluye en la lista de dependencias de "chromium" en Ubuntu 24.04, lo que además vuelve a `install_xvfb_fallback`'s `apt_install xvfb` un no-op la mayoría de las veces). Playwright no ofrece un subset más pequeño solo-headless para Chromium completo; `install-deps chromium-headless-shell` devuelve la MISMA lista de 71 paquetes en Ubuntu 24.04. No hay ruta oficial más ligera.
+   - **RAM real medida (VM `multipass`, 2 vCPU/4GB, Ubuntu 24.04), no la del spike:** pico ≈**1.0-1.2 GB/run** con Chromium completo (vs. ~700MB/~688MB del spike con headless-shell) — ver §4.8 AC-FP2 revisado.
 
 ## 4. QA (Pablo)
 
@@ -413,7 +419,7 @@ Ante un sitio que rechaza el UA headless, el flag reintenta headful bajo Xvfb (f
 - *criterio:* exit code ≠ 0 con un mensaje legible en stderr (no un stack trace de Node crudo); el proceso navegador **no queda huérfano** (`pgrep -u biab-browser chrome` → vacío tras el fallo — el `trap` de limpieza corre igual en error); hay un timeout acotado por defecto (no cuelga indefinido). El `--user-data-dir` efímero se borra también en el camino de error.
 
 **AC-E3 — Presión de concurrencia en 4 GB.** (§2.0/§2.1 · Task 2)
-Lanzar N tareas `biab-browse` en paralelo y observar el techo del spike (~700 MB/run → ~2-3 en 4 GB).
+Lanzar N tareas `biab-browse` en paralelo y observar el techo del spike (revisado 2026-07-12: ~1.0-1.2 GB/run con Chromium completo, no ~700 MB — ver §4.8 AC-FP2 → ~2-3 en 4 GB con menos margen). No cambia la decisión v1 de serializar (§2.9 punto 3), que ya evita este escenario por diseño.
 - *test:* lanzar 3 y luego 6 invocaciones concurrentes de `open …read_text`, muestrear RSS (`ps -o rss= -u biab-browser | awk '{s+=$1} END{print s/1024" MB"}'`).
 - *criterio:* con 2-3 concurrentes la caja no entra en OOM/swap severo; con 6 se degrada de forma tolerable (tareas encoladas/fallando con error claro, **no** OOM-killer matando procesos del `OP` ni la sesión del agente). Documentar el número seguro observado. Hueco: si el pack NO limita concurrencia, anotarlo (§4.12.3) — el spike sugiere que hace falta un semáforo, pero §2.6 no le da tarea. **Testability**: medir en la clase de hardware objetivo (mini PC), no en el server de dev.
 
@@ -440,7 +446,7 @@ Lanzar N tareas `biab-browse` en paralelo y observar el techo del spike (~700 MB
 - *criterio:* lectura de `~OP/.ssh/*` y de los ficheros de proyecto → **denegada** (no por ausencia accidental, sino por permisos: el home del operador es `0750`/`0700` y `biab-browser` no está en su grupo). Mapea al `<verify>` de Task 3. Este es el gate duro de EARS-2.
 
 **AC-S3 — El proceso del navegador corre como `biab-browser`, nunca como root ni como el operador.** (EARS-2 · Task 3)
-- *test:* durante un `biab-browse open …` en curso: `ps -o user=,comm= -C chrome_crashpad_handler` (o el proceso del headless-shell) → usuario `biab-browser`.
+- *test:* durante un `biab-browse open …` en curso: `ps -o user=,comm= -C chrome_crashpad_handler` (o el proceso `chrome`) → usuario `biab-browser`.
 - *criterio:* ni `root` ni `OP` aparecen como dueños del proceso del motor. Cubre Boundary "Never: correr el motor como root o como el usuario operador".
 
 ---
@@ -485,15 +491,15 @@ El `--user-data-dir` vive bajo el home de `biab-browser` (o `/tmp` con dueño `b
 
 ---
 
-### 4.8 Footprint (dentro de las cifras del spike)
+### 4.8 Footprint (revisado 2026-07-12 — motor por defecto = Chromium completo, ver §2.9 punto 7)
 
-**AC-FP1 — Disco del motor ≈ headless-shell, no el chromium completo.** (§2.0 · Task 2)
+**AC-FP1 — Disco del motor ≈ Chromium completo (no headless-shell).** (§2.0 · Task 2, revisado)
 - *test:* `du -sh /var/lib/biab-browser/.cache/ms-playwright` (o `PLAYWRIGHT_BROWSERS_PATH` real).
-- *criterio:* caché ≈ **250-300 MB** (headless-shell del spike: ~262 MB), **NO** ~646 MB (chromium full). Si supera 400 MB, es señal de que se instaló el chromium completo — FAIL (viola §2.3/§2.5).
+- *criterio:* caché ≈ **~646 MB** (Chromium completo — cambio de motor 2026-07-12, elegido para que el sandbox setuid embebido funcione de fábrica en el AppArmor de Ubuntu 24.04), **NO** ~250-300 MB (headless-shell, motor original del spike, descartado por no shipear el helper de sandbox). Rango de aceptación ~500-800 MB (tolerancia por deriva de versión de Chromium).
 
 **AC-FP2 — RAM por run dentro del techo del spike.** (§2.0/§2.1 · Task 2)
 - *test:* muestrear RSS del árbol de procesos `biab-browser` durante un `open …read_text` (`ps -o rss= --ppid <pid>` sumado, o `/usr/bin/time -v`).
-- *criterio:* pico ≲ **~700 MB/run** (spike: ~688 MB, ±10-15%). Reportar el número medido en la clase de hardware objetivo. Es el input de la regla de concurrencia (AC-E3).
+- *criterio:* **revisado 2026-07-12 con medición real en VM** (`multipass`, 2 vCPU/4GB, Ubuntu 24.04): pico medido ≈**1.0-1.2 GB/run** con Chromium completo (suma de RSS del árbol `biab-browser` durante `open …read_text`, muestreado a 100ms), NO ~700 MB (esa cifra era del spike con headless-shell, motor descartado — ver §2.9 punto 7). El teórico "~2× RAM" del spike para Chromium completo bajo `--headful-xvfb` (línea §2.0, ~1.3 GB) ya apuntaba en esta dirección. Reportar el número medido en la clase de hardware objetivo (mini PC) antes de v0.2's semáforo de concurrencia N>1. Es el input de la regla de concurrencia (AC-E3); no invalida la decisión v1 de serializar (§2.9 punto 3).
 
 ---
 
@@ -564,7 +570,7 @@ El nuevo `do_pack` + case `pack)` no puede tocar el resto del `case` de `05-biab
 - **Seguridad — usuario:** `id biab-browser` sin `sudo`; `sudo -u biab-browser cat ~OP/.ssh/id_*` → permission denied; `ps -o user= -C <motor>` = `biab-browser` (AC-S1/S2/S3).
 - **Seguridad — sandbox:** `grep -RIn -- '--no-sandbox' payload/pack/browser/` **vacío** en el path por defecto (AC-S4); arranque OK con `kernel.apparmor_restrict_unprivileged_userns=1` (AC-S5).
 - **Seguridad — perfil efímero:** set-cookie en run 1, ausente en run 2; `--user-data-dir` temporal borrado tras salir (AC-S6).
-- **Footprint:** `du -sh …/ms-playwright` ≈ 250-300 MB (AC-FP1); RSS pico ≲ ~700 MB/run (AC-FP2).
+- **Footprint (revisado 2026-07-12, medido en VM real):** `du -sh …/ms-playwright` = 646 MB, Chromium completo, no headless-shell (AC-FP1); RSS pico ≈1.0-1.2 GB/run, no ~700 MB (AC-FP2).
 - **Fallback:** `biab-browse --headful-xvfb …` OK; `xvfb` en `dpkg` solo tras usarlo; `pgrep Xvfb` vacío tras la tarea (AC-E1).
 - **Uninstall:** `biab pack remove browser` → `getent passwd biab-browser` vacío, sin CLI ni skill (AC-U1).
 - **Regresión wrapper:** `biab status/logs/update/add/help` OK tras instalar el pack (AC-R4); hooks `settings.json` intactos (AC-R5).
@@ -588,5 +594,6 @@ El nuevo `do_pack` + case `pack)` no puede tocar el resto del `case` de `05-biab
 
 ## Notas
 
-- Este FEAT NO se implementa hasta pasar el gate de 6 semanas + demanda real. Es la carta lista, no trabajo en curso.
-- Relación: complementa el LAUNCH-PLAN (checkpoint de 6 semanas). Si se activa, revisar colisión con Hezu (regla del consejo: si compite con Hezu, Hezu gana).
+- ~~Este FEAT NO se implementa hasta pasar el gate de 6 semanas~~ **Obsoleto — gate revertido por Jesús 2026-07-12, ver Metadata/Prioridad.** Se implementa para v0.2.0.
+- **2026-07-12 — motor por defecto: Chromium completo, no headless-shell.** Testing real en VM Ubuntu 24.04 encontró que `chromium-headless-shell` (motor elegido en el spike, Task 2) no shipea el helper setuid del sandbox de Chromium, y el AppArmor de Ubuntu 24.04 lo bloquea sin él — el path por defecto abortaba (fail-closed, exit 3, correcto) en toda caja real. Jesús decidió cambiar el motor por defecto a Chromium completo (shipea su propio helper setuid, funciona sin flags), aceptando el footprint mayor (~646MB vs ~262MB) para mantener intacto el boundary "Never: `--no-sandbox` por defecto". Al implementar se descubrieron dos costes adicionales, verificados con `biab-browse open <url> read_text` real sin flags en VM: (1) Chromium completo necesita ~70 paquetes apt de librerías de escritorio (GTK/ATK/X11/fuentes) que un server Ubuntu 24.04 limpio no tiene — `install.sh` ahora corre `playwright install-deps chromium`; (2) RAM pico real ≈1.0-1.2 GB/run, no los ~700MB del spike (motor headless-shell). Ver §2.9 punto 7 para el detalle completo; §2.6 Task 2, §2.8 y §4.8 actualizados con las cifras nuevas.
+- Relación: complementa el LAUNCH-PLAN (checkpoint de 6 semanas). Colisión con Hezu (regla del consejo: si compite con Hezu, Hezu gana) — asumida al revertir el gate.

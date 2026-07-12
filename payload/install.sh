@@ -130,6 +130,22 @@ do_uninstall() {
         [[ -n "$stored_user" ]] && target_user="$stored_user"
     fi
 
+    # FEAT-017: best-effort teardown of opt-in packs (e.g. browser) BEFORE
+    # /opt/buildersinabox itself is removed below — the pack's own
+    # uninstall.sh has to still exist to run. Never fails the overall
+    # uninstall: a pack that isn't installed, or whose script is missing, is
+    # silently skipped (source of truth for what to remove lives in the
+    # pack itself, per FEAT-017 §2.2).
+    local pack_dir
+    for pack_dir in /opt/buildersinabox/payload/pack/*/; do
+        [[ -d "$pack_dir" ]] || continue
+        local pack_uninstall="${pack_dir}uninstall.sh"
+        if [[ -x "$pack_uninstall" ]]; then
+            printf 'uninstall: running pack teardown %s\n' "$pack_uninstall"
+            "$pack_uninstall" || printf 'uninstall: pack teardown %s failed, continuing\n' "$pack_uninstall"
+        fi
+    done
+
     # BIB-owned dirs and files. Order: smallest blast radius first.
     # NOTE: we print progress with plain printf to stdout, NOT log(), because
     # log() re-creates BIB_LOG_DIR (via _bib_log_init) every call — which would

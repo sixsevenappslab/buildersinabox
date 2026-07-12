@@ -17,6 +17,18 @@ jobs:
       - name: shellcheck all shell scripts
         run: |
           mapfile -t files < <(find . -name '*.sh' -not -path './.git/*' -not -path './payload/flavors/gift/maintainer/*')
+          # Extensionless scripts (no .sh suffix) aren't matched by the '*.sh'
+          # glob above. FEAT-017 code review: bin/biab-browse — the single
+          # most security-sensitive file in the pack (re-execs itself as
+          # root) — was never shellchecked because of exactly this gap.
+          # Match by shebang instead of hardcoding a path list, so any future
+          # extensionless script in the same shape (e.g. payload/scripts/bd)
+          # is picked up automatically.
+          while IFS= read -r -d '' f; do
+              if head -1 "$f" 2>/dev/null | grep -qE '^#!.*\b(bash|sh)\b'; then
+                  files+=("$f")
+              fi
+          done < <(find . -type f -perm -u+x ! -name '*.*' -not -path './.git/*' -not -path './payload/flavors/gift/maintainer/*' -print0)
           printf '%s\n' "${files[@]}"
           shellcheck -S warning "${files[@]}"
 
@@ -24,6 +36,10 @@ jobs:
         run: |
           bash -n payload/install.sh
           bash -n payload/lib/common.sh
+          bash -n payload/pack/browser/bin/biab-browse
+          bash -n payload/pack/browser/install.sh
+          bash -n payload/pack/browser/uninstall.sh
+          bash -n payload/pack/browser/lib.sh
           [ -f installer/web/install.sh ] && bash -n installer/web/install.sh || true
 
       - name: No personal references in the shippable tree
@@ -70,3 +86,35 @@ jobs:
           BIB_OAUTH_MOCK: "1"
           BIB_TMUX_LAUNCH_CMD: "true"
         run: bash payload/test/wiring-smoke.sh
+
+  # FEAT-017 code review gap: the browser pack's own test harness (Section A
+  # static regression checks — opt-in invariants, the --no-sandbox static
+  # grep, the screenshot-destination validation added by this same review)
+  # was never invoked in CI. Section C (real install, root-only) is still
+  # exercised only by the manual multipass VM E2E pass, not here — this
+  # runner has no throwaway box to install the real system user/sudoers rule
+  # on. Section B (local-fixture CLI contract, needs Node + a real Chromium)
+  # is attempted for real below; if the driver/Chromium install step fails
+  # (e.g. a flaky network pull), it's logged clearly and test-pack.sh's own
+  # SKIP path takes over — not silently green either way.
+  browser-pack-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install browser pack driver dependencies (Section B, best-effort real install)
+        working-directory: payload/pack/browser/driver
+        run: |
+          set -x
+          if npm install --no-audit --no-fund && npx playwright install --with-deps chromium; then
+            echo "browser-pack-tests: driver deps + Chromium installed — Section B will run for real"
+          else
+            echo "::warning::browser-pack-tests: driver dependency install failed — test-pack.sh's Section B will SKIP cleanly instead of running for real (see its own SKIP lines below)"
+          fi
+
+      - name: Run browser pack test suite (FEAT-017)
+        run: bash payload/pack/browser/tests/test-pack.sh

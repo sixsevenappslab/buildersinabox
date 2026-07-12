@@ -105,6 +105,55 @@ do_add() {
     esac
 }
 
+do_pack() {
+    # `biab pack add|remove|list <name>` manages heavyweight opt-in packs
+    # (system packages, a dedicated user, a CLI on PATH). Skill-only groups
+    # still go through `biab add`. Packs live in the shipped-but-not-installed
+    # payload/pack/<name>/ tree; add/remove just exec their scripts.
+    local action="${1:-}"; shift || true
+    local name="${1:-}"
+    local packroot=/opt/buildersinabox/payload/pack
+    case "$action" in
+        list)
+            if [[ ! -d "$packroot" ]]; then
+                echo "no packs available"
+                return 0
+            fi
+            for d in "$packroot"/*/; do
+                [[ -d "$d" ]] || continue
+                local n; n="$(basename "$d")"
+                # Prefer each pack's own lib.sh (pack_is_installed) — a
+                # pack's CLI binary name doesn't necessarily match
+                # `biab-<name>` (e.g. the browser pack ships biab-browse,
+                # not biab-browser). Fall back to that guess if lib.sh
+                # doesn't define the function.
+                local installed=0
+                if [[ -f "${d}lib.sh" ]] && (
+                    # shellcheck disable=SC1090
+                    source "${d}lib.sh" 2>/dev/null && declare -F pack_is_installed >/dev/null && pack_is_installed
+                ); then
+                    installed=1
+                elif command -v "biab-${n}" >/dev/null 2>&1; then
+                    installed=1
+                fi
+                if [[ "$installed" -eq 1 ]]; then
+                    printf '%s\tinstalled\n' "$n"
+                else
+                    printf '%s\tnot installed\n' "$n"
+                fi
+            done ;;
+        add)
+            [[ -n "$name" ]] || { echo "usage: biab pack add <name>" >&2; exit 1; }
+            shift || true
+            exec sudo "$packroot/$name/install.sh" "$@" ;;
+        remove)
+            [[ -n "$name" ]] || { echo "usage: biab pack remove <name>" >&2; exit 1; }
+            exec sudo "$packroot/$name/uninstall.sh" ;;
+        *)
+            echo "usage: biab pack {list|add|remove} <name>" >&2; exit 1 ;;
+    esac
+}
+
 do_update() {
     set -e
     repo=/opt/buildersinabox
@@ -139,6 +188,7 @@ case "${1:-}" in
     logs)      sudo tail -f /var/log/buildersinabox/bootstrap.log ;;
     update)    do_update ;;
     add)       shift; do_add "$@" ;;
+    pack)      shift; do_pack "$@" ;;
     help|-h|--help)
         cat <<EOF
 biab — Builders in a Box CLI
@@ -147,6 +197,10 @@ biab — Builders in a Box CLI
   biab logs      follow the bootstrap log
   biab update    pull latest BIAB + re-run install scripts (no reinstall needed)
   biab add       install an optional bundled skill (e.g. 'biab add incident')
+  biab pack      manage opt-in heavyweight capability packs (e.g. browser)
+                 biab pack list            show available packs + status
+                 biab pack add <name>      install a pack
+                 biab pack remove <name>   uninstall a pack
   biab help      this message
 EOF
         ;;
