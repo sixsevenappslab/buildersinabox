@@ -7,6 +7,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-12
+
 ### Added
 - **Usage coach** (`quota` skill, core): reconstructs Claude plan spend from the box's own session transcripts (by model and project), a `UserPromptSubmit` nudge that suggests a cheaper model for routine work when you're on an expensive one, and an optional status-line segment showing the running weekly total (installed only when you don't already have a status line). No new account or API — it reads what's already on the box.
 - **Opt-in browser pack** (`biab pack add browser`): gives the agent a sandboxed headless Chromium it can read/click/fill/screenshot live pages with, without a desktop. Off by default; runs as a dedicated locked-down `biab-browser` user (no sudo, no access to the operator's `~/.ssh` or project files), with the setuid sandbox enabled and a fail-closed default (never `--no-sandbox`). `biab pack {list,add,remove}` manages it; `--uninstall`-clean.
@@ -25,6 +27,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `biab update` and re-running the bootstrap over an existing checkout now hard-sync to the published ref. Previously a tag-pinned clone kept a tag-only fetch refspec (making every update a silent no-op) and the snapshot-based release history could never fast-forward.
 
 ### Changed
+- Public docs (landing + README) now lead with spec-driven development's value and are tool-agnostic — no `tmux`/Tailscale brand names in the user-facing copy — with explicit dual-CLI framing (works the same with Claude Code or Antigravity).
 - The Spec-Driven Development skills (`sdd-*`) now install by default on every box instead of being opt-in behind `biab add sdd`. `/sdd-coordinator` is the entry door; the tutorial mentions the workflow softly without imposing it. `biab add sdd` is now a friendly no-op (the `biab add` framework stays for future skill groups).
 - Interactive installs now ask which AI CLI to run (claude or gemini) instead of silently persisting the default — which made the wizard's choice step always skip.
 - README and landing state the account requirements plainly (paid Claude subscription or Google account for Gemini; Tailscale's free plan is plenty), and the "~15 minutes" claim now refers to time-to-first-SSH.
@@ -69,7 +72,8 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - `curl | bash` bootstrap and the `buildersinabox.com` landing page.
 - OSS hygiene: README, CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, CI, issue/PR templates.
 
-[Unreleased]: https://github.com/sixsevenappslab/buildersinabox/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/sixsevenappslab/buildersinabox/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sixsevenappslab/buildersinabox/compare/v0.1.4...v0.2.0
 [0.1.3]: https://github.com/sixsevenappslab/buildersinabox/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/sixsevenappslab/buildersinabox/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/sixsevenappslab/buildersinabox/compare/v0.1.0...v0.1.1
