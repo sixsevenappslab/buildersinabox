@@ -2,12 +2,19 @@
 id: FEAT-002
 title: personal-slack-coach-daemon
 project: buildersinabox
-status: draft
+status: dropped
 priority: medium
 complexity: high
 created: 2026-05-25
+dropped: 2026-07-12
 validated_by: null
 ---
+
+> **DROPPED (2026-07-12).** Never validated; sat 47 days in draft. Conflicts
+> with the current direction — OSS-only, launch-first, headless (no ambient
+> Slack daemon). A large, non-launch-critical "delight" feature. Kept in git
+> under specs/archive/ in case the "personal AI infrastructure" narrative is
+> revisited post-launch. Not deleted, just parked.
 
 # FEAT-002: Personal Slack coach daemon
 

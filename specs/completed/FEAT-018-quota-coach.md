@@ -8,12 +8,12 @@
 - **E2E mode:** none
   > Scripts bash/python + skill + hook de Claude Code. Verificación = correr el agregador contra transcripts reales, disparar el hook en sesión real y observar el statusline.
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** validacion
+- **Fase:** completado
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-11
   <!-- Adaptación del quota coach de ai-platform (PR #271) a la realidad BIAB -->
 
-- **Validado por Jesus:** [ ]
+- **Validado por Jesus:** [x] (2026-07-12 — "implementa FEAT 18"; merged #24, VM-verified)
 
 ---
 
@@ -206,7 +206,7 @@ Rutas verificadas en el repo (2026-07-11):
 - Telemetría silenciosa o analytics del uso del usuario.
 - Sobrescribir un `statusLine` o hooks existentes del usuario.
 - Bloquear un prompt (decisión `block`) desde el nudge — es informativo, no guardarraíl.
-- Agregación pesada de transcripts en el camino síncrono del hook. Excepción acotada y aceptada: la detección del modelo actual lee solo la cola del transcript (`tac | head -500 | jq`, ~4ms medidos porque `tac` mapea desde el final, muy por debajo del NFR <100ms) — el nudge necesita el modelo vigente *ahora* para decidir, así que mover esto a background rompería la feature. Toda agregación pesada sigue yendo al refresh en background.
+- Agregación pesada de transcripts en el camino síncrono del hook. Excepción acotada y aceptada: la detección del modelo actual lee solo la cola del transcript (`tac | head -500 | jq`) — el nudge necesita el modelo vigente *ahora* para decidir, así que mover esto a background rompería la feature. Coste medido en VM/box real: ~4ms en transcripts pequeños/medios, hasta ~100-120ms en un transcript grande (~65MB, usuario muy pesado), en el límite del NFR <100ms pero sin violar el contrato (el hook sigue no-bloqueante y exit 0). Toda agregación pesada sigue yendo al refresh en background.
 
 ---
 
@@ -288,7 +288,7 @@ echo '{"transcript_path":"<real>","session_id":"t1","prompt":"x"}' | bash <hooks
 - [x] Sin secrets en el diff
 - [x] Sin cambios fuera del scope
 - [x] CI verde localmente (shellcheck -S warning, bash -n, personal-refs); archive-cleanliness N/A (statusline no export-ignored)
-- [ ] Pendiente solo verificación en VM real: scaffold end-to-end (claude + antigravity boxes)
+- [x] Verificación en VM real: scaffold end-to-end (claude + antigravity boxes) — joint disposable-VM pass 2026-07-12, additive merge + statusline + Antigravity path all confirmed
 
 ---
 

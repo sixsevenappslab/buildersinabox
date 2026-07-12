@@ -10,7 +10,7 @@
 - **Fase:** tecnica
 - **Creado:** 2026-07-11
 - **Actualizado:** 2026-07-11
-- **Validado por Jesus:** [ ]
+- **Validado por Jesus:** [x] (2026-07-11, tras E2E en caja real)
 
 ## 1. Requisitos (Elena)
 
