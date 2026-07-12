@@ -210,14 +210,49 @@ install_hooks() {
         PreToolUse:  [ { matcher: "Bash",       hooks: [ { type: "command", command: ($d + "/biab-guardrail.sh") } ] } ],
         PostToolUse: [ { matcher: "Edit|Write", hooks: [ { type: "command", command: ($d + "/biab-format.sh") },
                                                           { type: "command", command: ($d + "/biab-lint.sh") } ] } ],
+        UserPromptSubmit: [ {                    hooks: [ { type: "command", command: ($d + "/biab-quota-nudge.sh") } ] } ],
         Stop:        [ {                         hooks: [ { type: "command", command: ($d + "/biab-session-log.sh") } ] } ]
       } }')"
     if [[ -f "$settings" ]] && jq -e . "$settings" >/dev/null 2>&1; then
-        printf '%s\n' "$(jq --argjson ours "$ours" '. * $ours' "$settings")" > "$settings"
+        # Deep-merge keeps replace-semantics for arrays (inherited FEAT-015
+        # AC-E3: our PreToolUse/PostToolUse/Stop groups win outright). FEAT-018
+        # only owns UserPromptSubmit and it MUST be additive — a user who has
+        # their own UserPromptSubmit hook keeps it. So after the deep merge we
+        # rebuild UserPromptSubmit as (user's groups ++ ours), deduped by the
+        # command strings each group carries. Dedup keeps reruns idempotent (no
+        # second biab entry) and the user's own entries survive. Scoped to
+        # UserPromptSubmit on purpose — making the other events additive would
+        # break FEAT-015's documented replace-semantics test.
+        printf '%s\n' "$(jq --argjson ours "$ours" '
+            def dedupe_groups:
+                reduce .[] as $g ([];
+                    if any(.[]?; (.hooks // [] | map(.command))
+                                 == ($g.hooks // [] | map(.command)))
+                    then . else . + [$g] end);
+            (.hooks.UserPromptSubmit // [])       as $userUPS
+            | ($ours.hooks.UserPromptSubmit // []) as $oursUPS
+            | (. * $ours)
+            | .hooks.UserPromptSubmit = (($userUPS + $oursUPS) | dedupe_groups)
+        ' "$settings")" > "$settings"
     else
         printf '%s\n' "$ours" > "$settings"
     fi
     log "40-scaffold: seeded Claude hooks at $settings"
+
+    # Statusline (FEAT-018): only install ours when the user has none of their
+    # own — never overwrite a configured statusLine. Additive merge like the
+    # hooks above. Claude-only (this function already returned for antigravity).
+    local sl_script="${PAYLOAD_DIR}/statusline/biab-statusline.py"
+    if [[ -f "$sl_script" ]] && ! jq -e '.statusLine' "$settings" >/dev/null 2>&1; then
+        chmod +x "$sl_script" 2>/dev/null || true
+        local sl
+        sl="$(jq -n --arg c "python3 ${sl_script}" \
+            '{statusLine: {type: "command", command: $c}}')"
+        printf '%s\n' "$(jq --argjson sl "$sl" '. * $sl' "$settings")" > "$settings"
+        log "40-scaffold: installed BIAB statusline at $settings"
+    else
+        log "40-scaffold: statusLine already set (or script missing) — leaving it untouched"
+    fi
 }
 install_hooks
 

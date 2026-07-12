@@ -10,3 +10,5 @@ build/
 secrets/
 iso-builder/out/
 iso-builder/.staging/
+__pycache__/
+*.pyc

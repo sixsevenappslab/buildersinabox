@@ -274,12 +274,38 @@ h1="$(jq -S '.hooks' "$S" | md5sum)"
 install_hooks >/dev/null 2>&1
 h2="$(jq -S '.hooks' "$S" | md5sum)"
 [[ "$h1" == "$h2" ]] && ok "seed idempotent (.hooks hash stable)" || bad "seed not idempotent"
+# AC-Q7 (FEAT-018): UserPromptSubmit quota-nudge registered
+jq -e '.hooks.UserPromptSubmit[0].hooks[0].command | endswith("/biab-quota-nudge.sh")' "$S" >/dev/null \
+    && ok "seed: UserPromptSubmit quota-nudge registered" || bad "quota-nudge not registered"
+# AC-Q8 (FEAT-018): statusline installed when the user has none, points at our script
+jq -e '.statusLine.command | endswith("/biab-statusline.py")' "$S" >/dev/null \
+    && ok "seed: statusline installed (no prior statusLine)" \
+    || bad "statusline not installed: $(jq -c '.statusLine' "$S" 2>/dev/null)"
+# AC-Q9 (FEAT-018): a pre-existing statusLine is NEVER overwritten
+printf '%s' '{"statusLine":{"type":"command","command":"/user/mine-sl.sh"}}' > "$S"
+install_hooks >/dev/null 2>&1
+jq -e '.statusLine.command == "/user/mine-sl.sh"' "$S" >/dev/null \
+    && ok "seed: existing statusLine preserved (not overwritten)" || bad "statusLine overwritten"
 # AC-E3: pre-existing user key survives, user's own PreToolUse replaced
 printf '%s' '{"env":{"FOO":"bar"},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"/user/mine.sh"}]}]}}' > "$S"
 install_hooks >/dev/null 2>&1
 jq -e '.env.FOO=="bar"' "$S" >/dev/null && ok "merge keeps unrelated user key (.env.FOO)" || bad "user key lost"
 jq -e '[.hooks.PreToolUse[].hooks[].command] | index("/user/mine.sh") | not' "$S" >/dev/null \
     && ok "user PreToolUse replaced by ours (documented replace semantics)" || bad "user PreToolUse survived unexpectedly"
+# AC-Q8 / QA-8 (FEAT-018): a user's OWN UserPromptSubmit hook is preserved
+# (additive merge, unlike the replace-semantics events above), biab's nudge is
+# added alongside it, and a rerun does NOT duplicate biab's entry (idempotent).
+printf '%s' '{"hooks":{"UserPromptSubmit":[{"hooks":[{"type":"command","command":"/user/mine-ups.sh"}]}]}}' > "$S"
+install_hooks >/dev/null 2>&1
+jq -e '[.hooks.UserPromptSubmit[].hooks[].command] | index("/user/mine-ups.sh")' "$S" >/dev/null \
+    && ok "user UserPromptSubmit hook preserved (additive merge)" || bad "user UserPromptSubmit hook LOST"
+jq -e '[.hooks.UserPromptSubmit[].hooks[].command] | any(endswith("/biab-quota-nudge.sh"))' "$S" >/dev/null \
+    && ok "biab quota-nudge added alongside user's hook" || bad "biab quota-nudge missing after additive merge"
+install_hooks >/dev/null 2>&1   # rerun → must stay idempotent
+nb="$(jq '[.hooks.UserPromptSubmit[].hooks[].command | select(endswith("/biab-quota-nudge.sh"))] | length' "$S")"
+[[ "${nb:-0}" -eq 1 ]] && ok "quota-nudge not duplicated on rerun (dedup)" || bad "quota-nudge duplicated: count=$nb"
+nu="$(jq '[.hooks.UserPromptSubmit[].hooks[].command | select(. == "/user/mine-ups.sh")] | length' "$S")"
+[[ "${nu:-0}" -eq 1 ]] && ok "user hook still single after rerun" || bad "user hook count off: $nu"
 rm -rf "$target_home"
 
 # --- antigravity box: no ~/.claude/settings.json created, skip logged ---
@@ -294,6 +320,80 @@ else
 fi
 printf '%s' "$logout" | grep -qi 'skip' && ok "antigravity: skip logged" || bad "antigravity skip not logged: $logout"
 rm -rf "$target_home" "$SBOX"
+
+echo "== AC-Q1..Q6 (FEAT-018) — quota nudge contract =="
+# Q1: expensive model + fresh summary → additionalContext
+QH="$(mktemp -d)"; mkdir -p "$QH/.claude/cache/quota"
+printf '%s\n' '{"message":{"model":"claude-opus-4-8"}}' > "$QH/t.jsonl"
+printf '%s' '{"week_cost":42.5,"prev_week_cost":30.0,"heavy_share_week":0.8}' \
+    > "$QH/.claude/cache/quota/summary.json"
+qin="$(jq -n --arg tp "$QH/t.jsonl" '{transcript_path:$tp,session_id:"q1",prompt:"x"}')"
+out="$(printf '%s' "$qin" | HOME="$QH" "$HK/biab-quota-nudge.sh")"; rc=$?
+ev="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.hookEventName' 2>/dev/null)"
+ac="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext | length' 2>/dev/null || echo 0)"
+[[ $rc -eq 0 && "$ev" == "UserPromptSubmit" && "${ac:-0}" -gt 0 ]] \
+    && ok "nudge emits additionalContext on opus" || bad "nudge opus rc=$rc ev=$ev ac=$ac"
+printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' | grep -q 'opus' \
+    && ok "nudge message names the model" || bad "nudge msg missing model"
+# Q2: once per session/day — second call same session → silent
+out2="$(printf '%s' "$qin" | HOME="$QH" "$HK/biab-quota-nudge.sh")"; rc=$?
+[[ $rc -eq 0 && -z "$out2" ]] && ok "nudge silent on 2nd call (marker)" || bad "nudge repeat rc=$rc out=[$out2]"
+rm -rf "$QH"
+# Q3: cheap model (sonnet) → silent
+QH="$(mktemp -d)"; mkdir -p "$QH/.claude/cache/quota"
+printf '%s\n' '{"message":{"model":"claude-sonnet-4-5"}}' > "$QH/t.jsonl"
+printf '%s' '{"week_cost":42.5}' > "$QH/.claude/cache/quota/summary.json"
+qin="$(jq -n --arg tp "$QH/t.jsonl" '{transcript_path:$tp,session_id:"q3"}')"
+out="$(printf '%s' "$qin" | HOME="$QH" "$HK/biab-quota-nudge.sh")"; rc=$?
+[[ $rc -eq 0 && -z "$out" ]] && ok "nudge silent on sonnet" || bad "nudge sonnet rc=$rc out=[$out]"
+rm -rf "$QH"
+# Q4: no summary → silent
+QH="$(mktemp -d)"
+printf '%s\n' '{"message":{"model":"claude-opus-4-8"}}' > "$QH/t.jsonl"
+qin="$(jq -n --arg tp "$QH/t.jsonl" '{transcript_path:$tp,session_id:"q4"}')"
+out="$(printf '%s' "$qin" | HOME="$QH" "$HK/biab-quota-nudge.sh")"; rc=$?
+[[ $rc -eq 0 && -z "$out" ]] && ok "nudge silent without summary" || bad "nudge no-summary rc=$rc out=[$out]"
+rm -rf "$QH"
+# Q5: corrupt summary → clean silent exit, no trace
+QH="$(mktemp -d)"; mkdir -p "$QH/.claude/cache/quota"
+printf '%s\n' '{"message":{"model":"claude-opus-4-8"}}' > "$QH/t.jsonl"
+printf '%s' 'not-json{{{' > "$QH/.claude/cache/quota/summary.json"
+qin="$(jq -n --arg tp "$QH/t.jsonl" '{transcript_path:$tp,session_id:"q5"}')"
+out="$(printf '%s' "$qin" | HOME="$QH" "$HK/biab-quota-nudge.sh" 2>/dev/null)"; rc=$?
+[[ $rc -eq 0 && -z "$out" ]] && ok "nudge clean on corrupt summary" || bad "nudge corrupt rc=$rc out=[$out]"
+rm -rf "$QH"
+# Q6: kill-switch + garbage stdin → no-op exit 0
+QH="$(mktemp -d)"; mkdir -p "$QH/.claude/cache/quota"
+printf '%s\n' '{"message":{"model":"claude-opus-4-8"}}' > "$QH/t.jsonl"
+printf '%s' '{"week_cost":42.5}' > "$QH/.claude/cache/quota/summary.json"
+qin="$(jq -n --arg tp "$QH/t.jsonl" '{transcript_path:$tp,session_id:"q6"}')"
+out="$(printf '%s' "$qin" | HOME="$QH" BIAB_HOOKS_DISABLED=1 "$HK/biab-quota-nudge.sh")"; rc=$?
+[[ $rc -eq 0 && -z "$out" ]] && ok "nudge no-op under kill-switch" || bad "nudge killswitch rc=$rc out=[$out]"
+for input in 'not-json' '{}'; do
+    printf '%s' "$input" | HOME="$(mktemp -d)" "$HK/biab-quota-nudge.sh" >/dev/null 2>&1; rc=$?
+    [[ $rc -eq 0 ]] && ok "nudge exit 0 on '$input'" || bad "nudge rc=$rc on '$input'"
+done
+rm -rf "$QH"
+# Q10 (FEAT-018 bug-fix): transcript vanishes / turns unreadable AFTER the -f
+# check (TOCTOU). tac then fails under pipefail; the hook MUST still exit 0
+# (exit-0 contract). Summary present so we actually reach the tail read.
+QH="$(mktemp -d)"; mkdir -p "$QH/.claude/cache/quota"
+printf '%s' '{"week_cost":42.5}' > "$QH/.claude/cache/quota/summary.json"
+# (a) nonexistent transcript → guarded before the read → silent exit 0
+qin="$(jq -n --arg tp "$QH/does-not-exist.jsonl" '{transcript_path:$tp,session_id:"q10a"}')"
+out="$(printf '%s' "$qin" | HOME="$QH" "$HK/biab-quota-nudge.sh")"; rc=$?
+[[ $rc -eq 0 && -z "$out" ]] && ok "nudge exit 0 on nonexistent transcript" || bad "nudge nonexistent rc=$rc out=[$out]"
+# (b) exists at check time but unreadable → tac fails → hook must still exit 0
+if [[ "$(id -u)" -ne 0 ]]; then
+    tp="$QH/unreadable.jsonl"; printf '%s\n' '{"message":{"model":"claude-opus-4-8"}}' > "$tp"; chmod 000 "$tp"
+    qin="$(jq -n --arg tp "$tp" '{transcript_path:$tp,session_id:"q10b"}')"
+    printf '%s' "$qin" | HOME="$QH" "$HK/biab-quota-nudge.sh" >/dev/null 2>&1; rc=$?
+    [[ $rc -eq 0 ]] && ok "nudge exit 0 on unreadable transcript (TOCTOU)" || bad "nudge unreadable rc=$rc"
+    chmod 644 "$tp"
+else
+    skip "unreadable-transcript subtest (running as root, perms bypassed)"
+fi
+rm -rf "$QH"
 
 echo
 echo "======================================"

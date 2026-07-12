@@ -118,3 +118,12 @@ When a skill activates, its `SKILL.md` body is injected into the model's
 context. Bodies should therefore be **self-contained** — no assumptions about
 other skills or files outside the skill's own folder unless those references
 are themselves portable.
+
+## Skill-specific notes
+
+- **`quota`** — **Claude Code only.** It reconstructs usage from Claude Code
+  transcripts (`~/.claude/projects/**/*.jsonl`); Antigravity does not write
+  that format, so on an antigravity box the skill still installs but its report
+  prints "no Claude Code transcripts found yet". The companion quota-nudge hook
+  and statusline are Claude-format too, so the scaffold skips them on
+  antigravity boxes (same guard as the other hooks).
