@@ -277,6 +277,11 @@ h2="$(jq -S '.hooks' "$S" | md5sum)"
 # AC-Q7 (FEAT-018): UserPromptSubmit quota-nudge registered
 jq -e '.hooks.UserPromptSubmit[0].hooks[0].command | endswith("/biab-quota-nudge.sh")' "$S" >/dev/null \
     && ok "seed: UserPromptSubmit quota-nudge registered" || bad "quota-nudge not registered"
+# FEAT-019: SessionStart specs hook registered alongside UserPromptSubmit (both survive)
+jq -e '.hooks.SessionStart[0].hooks[0].command | endswith("/biab-specs.sh")' "$S" >/dev/null \
+    && ok "seed: SessionStart specs hook registered" || bad "specs hook not registered"
+jq -e '.hooks.SessionStart and .hooks.UserPromptSubmit and .hooks.PreToolUse and .hooks.PostToolUse and .hooks.Stop' "$S" >/dev/null \
+    && ok "seed: SessionStart + UserPromptSubmit + PreToolUse/PostToolUse/Stop coexist" || bad "an event key was lost after adding SessionStart"
 # AC-Q8 (FEAT-018): statusline installed when the user has none, points at our script
 jq -e '.statusLine.command | endswith("/biab-statusline.py")' "$S" >/dev/null \
     && ok "seed: statusline installed (no prior statusLine)" \
@@ -306,6 +311,20 @@ nb="$(jq '[.hooks.UserPromptSubmit[].hooks[].command | select(endswith("/biab-qu
 [[ "${nb:-0}" -eq 1 ]] && ok "quota-nudge not duplicated on rerun (dedup)" || bad "quota-nudge duplicated: count=$nb"
 nu="$(jq '[.hooks.UserPromptSubmit[].hooks[].command | select(. == "/user/mine-ups.sh")] | length' "$S")"
 [[ "${nu:-0}" -eq 1 ]] && ok "user hook still single after rerun" || bad "user hook count off: $nu"
+# FEAT-019: a user's OWN SessionStart hook is preserved too (SessionStart is a
+# context-injection event → additive, same policy as UserPromptSubmit), biab's
+# specs hook is added alongside it, and a rerun stays idempotent.
+printf '%s' '{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"/user/mine-ss.sh"}]}]}}' > "$S"
+install_hooks >/dev/null 2>&1
+jq -e '[.hooks.SessionStart[].hooks[].command] | index("/user/mine-ss.sh")' "$S" >/dev/null \
+    && ok "user SessionStart hook preserved (additive merge)" || bad "user SessionStart hook LOST"
+jq -e '[.hooks.SessionStart[].hooks[].command] | any(endswith("/biab-specs.sh"))' "$S" >/dev/null \
+    && ok "biab specs hook added alongside user's hook" || bad "biab specs hook missing after additive merge"
+install_hooks >/dev/null 2>&1   # rerun → must stay idempotent
+nbs="$(jq '[.hooks.SessionStart[].hooks[].command | select(endswith("/biab-specs.sh"))] | length' "$S")"
+[[ "${nbs:-0}" -eq 1 ]] && ok "specs hook not duplicated on rerun (dedup)" || bad "specs hook duplicated: count=$nbs"
+nus="$(jq '[.hooks.SessionStart[].hooks[].command | select(. == "/user/mine-ss.sh")] | length' "$S")"
+[[ "${nus:-0}" -eq 1 ]] && ok "user SessionStart hook still single after rerun" || bad "user SessionStart hook count off: $nus"
 rm -rf "$target_home"
 
 # --- antigravity box: no ~/.claude/settings.json created, skip logged ---
@@ -394,6 +413,85 @@ else
     skip "unreadable-transcript subtest (running as root, perms bypassed)"
 fi
 rm -rf "$QH"
+
+echo "== FEAT-019 — specs SessionStart hook =="
+# (a) fires with a summary when specs/draft + specs/active have FEATs
+SP="$(mktemp -d)"; mkdir -p "$SP/specs/draft" "$SP/specs/active"
+: > "$SP/specs/draft/FEAT-A.md"; : > "$SP/specs/active/FEAT-B.md"
+out="$(printf '{"cwd":"%s"}' "$SP" | "$HK/biab-specs.sh")"; rc=$?
+ev="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.hookEventName' 2>/dev/null)"
+ac="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)"
+if [[ $rc -eq 0 && "$ev" == "SessionStart" ]] \
+   && printf '%s' "$ac" | grep -q '1 draft, 1 active' \
+   && printf '%s' "$ac" | grep -q 'FEAT-A.md' \
+   && printf '%s' "$ac" | grep -q 'FEAT-B.md'; then
+    ok "specs hook: fires with counts + names"
+else
+    bad "specs hook fire rc=$rc ev=$ev out=[$out]"
+fi
+# oldest-draft staleness note when a draft is >14 days old
+touch -d '30 days ago' "$SP/specs/draft/FEAT-A.md" 2>/dev/null \
+    && { out="$(printf '{"cwd":"%s"}' "$SP" | "$HK/biab-specs.sh")"
+         printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' | grep -q 'stale' \
+             && ok "specs hook: flags oldest stale draft (>14d)" || bad "specs hook: no stale flag"; } \
+    || skip "specs hook staleness (touch -d unsupported)"
+rm -rf "$SP"
+# (b) silent + exit 0 when there is no specs dir
+NS="$(mktemp -d)"
+out="$(printf '{"cwd":"%s"}' "$NS" | "$HK/biab-specs.sh")"; rc=$?
+[[ $rc -eq 0 && -z "$out" ]] && ok "specs hook: silent + exit 0 without specs dir" || bad "specs hook no-specs rc=$rc out=[$out]"
+rm -rf "$NS"
+# (c) no-op + exit 0 with a minimal PATH lacking jq
+minbin="$(mktemp -d)"; make_min_path "$minbin"; rm -f "$minbin/jq"
+SP="$(mktemp -d)"; mkdir -p "$SP/specs/draft"; : > "$SP/specs/draft/FEAT-A.md"
+out="$(printf '{"cwd":"%s"}' "$SP" | env -i PATH="$minbin" HOME="$SP" "$HK/biab-specs.sh")"; rc=$?
+[[ $rc -eq 0 && -z "$out" ]] && ok "specs hook: no-op + exit 0 without jq" || bad "specs hook no-jq rc=$rc out=[$out]"
+rm -rf "$minbin" "$SP"
+# (d) draft/ only, no active/ dir — the FIRST-SESSION state (active/ appears on
+# first promotion). Must still fire, exit 0. Regression for the VM-found bug
+# where a missing sibling dir tripped `set -e` (exit 1, no output).
+SP="$(mktemp -d)"; mkdir -p "$SP/specs/draft"; : > "$SP/specs/draft/FEAT-A.md"
+out="$(printf '{"cwd":"%s"}' "$SP" | "$HK/biab-specs.sh")"; rc=$?
+ac="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)"
+{ [[ $rc -eq 0 ]] && printf '%s' "$ac" | grep -q '1 draft, 0 active'; } \
+    && ok "specs hook: fires with draft/ only (no active/ dir)" || bad "specs hook draft-only rc=$rc out=[$out]"
+rm -rf "$SP"
+# (e) active/ only, no draft/ dir — symmetric.
+SP="$(mktemp -d)"; mkdir -p "$SP/specs/active"; : > "$SP/specs/active/FEAT-B.md"
+out="$(printf '{"cwd":"%s"}' "$SP" | "$HK/biab-specs.sh")"; rc=$?
+ac="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)"
+{ [[ $rc -eq 0 ]] && printf '%s' "$ac" | grep -q '0 draft, 1 active'; } \
+    && ok "specs hook: fires with active/ only (no draft/ dir)" || bad "specs hook active-only rc=$rc out=[$out]"
+rm -rf "$SP"
+# (f) >=2 drafts — the oldest-draft `sort|head -1` pipeline can SIGPIPE under
+# pipefail; must not kill the hook. Regression for the second latent crash.
+SP="$(mktemp -d)"; mkdir -p "$SP/specs/draft"
+: > "$SP/specs/draft/FEAT-A.md"; : > "$SP/specs/draft/FEAT-B.md"; : > "$SP/specs/draft/FEAT-C.md"
+out="$(printf '{"cwd":"%s"}' "$SP" | "$HK/biab-specs.sh")"; rc=$?
+ac="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)"
+{ [[ $rc -eq 0 ]] && printf '%s' "$ac" | grep -q '3 draft, 0 active'; } \
+    && ok "specs hook: fires with >=2 drafts (no SIGPIPE crash)" || bad "specs hook multi-draft rc=$rc out=[$out]"
+rm -rf "$SP"
+# (g) existing-but-UNREADABLE draft dir — find fails mid-traversal (perms), must
+# not trip set -e in _list's pipeline. Fail-open: exit 0. (root bypasses perms.)
+if [[ "$(id -u)" -ne 0 ]]; then
+    SP="$(mktemp -d)"; mkdir -p "$SP/specs/draft"; : > "$SP/specs/draft/FEAT-A.md"; chmod 000 "$SP/specs/draft"
+    out="$(printf '{"cwd":"%s"}' "$SP" | "$HK/biab-specs.sh")"; rc=$?
+    chmod 755 "$SP/specs/draft"
+    [[ $rc -eq 0 ]] && ok "specs hook: exit 0 on unreadable specs dir" || bad "specs hook unreadable-dir rc=$rc out=[$out]"
+    rm -rf "$SP"
+else
+    skip "specs hook unreadable-dir subtest (running as root, perms bypassed)"
+fi
+# (h) large draft count — _names' `printf|head -6` SIGPIPEs above ~a few hundred
+# files; must not kill the hook. Regression for the _names crash.
+SP="$(mktemp -d)"; mkdir -p "$SP/specs/draft"
+i=0; while [[ $i -lt 600 ]]; do : > "$SP/specs/draft/FEAT-$i-some-realistic-slug.md"; i=$((i+1)); done
+out="$(printf '{"cwd":"%s"}' "$SP" | "$HK/biab-specs.sh")"; rc=$?
+ac="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null || true)"
+{ [[ $rc -eq 0 ]] && printf '%s' "$ac" | grep -q '600 draft, 0 active'; } \
+    && ok "specs hook: fires with 600 drafts (no _names SIGPIPE crash)" || bad "specs hook large-count rc=$rc out=[$out]"
+rm -rf "$SP"
 
 echo
 echo "======================================"

@@ -34,10 +34,47 @@ exec_bootstrap() {
         /opt/buildersinabox/payload/install.sh "$@"
 }
 
+SKILLS_SRC=/opt/buildersinabox/payload/skills
+MANIFEST="$SKILLS_SRC/manifest.tsv"
+
+# install_optional_skill <name> — copy a bundled optional skill into
+# ~/.agents/skills (the source of truth) and symlink it into each CLI's
+# global skills dir this box uses. Mirrors 40-scaffold.sh's install_skill.
+# Idempotent. Runs as the box user (writes to that user's HOME).
+install_optional_skill() {
+    local name="$1"
+    local src="$SKILLS_SRC/$name"
+    if [[ ! -d "$src" ]]; then
+        echo "biab add: skill '$name' not found in the bundled payload." >&2
+        exit 1
+    fi
+    local agents_dir="$HOME/.agents/skills"
+    local target="$agents_dir/$name"
+    mkdir -p "$agents_dir"
+    if [[ -e "$target" || -L "$target" ]]; then
+        echo "'$name' is already installed — nothing to do."
+    else
+        cp -r "$src" "$target"
+        echo "Installed skill '$name' -> $target"
+    fi
+    # Claude Code boxes: symlink into ~/.claude/skills.
+    local claude_link="$HOME/.claude/skills/$name"
+    if [[ ! -e "$claude_link" && ! -L "$claude_link" ]]; then
+        mkdir -p "$HOME/.claude/skills"
+        ln -s "$target" "$claude_link"
+    fi
+    # Antigravity boxes: symlink into ~/.gemini/skills (present only there).
+    if [[ -d "$HOME/.gemini/skills" ]]; then
+        local agy_link="$HOME/.gemini/skills/$name"
+        [[ -e "$agy_link" || -L "$agy_link" ]] || ln -s "$target" "$agy_link"
+    fi
+    echo "Type / in your AI CLI and look for /$name."
+}
+
 do_add() {
-    # `biab add <group>` installs a bundled optional skill group. No group
-    # ships as optional today — the SDD workflow became core in v0.2, so it's
-    # already installed on every box. The framework stays for future groups.
+    # `biab add <group>` installs a bundled optional skill (tier `optional`
+    # in the skills manifest) via the same copy+symlink mechanism the scaffold
+    # uses. Core skills are already on every box.
     local group="${1:-}"
     case "$group" in
         sdd)
@@ -46,9 +83,23 @@ do_add() {
             echo "Type / in your AI CLI and look for /sdd-coordinator to get started."
             exit 0
             ;;
+        "")
+            echo "biab add: missing group name." >&2
+            echo "Usage: biab add <group>   (optional: $(awk -F'\t' '$2=="optional"{print $1}' "$MANIFEST" 2>/dev/null | paste -sd ', ' -))" >&2
+            exit 1
+            ;;
         *)
-            echo "biab add: unknown group '${group}'. No optional groups available right now." >&2
-            echo "Usage: biab add <group>" >&2
+            local tier
+            tier="$(awk -F'\t' -v g="$group" '$1==g {print $2}' "$MANIFEST" 2>/dev/null)"
+            if [[ "$tier" == "optional" ]]; then
+                install_optional_skill "$group"
+                exit 0
+            elif [[ "$tier" == "core" ]]; then
+                echo "'$group' is a core skill — already installed on every box."
+                exit 0
+            fi
+            echo "biab add: unknown group '${group}'." >&2
+            echo "Usage: biab add <group>   (optional: $(awk -F'\t' '$2=="optional"{print $1}' "$MANIFEST" 2>/dev/null | paste -sd ', ' -))" >&2
             exit 1
             ;;
     esac
@@ -95,8 +146,7 @@ biab — Builders in a Box CLI
   biab status    print state.json
   biab logs      follow the bootstrap log
   biab update    pull latest BIAB + re-run install scripts (no reinstall needed)
-  biab add       install an optional bundled skill group (none available yet;
-                 the SDD workflow is core since v0.2)
+  biab add       install an optional bundled skill (e.g. 'biab add incident')
   biab help      this message
 EOF
         ;;

@@ -211,28 +211,33 @@ install_hooks() {
         PostToolUse: [ { matcher: "Edit|Write", hooks: [ { type: "command", command: ($d + "/biab-format.sh") },
                                                           { type: "command", command: ($d + "/biab-lint.sh") } ] } ],
         UserPromptSubmit: [ {                    hooks: [ { type: "command", command: ($d + "/biab-quota-nudge.sh") } ] } ],
+        SessionStart: [ {                        hooks: [ { type: "command", command: ($d + "/biab-specs.sh") } ] } ],
         Stop:        [ {                         hooks: [ { type: "command", command: ($d + "/biab-session-log.sh") } ] } ]
       } }')"
     if [[ -f "$settings" ]] && jq -e . "$settings" >/dev/null 2>&1; then
-        # Deep-merge keeps replace-semantics for arrays (inherited FEAT-015
-        # AC-E3: our PreToolUse/PostToolUse/Stop groups win outright). FEAT-018
-        # only owns UserPromptSubmit and it MUST be additive — a user who has
-        # their own UserPromptSubmit hook keeps it. So after the deep merge we
-        # rebuild UserPromptSubmit as (user's groups ++ ours), deduped by the
-        # command strings each group carries. Dedup keeps reruns idempotent (no
-        # second biab entry) and the user's own entries survive. Scoped to
-        # UserPromptSubmit on purpose — making the other events additive would
-        # break FEAT-015's documented replace-semantics test.
+        # Deep-merge keeps replace-semantics for the guardrail events BIAB owns
+        # and must enforce (FEAT-015 AC-E3: our PreToolUse/PostToolUse/Stop groups
+        # win outright — a user can't weaken them). The context-injection events,
+        # UserPromptSubmit (FEAT-018) and SessionStart (FEAT-019), MUST be additive
+        # instead: a user with their own hook on either keeps it. So after the deep
+        # merge we rebuild both as (user's groups ++ ours), deduped by the command
+        # strings each group carries. Dedup keeps reruns idempotent (no second biab
+        # entry) and the user's own entries survive. Split by event type on purpose:
+        # owned guardrails replace, context injectors merge (global rule: never
+        # overwrite user config).
         printf '%s\n' "$(jq --argjson ours "$ours" '
             def dedupe_groups:
                 reduce .[] as $g ([];
                     if any(.[]?; (.hooks // [] | map(.command))
                                  == ($g.hooks // [] | map(.command)))
                     then . else . + [$g] end);
-            (.hooks.UserPromptSubmit // [])       as $userUPS
-            | ($ours.hooks.UserPromptSubmit // []) as $oursUPS
+            (.hooks.UserPromptSubmit // [])        as $userUPS
+            | (.hooks.SessionStart // [])           as $userSS
+            | ($ours.hooks.UserPromptSubmit // [])  as $oursUPS
+            | ($ours.hooks.SessionStart // [])      as $oursSS
             | (. * $ours)
             | .hooks.UserPromptSubmit = (($userUPS + $oursUPS) | dedupe_groups)
+            | .hooks.SessionStart     = (($userSS + $oursSS) | dedupe_groups)
         ' "$settings")" > "$settings"
     else
         printf '%s\n' "$ours" > "$settings"
