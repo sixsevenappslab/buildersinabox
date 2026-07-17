@@ -65,6 +65,18 @@
 - **Test:** 2-3 personas de la red instalan sin WhatsApp de rescate (una en VPS, una en mini PC,
   idealmente una con Gemini). 0/3 completan → no hay flip.
 
+## H7 — "El 'control móvil del agente' vende más como pitch de BIAB que como producto aparte"
+
+- **Estado:** 🧊 aparcada (post-gate)
+- **Origen:** Jesús + strategy-council 5-0, 2026-07-18. Council descartó lanzar un OSS de
+  remote control standalone (categoría con 6+ jugadores — AG Remote, Porta, Levitation, AG2R,
+  Happy Coder, Omnara —, el vendor acaba regalando la feature oficial, y "coding desde el
+  móvil contra tu servidor" ya es la promesa de BIAB). Lo que sobrevive: el ángulo móvil
+  como argumento de venta/feature de BIAB, no como repo propio.
+- **Test más barato:** en el launch, medir si el copy "reach it from your phone" tracciona
+  (comentarios/preguntas en Show HN y r/selfhosted que mencionen el móvil). Si tracciona,
+  evaluar en el checkpoint un companion (o integración con Happy Coder) como feature de BIAB.
+
 ---
 
 ## Cómo añadir una hipótesis
