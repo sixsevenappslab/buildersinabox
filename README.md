@@ -1,12 +1,12 @@
 # Builders in a Box
 
-> **Your own AI dev box. One command, ~15 minutes to coding from your phone.**
+> **Run Claude Code (or Antigravity) from your phone — one command turns any old PC into a secure, always-on home for your coding agent. ~15 minutes.**
 
 <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
      Drop the PNG here (under the tagline, above the curl one-liner) as:
      <p align="center"><img src="site/assets/hero.png" alt="A coding agent on a phone over a private network" width="360"></p> -->
 
-Turn any Ubuntu 24.04 machine — a mini PC, a homelab box, a VPS — into a personal development server you reach from your phone, with [Claude Code](https://claude.com/claude-code) or [Google's Antigravity](https://antigravity.google) ready to ship. One command sets it up, makes it reachable from anywhere over your own private network, and keeps your sessions alive across disconnects.
+Turn any Ubuntu 24.04 machine — a mini PC, a homelab box, a VPS, even that old laptop gathering dust in a drawer — into a personal development server you reach from your phone, with [Claude Code](https://claude.com/claude-code) or [Google's Antigravity](https://antigravity.google) ready to ship. One command sets it up, makes it reachable from anywhere over your own private network, and keeps your sessions alive across disconnects.
 
 ```bash
 curl -fsSL https://buildersinabox.com/install.sh | sudo bash

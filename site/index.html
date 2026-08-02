@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Builders in a Box — your own AI dev box</title>
-<meta name="description" content="You already code with an agent — but it's stuck on your laptop. Give it a persistent, secure home you reach from your phone. One command, any Ubuntu 24.04.">
+<title>Builders in a Box — run Claude Code from your phone</title>
+<meta name="description" content="Run Claude Code (or Antigravity) from your phone. One command turns any old PC or mini PC into a persistent, secure, always-on home for your coding agent — tmux, Tailscale, SSH hardening, done for you.">
 <meta property="og:title" content="Builders in a Box — give your coding agent a home">
 <meta property="og:description" content="Your agent lives on your laptop. Move it to a persistent, secure box you drive from your phone. One command, ~15 minutes.">
 <style>
@@ -14,7 +14,10 @@
   body { margin:0; font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; color:var(--fg); background:var(--bg); }
   main { max-width:680px; margin:0 auto; padding:14vh 24px 8vh; }
   h1 { font-size:2.1rem; line-height:1.15; margin:0 0 .4em; letter-spacing:-.02em; }
-  .tag { color:var(--dim); font-size:1.15rem; margin:0 0 2em; }
+  .tag { color:var(--dim); font-size:1.15rem; margin:0 0 1.2em; }
+  .pitch { font-size:1.05rem; font-weight:600; margin:0 0 1.8em; }
+  .horizon { border-left:3px solid var(--accent); padding:.2em 0 .2em 1em; margin:2.4em 0 1.2em; }
+  .horizon strong { display:block; margin-bottom:.3em; }
   .cmd { display:flex; align-items:center; gap:.5em; background:var(--code); color:#e6e6e6; border-radius:10px; padding:14px 16px; font:14px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow-x:auto; }
   .cmd code { white-space:nowrap; }
   .cmd button { margin-left:auto; flex:none; background:#23304d; color:#cfe0ff; border:0; border-radius:6px; padding:6px 10px; font:inherit; cursor:pointer; }
@@ -38,7 +41,9 @@
 <body>
 <main>
   <h1>Give your coding agent a home.</h1>
-  <p class="tag">You already build with an agent — it just lives on your laptop. It dies when you close the lid, you can't reach it from your phone, and going remote the naive way is how 42,665 agent boxes ended up exposed on the open internet. This turns any Ubuntu 24.04 machine you own into a persistent, secure home for it. One command, ~15 minutes.</p>
+  <p class="tag">You already build with an agent — it just lives on your laptop. It dies when you close the lid, you can't reach it from your phone, and going remote the naive way is how 42,665 agent boxes ended up exposed on the open internet. This turns any Ubuntu 24.04 machine you own — even that old laptop gathering dust in a drawer — into a persistent, secure home for it. One command, ~15 minutes.</p>
+
+  <p class="pitch">Everything those “I run Claude Code from my phone” blog posts walk you through — tmux, Tailscale, SSH hardening, a session that survives a dropped connection — in one command, not a weekend.</p>
 
   <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
        Drop the PNG here (above the one-liner) as: <img class="hero" src="assets/hero.png" ...>. -->
@@ -85,6 +90,8 @@
   <p class="note">The README lists <a href="https://github.com/sixsevenappslab/buildersinabox#what-it-changes-on-your-system">everything the installer changes</a> and the <a href="https://github.com/sixsevenappslab/buildersinabox#security-model">security model</a>; <code>--uninstall</code> removes it all.</p>
 
   <p class="note">Just want an agent working in the background? Hosted options like Anthropic's Cowork do that without a server. This is for when the agent needs <em>your</em> machine — your files, your local network, your credentials, your cron jobs.</p>
+
+  <p class="horizon"><strong>Where this is going.</strong>Today this is for people who already build with an agent. But the box doesn't care who owns it — the same machine that runs your refactors can run a household. There's a USB “gift” edition that self-installs and hands a ready-to-go box to someone who'll never touch a terminal, so a technical friend can set one up for anyone. The road ahead: an old computer given a second life as a brain for your life — no engineering required. We're not there yet. That's the direction.</p>
 
   <form class="sub" id="subform" method="post" action="/subscribe">
     <input type="email" name="email" required placeholder="you@example.com" aria-label="Email address">

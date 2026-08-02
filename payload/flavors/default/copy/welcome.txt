@@ -1,7 +1,10 @@
-What you have in front of you is a workshop. Inside runs a senior
-engineer — an AI that thinks, writes code, designs systems, ships
-products. From now on, when you say "I want to build X", it builds
-it with you. Side by side. On your hardware. With your accounts.
+What you have in front of you is a workshop — and it already does
+more than the Claude or Antigravity app on your phone ever could.
+Inside runs a senior engineer — an AI that thinks, writes code,
+designs systems, ships products. It reads your files, runs commands,
+remembers your projects, keeps working while you're away. From now
+on, when you say "I want to build X", it builds it with you. Side by
+side. On your hardware. With your accounts.
 
 You can talk to it from this monitor, from your phone, OR from your
 laptop — same conversations, same context, anywhere you are. From
