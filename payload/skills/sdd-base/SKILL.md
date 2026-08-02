@@ -1,6 +1,6 @@
 ---
 name: sdd-base
-description: Spec-Driven Development — base workflow for Claude Code. One FEAT-NNN document per feature, lifecycle draft → active → completed. Two modes (starter / full). Invoked directly or through the specialized skills sdd-coordinator / sdd-spec-writer / sdd-qa / sdd-growth / sdd-docs.
+description: Spec-Driven Development — base workflow for your AI CLI. One FEAT-NNN document per feature, lifecycle draft → active → completed. Two modes (starter / full). Invoked directly or through the specialized skills sdd-coordinator / sdd-spec-writer / sdd-qa / sdd-growth / sdd-docs.
 ---
 
 # Spec-Driven Development (SDD) — Base
@@ -64,7 +64,7 @@ For example: `~/ai-platform/projects/my-app/specs/draft/FEAT-012-pdf-export.md`.
 | §2 Technical spec | Tech Lead | Research, files touched, dependencies, risks, implementation plan in waves, quality gates |
 | §3 Growth notes | Growth Lead *(optional)* | KPIs, channels, UTMs, experiments, SEO, analytics |
 | §4 QA | QA Lead | Functional cases, edge cases, regression plan, smoke tests post-deploy |
-| §5 Docs | Tech Lead | Post-merge documentation checklist (CLAUDE.md, changelog, runbooks, etc.) |
+| §5 Docs | Tech Lead | Post-merge documentation checklist (CLAUDE.md/AGENTS.md, changelog, runbooks, etc.) |
 | §6 Feedback | Product Lead | Filled after shipping — surprises, follow-ups, links to incidents |
 
 ### Starter-mode structure

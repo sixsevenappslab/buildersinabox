@@ -1,6 +1,6 @@
 ---
 name: sdd-docs
-description: Spec-Driven Development — documentation role. Fills in §5 Docs of the FEAT-NNN document: what needs to be documented once the FEAT is implemented (project CLAUDE.md, changelog, public README, API docs, internal onboarding, runbooks) and keeps consistency with the rest of the documentation ecosystem. Post-merge, it runs or coordinates the actual updates using the `documentator` skill as an auxiliary tool.
+description: Spec-Driven Development — documentation role. Fills in §5 Docs of the FEAT-NNN document: what needs to be documented once the FEAT is implemented (project CLAUDE.md/AGENTS.md, changelog, public README, API docs, internal onboarding, runbooks) and keeps consistency with the rest of the documentation ecosystem. Post-merge, it runs or coordinates the actual updates using the `documentator` skill as an auxiliary tool.
 ---
 
 # sdd-docs — documentation role in the SDD flow
@@ -30,8 +30,8 @@ In those cases you literally document "N/A — bug fix with no contract change" 
 ```markdown
 ## §5 Documentation
 
-### CLAUDE.md files to update
-- [ ] `<path>/CLAUDE.md` — <what to add/change>
+### CLAUDE.md/AGENTS.md files to update
+- [ ] `<path>/CLAUDE.md` (or `AGENTS.md`) — <what to add/change>
 - [ ] ...
 
 ### Changelog / release notes
@@ -53,7 +53,7 @@ In those cases you literally document "N/A — bug fix with no contract change" 
 
 ### Onboarding
 - [ ] Relevant section of the project onboarding
-- [ ] New commands in the "Common Commands" of the root CLAUDE.md
+- [ ] New commands in the "Common Commands" of the root CLAUDE.md/AGENTS.md
 
 ### External communication
 - [ ] Note in the public changelog / blog post
@@ -62,13 +62,13 @@ In those cases you literally document "N/A — bug fix with no contract change" 
 
 ### "Docs done" criterion
 A single sentence that defines when the documentation is complete. E.g.:
-"Docs done = project CLAUDE.md updated + CHANGELOG entry added
+"Docs done = project CLAUDE.md/AGENTS.md updated + CHANGELOG entry added
 + cron runbook written in `docs/runbooks/<cron-name>.md`."
 ```
 
 ## Documentation principles in this ecosystem
 
-1. **CLAUDE.md is always the technical source of truth per project.** Any change that affects how work is done in the project has to be reflected there.
+1. **CLAUDE.md/AGENTS.md is always the technical source of truth per project.** Any change that affects how work is done in the project has to be reflected there.
 2. **Per-project changelog in Keep a Changelog format.** The [Unreleased] section accumulates between releases.
 3. **Don't duplicate information.** If it's in the code (docstring, JSDoc, OpenAPI), don't repeat it in markdown.
 4. **Docs that die fast, die fast.** If the doc describes a detail that's going to change in 2 weeks, a link to the code is better.
@@ -77,7 +77,7 @@ A single sentence that defines when the documentation is complete. E.g.:
 
 ## Relationship with other skills
 
-- `documentator`: does the actual work post-merge (generates/updates CLAUDE.md, changelogs, API docs). sdd-docs is the planner; documentator is the executor.
+- `documentator`: does the actual work post-merge (generates/updates CLAUDE.md/AGENTS.md, changelogs, API docs). sdd-docs is the planner; documentator is the executor.
 - `sdd-coordinator`: decides whether this skill is invoked or not for a given FEAT.
 - `sdd-growth`: if there's external communication with growth impact (LinkedIn, newsletter, SEO blog), that part is led by sdd-growth; you only ensure the entry exists in §5.
 - `sdd-spec-writer`: if the FEAT introduces a public API, coordinate with it so the contracts are well described both in §2 and in the public docs.
@@ -97,5 +97,5 @@ A single sentence that defines when the documentation is complete. E.g.:
 - Generating documentation now when the implementation doesn't exist yet.
 - Requesting docs for trivial bug fixes (cluttering the process).
 - Writing documentation in Spanish when the rest of the project is in English (or vice versa).
-- Creating README.md files that nobody is going to maintain. Prefer existing CLAUDE.md files.
+- Creating README.md files that nobody is going to maintain. Prefer existing CLAUDE.md/AGENTS.md files.
 - Documenting "how the code works" (well-written code does that). Document "why" and "how to use it".

@@ -1,6 +1,7 @@
 ---
 name: code-review
 description: "Structured PR code review process. Checklists, GitHub CLI commands, review criteria by severity (🔴 bugs, 🟡 nits, 🔵 suggestions)."
+disable-model-invocation: true
 ---
 
 # Code Review
