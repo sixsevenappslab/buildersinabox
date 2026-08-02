@@ -8,7 +8,7 @@
 - **E2E mode:** none
   > Refactor interno de payload sin runtime observable nuevo — la verificación es paridad de comportamiento vía CI dryrun matrix.
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** implementacion
+- **Fase:** completada
 - **Creado:** 2026-08-02
 - **Actualizado:** 2026-08-02 (impl)
 - **Validado por Jesus:** [x]
@@ -558,4 +558,8 @@ bash -c 'source payload/lib/ai-cli.sh; ai_cli_skills_dirs antigravity'   # sin c
 
 ### Mejoras sugeridas
 
-- —
+- [pr-review 2026-08-02, nit] `wizard/run.sh` finale: menciones "agy" literales fuera de la rama
+  `remote-control` — correcto con 2 CLIs, pero el FEAT que añada un tercer CLI sin remote-control
+  debe interpolar ese copy (recordatorio para Wave 3).
+- [pr-review 2026-08-02, nit] EARS req1 menciona "capacidad quota" pero el registro la empaqueta
+  dentro de `hooks` (no capability separada). Comportamiento correcto; imprecisión de redacción.
