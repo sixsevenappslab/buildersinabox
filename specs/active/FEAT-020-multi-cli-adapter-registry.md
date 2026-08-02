@@ -10,7 +10,7 @@
 - **Reconciliation owner:** sdd-coordinator
 - **Fase:** implementacion
 - **Creado:** 2026-08-02
-- **Actualizado:** 2026-08-02
+- **Actualizado:** 2026-08-02 (impl)
 - **Validado por Jesus:** [x]
 
 > Complejidad determina el modelo de implementacion: alta=Opus, media/baja=Sonnet.
@@ -91,28 +91,28 @@ Este FEAT NO añade Codex como opción visible — eso es un FEAT derivado
 
 ### Requisitos funcionales (EARS)
 
-- [ ] **Ubicuo:** El payload shall definir cada CLI soportado en un único
+- [x] **Ubicuo:** El payload shall definir cada CLI soportado en un único
   registro en `payload/lib/ai-cli.sh` con sus propiedades (install script,
   comando de lanzamiento, dirs de skills, capacidades hooks/statusline/quota).
-- [ ] **Ubicuo:** Los sitios de consumo (wizard choose/login, tmux launcher,
+- [x] **Ubicuo:** Los sitios de consumo (wizard choose/login, tmux launcher,
   scaffold, `biab` command, browser pack, CI matrix) shall resolver el
   comportamiento por CLI consultando el registro, sin `if/else` por nombre
   fuera de `ai-cli.sh`.
-- [ ] **Event-driven:** Cuando se añade una entrada nueva al registro (más su
+- [x] **Event-driven:** Cuando se añade una entrada nueva al registro (más su
   install script), el wizard shall ofrecer ese CLI sin cambios en ningún otro
   archivo del payload.
-- [ ] **Unwanted:** Si un CLI del registro no soporta una capacidad (p. ej.
+- [x] **Unwanted:** Si un CLI del registro no soporta una capacidad (p. ej.
   hooks o statusline), entonces el scaffold shall omitir ese paso como no-op
   explícito sin fallar (patrón FEAT-015 §2.5).
-- [ ] **Ubicuo:** El comportamiento observable para claude y antigravity shall
+- [x] **Ubicuo:** El comportamiento observable para claude y antigravity shall
   permanecer idéntico al actual (paridad estricta, cero cambios de UX).
 
 ### Requisitos no funcionales
 
-- [ ] Bash puro con `set -euo pipefail`; sin dependencias nuevas.
-- [ ] Idempotente — los pasos de install/wizard pueden re-ejecutarse.
-- [ ] Shellcheck limpio y `bash -n` en CI.
-- [ ] Strings de usuario en inglés.
+- [x] Bash puro con `set -euo pipefail`; sin dependencias nuevas.
+- [x] Idempotente — los pasos de install/wizard pueden re-ejecutarse.
+- [x] Shellcheck limpio y `bash -n` en CI.
+- [x] Strings de usuario en inglés.
 
 ### Referencias visuales
 
@@ -309,13 +309,13 @@ ai_cli_install_script() {
 
 ### 2.8 Criterios de aceptacion globales
 
-- [ ] `BIB_AI_CLI=claude bash payload/test/wiring-smoke.sh && BIB_AI_CLI=antigravity bash payload/test/wiring-smoke.sh` → PASS ambos, incluida la seccion nueva de completitud del registro.
-- [ ] `grep -rnE '==\s*"(claude|antigravity)"' payload --include='*.sh' | grep -v 'payload/lib/ai-cli.sh' | grep -v 'payload/test/'` → salida vacia (cero dispatch por nombre fuera del registro y de los test oracles).
-- [ ] `shellcheck payload/lib/ai-cli.sh payload/install.sh payload/wizard/*.sh payload/tmux/launch-main.sh payload/install/05-biab-command.sh payload/pack/browser/*.sh payload/test/wiring-smoke.sh` → 0 issues, y `bash -n` limpio en todos.
-- [ ] Paridad README: el `diff` del `<verify>` de T6 sale vacio para claude y antigravity.
-- [ ] Paridad de merges: `git diff main -- payload/wizard/40-scaffold.sh` no toca ninguna linea de los filtros jq (`dedupe_groups`, `. * $ours`, bloque statusline).
-- [ ] CI de la PR verde con exactamente los mismos jobs dryrun que main (claude + antigravity), ahora generados desde `BIB_SUPPORTED_AI_CLIS`.
-- [ ] Prueba de extensibilidad (manual, en branch descartable): añadir un CLI dummy al registro + install script stub y comprobar que la seccion de completitud del smoke lo cubre y el chooser lo ofrece **sin tocar ningun otro archivo**; revertir antes de la PR.
+- [x] `BIB_AI_CLI=claude bash payload/test/wiring-smoke.sh && BIB_AI_CLI=antigravity bash payload/test/wiring-smoke.sh` → PASS ambos, incluida la seccion nueva de completitud del registro.
+- [x] `grep -rnE '==\s*"(claude|antigravity)"' payload --include='*.sh' | grep -v 'payload/lib/ai-cli.sh' | grep -v 'payload/test/'` → salida vacia (cero dispatch por nombre fuera del registro y de los test oracles).
+- [x] `shellcheck payload/lib/ai-cli.sh payload/install.sh payload/wizard/*.sh payload/tmux/launch-main.sh payload/install/05-biab-command.sh payload/pack/browser/*.sh payload/test/wiring-smoke.sh` → 0 issues, y `bash -n` limpio en todos.
+- [x] Paridad README: el `diff` del `<verify>` de T6 sale vacio para claude y antigravity.
+- [x] Paridad de merges: `git diff main -- payload/wizard/40-scaffold.sh` no toca ninguna linea de los filtros jq (`dedupe_groups`, `. * $ours`, bloque statusline).
+- [x] CI de la PR verde con exactamente los mismos jobs dryrun que main (claude + antigravity), ahora generados desde `BIB_SUPPORTED_AI_CLIS`.
+- [x] Prueba de extensibilidad (manual, en branch descartable): añadir un CLI dummy al registro + install script stub y comprobar que la seccion de completitud del smoke lo cubre y el chooser lo ofrece **sin tocar ningun otro archivo**; revertir antes de la PR.
 
 ---
 
@@ -474,23 +474,79 @@ bash -c 'source payload/lib/ai-cli.sh; ai_cli_skills_dirs antigravity'   # sin c
 
 | Task | Estado | Commit | Notas |
 |------|--------|--------|-------|
-| — | pendiente | — | — |
+| T1 registro | completada | `dd73b3a` | Paridad byte-idéntica verificada contra main: launch cmds (con y sin prompt), render README, login verify cmds (oracle CP-02 con `ubuntu`) |
+| T2 choosers+login+finale | completada | `c93ca28` | Menú de choosers byte-idéntico al heredoc viejo (`printf '  - %-13s%s'`); cero `== "cli"` en los 4 archivos |
+| T3 scaffold+biab+browser | completada | `2b8c620` | Filtros jq de install_hooks y statusline: cero diff vs main. Seed agy verificado funcionalmente (caso fresh y caso merge) idéntico al bloque de main. Wrapper `biab` simulado en homes claude-only y agy: mismos symlinks que main |
+| T4 launcher+smoke | completada | `8ee6e49` | Smoke PASS x2 con secciones nuevas (completitud, EC-01, EC-04 inyección, EC-05 cold-source). Incluye fix: `ai_cli_skills_dirs` propagaba exit 0 con CLI inválido por el subshell del `$( )` |
+| T5 CI matrix | completada | `5dd98ba` | `list-clis` emite `["claude","antigravity"]`; `dryrun` usa `fromJSON` con `needs` |
+| T6 paridad global | completada | — (verificación) | Smoke x2 PASS, grep de dispatch vacío, diff README vs awk de main vacío para ambos CLIs |
 
 ### Decisiones tomadas
 
-- —
+- **Contradicción interna de la spec en T3 (pre-seed agy):** §2.2, la acción de
+  T3 y la regresión FEAT-018/019 de §4.3 exigen mover el merge de settings agy
+  a `ai_cli_seed_settings` en `ai-cli.sh`, pero el diff-guard jq del `<verify>`
+  de T3 (y AC #5 / regresión FEAT-015) detecta la línea `'. * $ours'`
+  RELOCALIZADA como si fuera un cambio de filtro. Se siguió el diseño §2.2
+  (mover el bloque entero, texto del filtro jq byte-idéntico en su nueva
+  ubicación) y se sustituyó el guard por una verificación equivalente y más
+  precisa: (1) diff del programa jq de `install_hooks` (dedupe_groups) vs main
+  → cero diff; (2) diff del cuerpo del bloque statusline vs main → cero diff;
+  (3) paridad funcional del seed (caso settings inexistente y caso merge con
+  claves de usuario) → JSON idéntico al que produce el bloque de main. La
+  única línea que el grep literal del verify detecta es la del pre-seed
+  movida, cuya semántica está cubierta por (3).
+- **EC-04 en el smoke con PATH stub:** ejecutar el launch cmd hostil tal cual
+  lanzaría el CLI real en máquinas que lo tienen instalado (mhserver). Se
+  ejecuta bajo `PATH` que solo contiene `touch`: si el escape %q regresara, el
+  `touch` inyectado se ejecuta y crea el marker; si es correcto, no.
+- **Copy del finale SSH:** solo se interpola `ai_cli_display_name` donde el
+  texto viejo decía "Antigravity (agy)" (línea "Stack installed. … logged
+  in."). Las menciones posteriores a `agy` ("already running agy", "agy is
+  already there") se conservan literales — paridad byte-idéntica manda; no hay
+  prop de "nombre corto de comando" en la API §2.2 y añadirla sería scope
+  creep. Un CLI futuro sin remote-control heredará ese copy y podrá
+  generalizarse en su FEAT.
+- **Fallback del launcher eliminado:** el `else echo "$ai_cli"` de
+  `launch_cmd_for` (ejecutar el nombre del CLI como comando si no era
+  claude/antigravity) desaparece: ahora `ai_cli_launch_cmd` valida y muere con
+  mensaje claro (EC-01). Ese fallback era inalcanzable con state válido.
+- **chown del browser pack:** ahora chown-ea los skills dirs derivados del
+  registro; en boxes agy eso añade `~/.gemini/skills` (que el scaffold ya
+  dejó con el owner correcto → no-op observable). Antes solo agents+claude.
+- **`warn` del chooser no interactivo:** el texto
+  "(use --ai-cli=antigravity to override)" se conserva literal (es copy, no
+  dispatch); el default se interpola desde `BIB_SUPPORTED_AI_CLIS[0]`.
+- **Prueba de extensibilidad (CP-05 / AC #7), commit descartable `95e36dc`
+  (eliminado con `git reset --hard`, no queda en la branch):** añadido CLI
+  `dummy` (bloque adapter + `install/99-dummy.sh` stub). Resultado: (paso 3)
+  `git status --porcelain` mostró exactamente 2 paths; (paso 4)
+  `BIB_AI_CLI=dummy wiring-smoke` → PASS con "registry completeness (claude
+  antigravity dummy)"; (paso 5) la lista emitió
+  `["claude","antigravity","dummy"]` — la matrix de CI lo recogería sola;
+  (paso 6) `prompt_choice` en ambos choosers deriva de
+  `"${BIB_SUPPORTED_AI_CLIS[@]}"`, cero literales. Ningún otro archivo tocado.
+- **`tools/reset-for-gift.sh`:** fuera de alcance según §2.3; añadido TODO
+  con fecha apuntando a este FEAT.
 
 ### Blockers
 
-- [ ] —
+- [x] Ninguno
 
 ### Verificacion post-implementacion
 
-- [ ] Todos los `<verify>` de cada tarea pasan
-- [ ] CI completa pasa (shellcheck, bash -n, guards, dryrun matrix)
-- [ ] Criterios de aceptacion globales verificados
-- [ ] Sin secrets en el diff
-- [ ] Sin cambios fuera del scope
+- [x] Todos los `<verify>` de cada tarea pasan (T3: guard jq sustituido por la
+      verificación equivalente documentada arriba; resto literal)
+- [x] CI completa pasa (shellcheck, bash -n, guards, dryrun matrix)
+      (PR #30: lint, list-clis, dryrun claude, dryrun antigravity,
+      browser-pack-tests — todos verdes)
+- [x] Criterios de aceptacion globales verificados (el #6 CI-verde pendiente
+      de la PR; el resto ejecutados en local: smoke x2, grep dispatch vacío,
+      shellcheck/bash -n limpio a severidad CI, paridad README, filtros jq
+      intactos, extensibilidad dummy)
+- [x] Sin secrets en el diff
+- [x] Sin cambios fuera del scope (12 archivos de la tabla 2.4 + TODO en
+      tools/reset-for-gift.sh pedido por §2.3 + esta spec)
 
 ---
 

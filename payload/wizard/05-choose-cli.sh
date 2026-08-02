@@ -26,10 +26,14 @@ This is the CLI that will run in your tmux session after setup,
 and the one your coach (if you set it up later) will invoke headlessly.
 
 Both choices have OAuth logins that work from your phone:
-  - claude       needs a paid Claude subscription (Pro or above).
-  - antigravity  Google's Antigravity CLI (agy) — needs a Google account.
 EOF
+# Menu lines come from the registry, so a newly registered CLI shows up
+# here without touching this file.
+for _cli in "${BIB_SUPPORTED_AI_CLIS[@]}"; do
+    printf '  - %-13s%s\n' "$_cli" "$(ai_cli_choice_hint "$_cli")"
+done
+unset _cli
 
-prompt_choice "Pick one:" "claude" "antigravity" || die "05-choose-cli: aborted"
+prompt_choice "Pick one:" "${BIB_SUPPORTED_AI_CLIS[@]}" || die "05-choose-cli: aborted"
 ai_cli_persist "$BIB_PROMPT_VALUE"
 log "05-choose-cli: chose $BIB_PROMPT_VALUE"

@@ -10,6 +10,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/common.sh
 source "${SCRIPT_DIR}/../../lib/common.sh"
+# shellcheck source=../../lib/ai-cli.sh
+source "${SCRIPT_DIR}/../../lib/ai-cli.sh"
 # shellcheck source=./lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
@@ -34,13 +36,16 @@ fi
 operator_user="$(resolve_operator_user || true)"
 if [[ -n "$operator_user" ]]; then
     operator_home="$(getent passwd "$operator_user" | cut -d: -f6)"
-    for link in "${operator_home}/.claude/skills/browser" "${operator_home}/.gemini/skills/browser"; do
+    # Sweep the skill symlink from EVERY registered CLI's skills dirs (union,
+    # deduped) — uninstall must clean up no matter which CLI the box ran.
+    while IFS= read -r _skills_dir; do
+        link="${operator_home}/${_skills_dir}/browser"
         if [[ -e "$link" || -L "$link" ]]; then
             rm -f "$link"
             echo "browser pack uninstall: removed $link"
             found_anything=1
         fi
-    done
+    done < <(for c in "${BIB_SUPPORTED_AI_CLIS[@]}"; do ai_cli_skills_dirs "$c"; done | awk '!seen[$0]++')
     skill_src="${operator_home}/.agents/skills/browser"
     if [[ -e "$skill_src" ]]; then
         rm -rf -- "$skill_src"

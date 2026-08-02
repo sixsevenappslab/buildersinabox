@@ -23,6 +23,8 @@ BIB_INSTALL_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 export BIB_INSTALL_ROOT
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
+# shellcheck source=../lib/ai-cli.sh
+source "${SCRIPT_DIR}/../lib/ai-cli.sh"
 # shellcheck source=../lib/prompt.sh
 source "${SCRIPT_DIR}/../lib/prompt.sh"
 
@@ -126,18 +128,18 @@ rm -f "${BIB_STATE_DIR}/firstboot.pending"
 
 prompt_header "All set${BIB_NAME:+, ${BIB_NAME}}!"
 
-# The finale is CLI-specific: Claude users attach through the Claude Code
-# app (Remote Control); antigravity users attach over SSH + tmux, since agy
-# has no remote-control channel and no companion app.
+# The finale is capability-specific: CLIs with remote-control attach through
+# the Claude Code app; CLIs without it attach over SSH + tmux (no
+# remote-control channel, no companion app).
 _finale_ai_cli="$(state_get '.ai_cli')"
-: "${_finale_ai_cli:=claude}"
+: "${_finale_ai_cli:=${BIB_SUPPORTED_AI_CLIS[0]}}"
 
-if [[ "$_finale_ai_cli" == "antigravity" ]]; then
+if ! ai_cli_has_capability "$_finale_ai_cli" remote-control; then
     _finale_user="$(state_get '.bib_user')"
     : "${_finale_user:=$(bib_user_resolve 2>/dev/null || echo "$USER")}"
     _finale_host="$(hostname)"
     cat <<EOF
-Stack installed. Antigravity (agy) logged in. Workspace scaffolded. A
+Stack installed. $(ai_cli_display_name "$_finale_ai_cli") logged in. Workspace scaffolded. A
 tmux session called 'ai-platform' is already running agy with the
 /tutorial skill.
 

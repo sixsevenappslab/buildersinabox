@@ -62,6 +62,22 @@ jobs:
           fi
           echo "git archive is clean"
 
+  # FEAT-020: the dryrun matrix below is generated from the adapter registry
+  # (BIB_SUPPORTED_AI_CLIS in payload/lib/ai-cli.sh), so registering a new
+  # CLI automatically adds its wiring-smoke job — no workflow edit needed.
+  list-clis:
+    runs-on: ubuntu-latest
+    outputs:
+      clis: ${{ steps.emit.outputs.clis }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emit supported CLI list from the registry
+        id: emit
+        run: |
+          clis="$(bash -c 'source payload/lib/ai-cli.sh; printf "%s\n" "${BIB_SUPPORTED_AI_CLIS[@]}" | jq -R . | jq -cs .')"
+          echo "registry CLIs: $clis"
+          echo "clis=$clis" >> "$GITHUB_OUTPUT"
+
   # Per-CLI wiring canary (FEAT-013). Exercises the claude AND antigravity
   # dispatch surfaces so a change that breaks the non-Claude path turns red
   # instead of shipping silently (the failure mode the retired second-CLI path had).
@@ -73,11 +89,12 @@ jobs:
   # reboot — risk R1) is validated only by the manual multipass E2E pass in the
   # FEAT-013 QA plan (CP-02). This job asserts the wiring, not persistence.
   dryrun:
+    needs: list-clis
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        ai_cli: [claude, antigravity]
+        ai_cli: ${{ fromJSON(needs.list-clis.outputs.clis) }}
     steps:
       - uses: actions/checkout@v4
       - name: wiring smoke (${{ matrix.ai_cli }})

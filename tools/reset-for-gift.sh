@@ -12,6 +12,12 @@
 #   sudo /opt/buildersinabox/tools/reset-for-gift.sh
 #
 # After running, power off and you can deliver the device.
+#
+# TODO(2026-08-02, FEAT-020): this maintainer tool still hardcodes both CLIs'
+# config paths (~/.config/claude*, ~/.gemini, ~/.cache/antigravity) instead of
+# deriving them from payload/lib/ai-cli.sh. Deliberately left out of the
+# FEAT-020 registry migration (maintainer-only, outside the user payload) —
+# fold it in when a third CLI lands (Wave 3).
 
 set -euo pipefail
 

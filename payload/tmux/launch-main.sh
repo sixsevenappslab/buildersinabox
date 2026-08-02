@@ -18,6 +18,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
+# shellcheck source=../lib/ai-cli.sh
+source "${SCRIPT_DIR}/../lib/ai-cli.sh"
 
 SESSION_NAME="ai-platform"
 
@@ -33,16 +35,9 @@ target_user="${USER:-$(whoami)}"
 target_home="$HOME"
 [[ -d "$target_home/ai-platform" ]] || die "launch-main: ~/ai-platform/ does not exist for $target_user"
 
-# Build the launch command for each window.
-#
-# Claude has a first-class --remote-control <name> flag (verified in
-# `claude --help` 2026-05-28) that boots the TUI with Remote Control
-# already active. No send-keys / sleep hack required, and the named
-# session shows up in the Claude Code mobile/desktop app instantly.
-#
-# Antigravity (agy) has no remote-control equivalent, but its `-i <prompt>`
-# flag boots the TUI with an initial prompt — verified to fire /tutorial in
-# spike T1. AGY_CLI_DISABLE_AUTO_UPDATE keeps the pinned version put.
+# Build the launch command for each window. The per-CLI command comes from
+# the adapter registry (ai_cli_launch_cmd in lib/ai-cli.sh); this shim only
+# keeps the dryrun override, which is test dispatch, not CLI dispatch.
 #
 # Dryrun: BIB_TMUX_LAUNCH_CMD overrides everything (used by tests).
 launch_cmd_for() {
@@ -52,21 +47,7 @@ launch_cmd_for() {
         echo "$BIB_TMUX_LAUNCH_CMD"
         return
     fi
-    if [[ "$ai_cli" == "claude" ]]; then
-        if [[ -n "$initial_prompt" ]]; then
-            printf "claude --remote-control %q %q" "$window_name" "$initial_prompt"
-        else
-            printf "claude --remote-control %q" "$window_name"
-        fi
-    elif [[ "$ai_cli" == "antigravity" ]]; then
-        if [[ -n "$initial_prompt" ]]; then
-            printf "AGY_CLI_DISABLE_AUTO_UPDATE=1 agy -i %q" "$initial_prompt"
-        else
-            printf "AGY_CLI_DISABLE_AUTO_UPDATE=1 agy"
-        fi
-    else
-        echo "$ai_cli"
-    fi
+    ai_cli_launch_cmd "$ai_cli" "$window_name" "$initial_prompt"
 }
 
 # Apply the tmux config the first time.

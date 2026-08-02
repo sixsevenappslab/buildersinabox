@@ -57,17 +57,26 @@ install_optional_skill() {
         cp -r "$src" "$target"
         echo "Installed skill '$name' -> $target"
     fi
-    # Claude Code boxes: symlink into ~/.claude/skills.
-    local claude_link="$HOME/.claude/skills/$name"
-    if [[ ! -e "$claude_link" && ! -L "$claude_link" ]]; then
-        mkdir -p "$HOME/.claude/skills"
-        ln -s "$target" "$claude_link"
-    fi
-    # Antigravity boxes: symlink into ~/.gemini/skills (present only there).
-    if [[ -d "$HOME/.gemini/skills" ]]; then
-        local agy_link="$HOME/.gemini/skills/$name"
-        [[ -e "$agy_link" || -L "$agy_link" ]] || ln -s "$target" "$agy_link"
-    fi
+    # Per-CLI skills link dirs come from the adapter registry, sourced in a
+    # SUBSHELL on purpose: the registry sets `set -euo pipefail` and this
+    # wrapper doesn't (and must not inherit it). Default-CLI dirs are created
+    # if missing (the ~/.claude/skills semantics); any other registered CLI's
+    # dir is only linked when it already exists on this box (the
+    # ~/.gemini/skills semantics — present only on antigravity boxes).
+    local registry=/opt/buildersinabox/payload/lib/ai-cli.sh
+    local default_dirs all_dirs
+    default_dirs="$(bash -c "source '$registry'; ai_cli_skills_dirs \"\${BIB_SUPPORTED_AI_CLIS[0]}\"")"
+    all_dirs="$(bash -c "source '$registry'; for c in \"\${BIB_SUPPORTED_AI_CLIS[@]}\"; do ai_cli_skills_dirs \"\$c\"; done" | awk '!seen[$0]++')"
+    local d link
+    while IFS= read -r d; do
+        [[ -n "$d" ]] || continue
+        if grep -qxF "$d" <<<"$default_dirs"; then
+            mkdir -p "$HOME/$d"
+        fi
+        [[ -d "$HOME/$d" ]] || continue
+        link="$HOME/$d/$name"
+        [[ -e "$link" || -L "$link" ]] || ln -s "$target" "$link"
+    done <<<"$all_dirs"
     echo "Type / in your AI CLI and look for /$name."
 }
 

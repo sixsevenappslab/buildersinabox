@@ -14,6 +14,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PAYLOAD_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 # shellcheck source=../lib/common.sh
 source "${SCRIPT_DIR}/../lib/common.sh"
+# shellcheck source=../lib/ai-cli.sh
+source "${SCRIPT_DIR}/../lib/ai-cli.sh"
 # shellcheck source=../lib/prompt.sh
 source "${SCRIPT_DIR}/../lib/prompt.sh"
 
@@ -94,17 +96,16 @@ fi
 # ---------------------------------------------------------------------------
 skills_src="${PAYLOAD_DIR}/skills"
 agents_skills_dir="${target_home}/.agents/skills"
-claude_skills_dir="${target_home}/.claude/skills"
-# agy reads globally-registered skills from ~/.gemini/skills/ (its "Shared"
-# dir). Only wire it up for antigravity boxes so Claude-only boxes don't grow
-# an empty ~/.gemini/ tree.
+# Each CLI's native global skills dirs come from the registry (e.g. agy reads
+# ~/.gemini/skills, its "Shared" dir) — only the chosen CLI's dirs are
+# created, so Claude-only boxes don't grow an empty ~/.gemini/ tree.
 scaffold_ai_cli="$(state_get '.ai_cli')"
-agy_skills_dir="${target_home}/.gemini/skills"
+: "${scaffold_ai_cli:=${BIB_SUPPORTED_AI_CLIS[0]}}"
 
-mkdir -p "$agents_skills_dir" "$claude_skills_dir"
-if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
-    mkdir -p "$agy_skills_dir"
-fi
+mkdir -p "$agents_skills_dir"
+while IFS= read -r _skills_dir; do
+    mkdir -p "${target_home}/${_skills_dir}"
+done < <(ai_cli_skills_dirs "$scaffold_ai_cli")
 
 # install_skill <skill-name> — copy one skill into ~/.agents/skills (the
 # source of truth) and symlink it into each CLI's native global skills dir.
@@ -120,18 +121,14 @@ install_skill() {
         cp -r "$skill_dir" "$target_dir"
         log "40-scaffold: installed skill ${skill_name} → $target_dir"
     fi
-    local claude_link="${claude_skills_dir}/${skill_name}"
-    if [[ ! -e "$claude_link" && ! -L "$claude_link" ]]; then
-        ln -s "$target_dir" "$claude_link"
-        log "40-scaffold: symlinked $claude_link -> $target_dir"
-    fi
-    if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
-        local agy_link="${agy_skills_dir}/${skill_name}"
-        if [[ ! -e "$agy_link" && ! -L "$agy_link" ]]; then
-            ln -s "$target_dir" "$agy_link"
-            log "40-scaffold: symlinked $agy_link -> $target_dir"
+    local link_dir skill_link
+    while IFS= read -r link_dir; do
+        skill_link="${target_home}/${link_dir}/${skill_name}"
+        if [[ ! -e "$skill_link" && ! -L "$skill_link" ]]; then
+            ln -s "$target_dir" "$skill_link"
+            log "40-scaffold: symlinked $skill_link -> $target_dir"
         fi
-    fi
+    done < <(ai_cli_skills_dirs "$scaffold_ai_cli")
 }
 
 manifest="${skills_src}/manifest.tsv"
@@ -159,33 +156,11 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# Pre-seed agy settings so the first /tutorial launch is zero-touch.
+# Pre-seed the chosen CLI's own settings so the first /tutorial launch is
+# zero-touch. The per-CLI logic (agy settings merge; no-op for Claude) lives
+# in the adapter registry — see ai_cli_seed_settings in lib/ai-cli.sh.
 # ---------------------------------------------------------------------------
-# Without this, agy's first run prompts for file-access (the skills live
-# outside the workspace, reached via symlink) and shows a telemetry consent.
-# allowNonWorkspaceAccess skips the file-access prompt; enableTelemetry:false
-# keeps the box quiet (privacy-first); trustedWorkspaces trusts the workspace
-# root up front. (Spike T1.)
-#
-# The login step (38) already runs agy's onboarding, which writes this file
-# first — so we MERGE our keys into whatever exists rather than skip, keeping
-# agy's own keys intact. Skipping here left the box asking for trust on first
-# launch (E2E CP-05), which breaks the zero-touch promise.
-if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
-    agy_conf_dir="${target_home}/.gemini/antigravity-cli"
-    agy_settings="${agy_conf_dir}/settings.json"
-    mkdir -p "$agy_conf_dir"
-    ours="$(jq -n --arg ws "$ws_root" \
-        '{allowNonWorkspaceAccess: true, enableTelemetry: false, trustedWorkspaces: [$ws]}')"
-    if [[ -f "$agy_settings" ]] && jq -e . "$agy_settings" >/dev/null 2>&1; then
-        # Existing valid JSON: our keys win, agy's other keys survive.
-        merged="$(jq --argjson ours "$ours" '. * $ours' "$agy_settings")"
-    else
-        merged="$ours"
-    fi
-    printf '%s\n' "$merged" > "$agy_settings"
-    log "40-scaffold: merged agy settings at $agy_settings"
-fi
+ai_cli_seed_settings "$scaffold_ai_cli" "$target_home" "$ws_root"
 
 # ---------------------------------------------------------------------------
 # Seed Claude Code hooks: guardrail + format + lint + session log.
@@ -196,8 +171,8 @@ fi
 install_hooks() {
     local hooks_src="${PAYLOAD_DIR}/hooks"
     [[ -d "$hooks_src" ]] || { warn "40-scaffold: payload/hooks/ missing, skipping hooks"; return 0; }
-    if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
-        log "40-scaffold: antigravity box — Claude-format hooks not applicable, skipping (see FEAT-015 §2.5)"
+    if ! ai_cli_has_capability "$scaffold_ai_cli" hooks; then
+        log "40-scaffold: ${scaffold_ai_cli} box — Claude-format hooks not applicable, skipping (see FEAT-015 §2.5)"
         return 0
     fi
     chmod +x "$hooks_src"/*.sh 2>/dev/null || true   # git preserves +x, belt-and-braces
@@ -246,9 +221,10 @@ install_hooks() {
 
     # Statusline (FEAT-018): only install ours when the user has none of their
     # own — never overwrite a configured statusLine. Additive merge like the
-    # hooks above. Claude-only (this function already returned for antigravity).
+    # hooks above. Gated on the statusline capability (CLIs without it no-op).
     local sl_script="${PAYLOAD_DIR}/statusline/biab-statusline.py"
-    if [[ -f "$sl_script" ]] && ! jq -e '.statusLine' "$settings" >/dev/null 2>&1; then
+    if ai_cli_has_capability "$scaffold_ai_cli" statusline \
+            && [[ -f "$sl_script" ]] && ! jq -e '.statusLine' "$settings" >/dev/null 2>&1; then
         chmod +x "$sl_script" 2>/dev/null || true
         local sl
         sl="$(jq -n --arg c "python3 ${sl_script}" \
@@ -305,19 +281,12 @@ fi
 readme_src="${PAYLOAD_DIR}/tutorial/desktop-readme.md"
 readme_target="${target_home}/README.md"
 if [[ -f "$readme_src" && ! -f "$readme_target" ]]; then
-    ai_cli="$(state_get '.ai_cli')"
-    : "${ai_cli:=claude}"
+    ai_cli="$scaffold_ai_cli"
     # The desktop README carries CLI-specific sections wrapped in
-    # <!-- BIB:claude:start -->..<!-- BIB:end --> and
-    # <!-- BIB:antigravity:start -->..<!-- BIB:end --> markers. Keep the
-    # blocks for the chosen CLI plus all unmarked lines; drop the other
-    # CLI's blocks and every marker line.
-    awk -v cli="$ai_cli" '
-        /<!-- BIB:claude:start -->/      { inblock=1; keep=(cli=="claude");      next }
-        /<!-- BIB:antigravity:start -->/ { inblock=1; keep=(cli=="antigravity"); next }
-        /<!-- BIB:end -->/               { inblock=0; keep=1;                     next }
-        { if (!inblock || keep) print }
-    ' "$readme_src" \
+    # <!-- BIB:<cli>:start -->..<!-- BIB:end --> markers; the registry's
+    # renderer keeps the chosen CLI's blocks plus all unmarked lines and
+    # drops every other CLI's blocks and every marker line.
+    ai_cli_render_readme "$ai_cli" "$readme_src" \
     | sed -e "s|{{TARGET_USER}}|${target_user}|g" \
           -e "s|{{HOSTNAME}}|$(hostname)|g" \
         > "$readme_target"
@@ -330,11 +299,12 @@ fi
 chown -R "$target_user:$target_user" \
     "$ws_root" \
     "${target_home}/.agents" \
-    "${target_home}/.claude" \
     "${target_home}/.bashrc.d" 2>/dev/null || true
-if [[ "$scaffold_ai_cli" == "antigravity" ]]; then
-    chown -R "$target_user:$target_user" "${target_home}/.gemini" 2>/dev/null || true
-fi
+# Chown each top-level dotdir the chosen CLI's skills dirs live under
+# (e.g. ~/.claude always; ~/.gemini only on antigravity boxes).
+while IFS= read -r _skills_dir; do
+    chown -R "$target_user:$target_user" "${target_home}/${_skills_dir%%/*}" 2>/dev/null || true
+done < <(ai_cli_skills_dirs "$scaffold_ai_cli")
 chown "$target_user:$target_user" "$readme_target" "$bashrc" 2>/dev/null || true
 
 # project_name remains unset in state.json — /first-project sets it

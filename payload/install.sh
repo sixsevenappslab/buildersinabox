@@ -378,14 +378,18 @@ if [[ "$NON_INTERACTIVE" -eq 0 && -z "$AI_CLI_ARG" && -z "${BIB_AI_CLI:-}" \
     cat <<'EOF'
 Pick the AI coding CLI this box will run in its tmux session.
 Both have OAuth logins that work from your phone:
-  - claude       needs a paid Claude subscription (Pro or above).
-  - antigravity  Google's Antigravity CLI (agy) — needs a Google account.
 EOF
-    if prompt_choice "Which one?" "claude" "antigravity"; then
+    # Menu lines come from the registry, so a newly registered CLI shows up
+    # here without touching this file.
+    for _cli in "${BIB_SUPPORTED_AI_CLIS[@]}"; do
+        printf '  - %-13s%s\n' "$_cli" "$(ai_cli_choice_hint "$_cli")"
+    done
+    unset _cli
+    if prompt_choice "Which one?" "${BIB_SUPPORTED_AI_CLIS[@]}"; then
         AI_CLI_ARG="$BIB_PROMPT_VALUE"
     else
-        warn "install: no interactive input available — defaulting to claude (use --ai-cli=antigravity to override)"
-        AI_CLI_ARG="claude"
+        warn "install: no interactive input available — defaulting to ${BIB_SUPPORTED_AI_CLIS[0]} (use --ai-cli=antigravity to override)"
+        AI_CLI_ARG="${BIB_SUPPORTED_AI_CLIS[0]}"
     fi
 fi
 CHOSEN_CLI="$(ai_cli_resolve "$AI_CLI_ARG")"

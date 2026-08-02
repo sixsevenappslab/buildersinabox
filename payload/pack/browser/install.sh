@@ -28,6 +28,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=../../lib/common.sh
 source "${SCRIPT_DIR}/../../lib/common.sh"
+# shellcheck source=../../lib/ai-cli.sh
+source "${SCRIPT_DIR}/../../lib/ai-cli.sh"
 # shellcheck source=./lib.sh
 source "${SCRIPT_DIR}/lib.sh"
 
@@ -204,10 +206,13 @@ operator_user="$(resolve_operator_user || true)"
 if [[ -n "$operator_user" ]]; then
     operator_home="$(getent passwd "$operator_user" | cut -d: -f6)"
     agents_skills_dir="${operator_home}/.agents/skills"
-    claude_skills_dir="${operator_home}/.claude/skills"
+    # The box's CLI decides which skills dirs get the symlink (registry).
+    # No persisted choice yet (pack added before the wizard ran) — fall back
+    # to the default CLI's dirs, like the rest of the payload does.
     ai_cli="$(state_get '.ai_cli' 2>/dev/null || true)"
+    : "${ai_cli:=${BIB_SUPPORTED_AI_CLIS[0]}}"
 
-    mkdir -p "$agents_skills_dir" "$claude_skills_dir"
+    mkdir -p "$agents_skills_dir"
     skill_target="${agents_skills_dir}/browser"
     if [[ -e "$skill_target" || -L "$skill_target" ]]; then
         log "browser pack: skill already present at $skill_target, skipping"
@@ -215,21 +220,17 @@ if [[ -n "$operator_user" ]]; then
         cp -r "${SCRIPT_DIR}/skill/browser" "$skill_target"
         log "browser pack: installed skill -> $skill_target"
     fi
-    claude_link="${claude_skills_dir}/browser"
-    if [[ ! -e "$claude_link" && ! -L "$claude_link" ]]; then
-        ln -s "$skill_target" "$claude_link"
-        log "browser pack: symlinked $claude_link -> $skill_target"
-    fi
-    if [[ "$ai_cli" == "antigravity" ]]; then
-        agy_skills_dir="${operator_home}/.gemini/skills"
-        mkdir -p "$agy_skills_dir"
-        agy_link="${agy_skills_dir}/browser"
-        if [[ ! -e "$agy_link" && ! -L "$agy_link" ]]; then
-            ln -s "$skill_target" "$agy_link"
-            log "browser pack: symlinked $agy_link -> $skill_target"
+    mapfile -t skill_link_dirs < <(ai_cli_skills_dirs "$ai_cli")
+    for skills_dir in "${skill_link_dirs[@]}"; do
+        mkdir -p "${operator_home}/${skills_dir}"
+        skill_link="${operator_home}/${skills_dir}/browser"
+        if [[ ! -e "$skill_link" && ! -L "$skill_link" ]]; then
+            ln -s "$skill_target" "$skill_link"
+            log "browser pack: symlinked $skill_link -> $skill_target"
         fi
-    fi
-    chown -R "${operator_user}:${operator_user}" "$agents_skills_dir" "$claude_skills_dir" 2>/dev/null || true
+    done
+    chown -R "${operator_user}:${operator_user}" "$agents_skills_dir" \
+        "${skill_link_dirs[@]/#/${operator_home}/}" 2>/dev/null || true
 else
     warn "browser pack: could not resolve the operator account, skipping skill install (run 'biab pack add browser' again after the base wizard has run)"
 fi
