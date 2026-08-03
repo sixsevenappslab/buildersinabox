@@ -48,7 +48,7 @@ If they pick option 1 or 2, the folder name is fixed (`personal-coach` or `finan
 
 You're going to:
 1. Create the project folder under `~/ai-platform/projects/<name>/`.
-2. Drop in seed `CLAUDE.md` / `AGENTS.md` (from `/opt/buildersinabox/payload/templates/PROJECT-CLAUDE.md`). `CLAUDE.md` is Claude Code's context file; `AGENTS.md` is the open standard that Antigravity (agy) reads.
+2. Drop in seed `CLAUDE.md` / `AGENTS.md` (from `/opt/buildersinabox/payload/templates/PROJECT-CLAUDE.md`). `CLAUDE.md` is Claude Code's context file; `AGENTS.md` is the open standard that both Antigravity (`agy`) and Codex read.
 3. Copy the chosen bundled spec into `specs/draft/` if option 1 or 2.
 4. Persist the name into state.json.
 5. Patch `~/README.md` so the `{{PROJECT_NAME}}` placeholder gets replaced with the real name.
@@ -95,6 +95,18 @@ else
     tmux send-keys -t "$PROJECT" "claude --remote-control $PROJECT" Enter
 fi
 ```
+
+The `claude --remote-control` line above is for a Claude Code box. On an
+`agy` or codex box there is no Remote Control — start the box's own CLI
+instead (no companion app; the session is reached over SSH + tmux):
+
+```bash
+# agy box:    tmux send-keys -t "$PROJECT" "AGY_CLI_DISABLE_AUTO_UPDATE=1 agy" Enter
+# codex box:  tmux send-keys -t "$PROJECT" "codex" Enter
+```
+
+Pick the line matching this box's CLI
+(`jq -r '.ai_cli // "claude"' /var/lib/buildersinabox/state.json`).
 
 Confirm with the user: "Done. There's a new tmux session called `<name>` in the Claude Code app sidebar — if it doesn't appear right away, swipe down to refresh the session list (the app polls every few seconds, swipe forces it)." Wait for them to spot it before continuing.
 

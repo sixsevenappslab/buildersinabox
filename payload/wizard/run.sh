@@ -140,7 +140,7 @@ if ! ai_cli_has_capability "$_finale_ai_cli" remote-control; then
     _finale_host="$(hostname)"
     cat <<EOF
 Stack installed. $(ai_cli_display_name "$_finale_ai_cli") logged in. Workspace scaffolded. A
-tmux session called 'ai-platform' is already running agy with the
+tmux session called 'ai-platform' is already running $(ai_cli_command "$_finale_ai_cli") with the
 /tutorial skill.
 
 ONE MORE STEP — attach to it from your phone (or laptop).
@@ -169,7 +169,7 @@ EOF
 
            tmux attach -t ai-platform
 
-  agy is already there with /tutorial running — it greets you and walks
+  $(ai_cli_command "$_finale_ai_cli") is already there with /tutorial running — it greets you and walks
   you through GitHub, your first project, and the SDD skills. ~12 minutes,
   conversational, skippable.
 

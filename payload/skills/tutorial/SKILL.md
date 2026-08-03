@@ -15,6 +15,23 @@ This skill is designed to run in the `ai-platform` tmux session (cwd `~/ai-platf
 
 Then continue normally.
 
+## Which AI CLI is this box running?
+
+This box runs one of three CLIs. Read it once at the start
+(`jq -r '.ai_cli // "claude"' /var/lib/buildersinabox/state.json`) and adapt:
+
+- **claude** — reached through the Claude Code companion app over Remote
+  Control; skills are invoked with `/name`; context file is `CLAUDE.md`.
+- **antigravity (`agy`)** — no companion app; reached over SSH + tmux; skills
+  `/name`; context file `AGENTS.md`.
+- **codex** — no companion app; reached over SSH + tmux (same as `agy`); skills
+  are invoked with `$name` (not `/name`); context file is `AGENTS.md`. When you
+  mention a skill to a Codex user, write it `$tutorial`, `$first-project`, etc.
+
+Beat 1's copy below is written for the Claude/Remote-Control case — on `agy`
+and codex boxes, say "over SSH + tmux" instead of "over Remote Control", and
+skip any Claude-app phrasing.
+
 ## State tracker
 
 You keep your own state file at `~/.config/biab-tutorial/state.json`. Create the directory if needed (no sudo — it's the user's own config).

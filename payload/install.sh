@@ -377,7 +377,7 @@ if [[ "$NON_INTERACTIVE" -eq 0 && -z "$AI_CLI_ARG" && -z "${BIB_AI_CLI:-}" \
     printf '\n'
     cat <<'EOF'
 Pick the AI coding CLI this box will run in its tmux session.
-Both have OAuth logins that work from your phone:
+All have OAuth logins that work from your phone:
 EOF
     # Menu lines come from the registry, so a newly registered CLI shows up
     # here without touching this file.

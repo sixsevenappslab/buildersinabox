@@ -15,6 +15,13 @@ work by attaching to a persistent **tmux** session. The AI sessions are
 already running on this device and survive disconnects — you attach,
 you're back exactly where you left off.
 <!-- BIB:end -->
+<!-- BIB:codex:start -->
+You made it. The device is configured. From now on you reach it from
+your phone (or laptop) over **SSH through Tailscale**, and pick up your
+work by attaching to a persistent **tmux** session. The AI sessions are
+already running on this device and survive disconnects — you attach,
+you're back exactly where you left off.
+<!-- BIB:end -->
 
 ## Start here
 
@@ -30,6 +37,14 @@ SSH into the box and attach the `ai-platform` session:
 
 Antigravity (`agy`) greets you on its own — the `/tutorial` skill runs
 automatically the first time.
+<!-- BIB:end -->
+<!-- BIB:codex:start -->
+SSH into the box and attach the `ai-platform` session:
+
+    tmux attach -t ai-platform
+
+Codex greets you on its own — the tutorial onboarding runs automatically
+the first time. (In Codex you invoke skills as `$tutorial`, not `/tutorial`.)
 <!-- BIB:end -->
 
 The tutorial is the guided onboarding: 8 short beats, ~10 minutes,
@@ -100,6 +115,33 @@ care where you are; it keeps running on the box.
 Detach any time with `Ctrl-b d` — the session and `agy` keep running,
 ready for you to re-attach later.
 <!-- BIB:end -->
+<!-- BIB:codex:start -->
+The simple, default way is SSH over your private Tailscale network:
+
+1. Install **Termius** (or any SSH client) on your phone — on a laptop
+   the built-in terminal is enough.
+2. Make sure **Tailscale** is connected on that device, signed in with
+   the same account you used during setup. Your box shows up on your
+   tailnet under the name from `tailscale status`.
+3. Connect with Tailscale SSH (no key paste needed):
+
+       ssh {{TARGET_USER}}@{{HOSTNAME}}
+
+4. Attach your session:
+
+       tmux attach -t ai-platform
+
+You're inside, exactly where you left off. As you create projects via
+`/first-project`, each one gets its own tmux session — attach any of
+them by name with `tmux attach -t <name>` (or the `tmuxc` helper below).
+
+**Works the same from your laptop** — same tailnet, same `ssh` + `tmux
+attach`, just a bigger screen and a real keyboard. The session doesn't
+care where you are; it keeps running on the box.
+
+Detach any time with `Ctrl-b d` — the session and `codex` keep running,
+ready for you to re-attach later.
+<!-- BIB:end -->
 
 ## What's running right now
 
@@ -118,6 +160,15 @@ A persistent tmux session called `ai-platform`, cwd `~/ai-platform/`,
 running Antigravity (`agy`) with the `/tutorial` skill. As you create
 projects, each one gets its own tmux session — same shape, different
 folder, attach by name.
+
+If the session ever disappears (after a reboot without autostart, for
+example), just rerun `/opt/buildersinabox/payload/tmux/launch-main.sh`.
+<!-- BIB:end -->
+<!-- BIB:codex:start -->
+A persistent tmux session called `ai-platform`, cwd `~/ai-platform/`,
+running Codex with the tutorial onboarding. As you create projects, each
+one gets its own tmux session — same shape, different folder, attach by
+name.
 
 If the session ever disappears (after a reboot without autostart, for
 example), just rerun `/opt/buildersinabox/payload/tmux/launch-main.sh`.
@@ -267,6 +318,17 @@ you can pair with someone: they SSH into the box as you (or as another
 user you've added), run `tmux attach -t ai-platform`, and you both see —
 and drive — the same screen. Detach with `Ctrl-b d` when you're done.
 Builders in a Box does not ship a hosted "share a link" service.
+<!-- BIB:end -->
+<!-- BIB:codex:start -->
+## Sharing a session live
+
+tmux lets more than one client attach to the same session at once, so
+you can pair with someone: they SSH into the box as you (or as another
+user you've added), run `tmux attach -t ai-platform`, and you both see —
+and drive — the same screen. Detach with `Ctrl-b d` when you're done.
+Builders in a Box does not ship a hosted "share a link" service.
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
 
 ## If SSH ever fails
 
@@ -279,6 +341,44 @@ Your primary path IS SSH over Tailscale, so keep these handy:
 - If `agy` says you're signed out, SSH in and run `agy` once
   interactively to redo the Google OAuth (choose "Google OAuth", paste
   the authorization code).
+
+**Locked out after SSH was bound to Tailscale (VPS)?** Once Tailscale is up,
+sshd is restricted to your private Tailscale address only. If the tailnet
+isn't routing and you can't get back in, any one of these restores access
+without reinstalling:
+
+1. From your VPS provider's web/serial console, reopen the public listener:
+
+       sudo rm -f /etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf \
+                  /etc/systemd/system/ssh.service.d/10-buildersinabox-tailscale-wait.conf
+       sudo systemctl daemon-reload && sudo systemctl reload ssh
+
+2. Once you can reach the box over the tailnet again, re-apply the bind:
+
+       sudo BIB_SSH_FORCE_TAILSCALE=1 \
+           /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+
+   (`BIB_SSH_FORCE_TAILSCALE=1` binds without re-checking tailnet routing —
+   use it only with alternative access confirmed. sshd is reloaded, not
+   restarted, so an active session survives.)
+
+3. On a mini PC, plug in a keyboard + monitor and make the same edit as (1).
+<!-- BIB:end -->
+<!-- BIB:codex:start -->
+
+## If SSH ever fails
+
+Your primary path IS SSH over Tailscale, so keep these handy:
+
+- Check the box is on your tailnet: run `tailscale status` from another
+  device. If the box is offline there, power-cycle it.
+- Your GitHub SSH keys are in `~/.ssh/authorized_keys`, so a raw
+  `ssh <username>@<tailscale-ip>` works even if Tailscale SSH is off.
+- If `codex` says you're signed out, SSH in and run `codex login
+  --device-auth` (make sure "device code login" is enabled in ChatGPT →
+  Settings → Security first), or forward the login port and log in
+  normally: `ssh -L 1455:localhost:1455 <username>@<tailscale-ip>` then
+  `codex login`.
 
 **Locked out after SSH was bound to Tailscale (VPS)?** Once Tailscale is up,
 sshd is restricted to your private Tailscale address only. If the tailnet
@@ -321,7 +421,12 @@ without reinstalling:
     └── README.md
 
 ~/.agents/skills/                <- bundled skills (and any you add)
+<!-- BIB:claude:start -->
 ~/.claude/skills/                <- same skills, symlinked from above
+<!-- BIB:end -->
+<!-- BIB:antigravity:start -->
+~/.claude/skills/                <- same skills, symlinked from above
+<!-- BIB:end -->
 ~/.bashrc.d/                     <- shell helpers like tmuxc
 /var/lib/buildersinabox/         <- setup state (don't touch unless asked)
 /var/log/buildersinabox/         <- bootstrap + wizard logs
@@ -381,6 +486,24 @@ interactively to redo it:
     ssh {{TARGET_USER}}@{{HOSTNAME}}
     agy        # choose "Google OAuth", paste the code
 <!-- BIB:end -->
+<!-- BIB:codex:start -->
+## The Codex login uses a device code — what to do
+
+Codex signs in with your ChatGPT account using a device code. First,
+from any browser, turn ON "device code login" in ChatGPT → Settings →
+Security (without it the code login is refused). Then, in an SSH session,
+run the login — the URL + short code appear in a real terminal where you
+can long-press to copy (phone) or click-and-drag (laptop):
+
+    ssh {{TARGET_USER}}@{{HOSTNAME}}
+    codex login --device-auth   # open the URL, enter the code, approve
+
+If the code login won't work at all, forward Codex's local login port and
+log in the normal way instead:
+
+    ssh -L 1455:localhost:1455 {{TARGET_USER}}@{{HOSTNAME}}
+    codex login
+<!-- BIB:end -->
 
 ## When something feels off
 
@@ -402,6 +525,19 @@ interactively to redo it:
   `ai-platform` session.
 - **`agy` says "please sign in" or refuses to start:** run `agy` once
   interactively over SSH and redo the Google OAuth.
+- **Can't reach the device at all:** check `tailscale status` from
+  another device on your tailnet. If the mini PC is offline there,
+  power-cycle it.
+- **Wizard didn't finish and you want to restart it:** as root, run
+  `touch /var/lib/buildersinabox/firstboot.pending` and reboot.
+<!-- BIB:end -->
+<!-- BIB:codex:start -->
+- **`tmux attach` says no such session:** rerun the launcher —
+  `/opt/buildersinabox/payload/tmux/launch-main.sh` — to recreate the
+  `ai-platform` session.
+- **`codex` says "please sign in" or refuses to start:** run `codex login
+  --device-auth` over SSH (enable "device code login" in ChatGPT →
+  Settings → Security first), or forward the port and run `codex login`.
 - **Can't reach the device at all:** check `tailscale status` from
   another device on your tailnet. If the mini PC is offline there,
   power-cycle it.

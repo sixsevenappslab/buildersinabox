@@ -69,7 +69,11 @@ Direct them at the bundled spec:
 
 ### 6. Where to get help
 
+On a **Claude Code** box:
+
 > *If you ever feel stuck, type `/remote-control` in any of these tmux windows. It generates a link you can share — the other person sees your screen live and can take over. Useful for pair programming or when something's broken and "let me show you" beats explaining.*
+
+On an **`agy`** or **codex** box there's no Remote Control link — pairing is plain tmux: a second person SSHes into the box and runs `tmux attach -t <name>`, and you both drive the same screen. (Read the box's CLI with `jq -r '.ai_cli // "claude"' /var/lib/buildersinabox/state.json`; on codex, invoke every skill named here as `$name` rather than `/name`.)
 
 End there. Don't list every skill in the bundle — they can `/help` or just type `/` to discover.
 

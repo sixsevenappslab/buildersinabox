@@ -25,7 +25,7 @@ cat <<'EOF'
 This is the CLI that will run in your tmux session after setup,
 and the one your coach (if you set it up later) will invoke headlessly.
 
-Both choices have OAuth logins that work from your phone:
+All choices have OAuth logins that work from your phone:
 EOF
 # Menu lines come from the registry, so a newly registered CLI shows up
 # here without touching this file.

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Hermetic per-CLI wiring smoke test. Exercises the CLI-dispatch surface for
-# one value of BIB_AI_CLI (claude | antigravity) WITHOUT needing root, a real
+# one value of BIB_AI_CLI (claude | antigravity | codex) WITHOUT needing root, a real
 # box, systemd, Tailscale, or network access — so it runs on a plain CI runner.
 #
 # What it validates (the "wiring", per FEAT-013 acceptance criterion #4):
@@ -19,7 +19,7 @@
 
 set -euo pipefail
 
-CLI="${BIB_AI_CLI:?BIB_AI_CLI must be set (claude|antigravity)}"
+CLI="${BIB_AI_CLI:?BIB_AI_CLI must be set (claude|antigravity|codex)}"
 PAYLOAD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 fail() { echo "wiring-smoke[$CLI]: FAIL: $*" >&2; exit 1; }
@@ -130,14 +130,15 @@ ok "registry completeness (${BIB_SUPPORTED_AI_CLIS[*]})"
 
 # An UNREGISTERED identifier must fail cleanly through ai_cli_validate on
 # every getter — never a bash "command not found" from composing a missing
-# function name (FEAT-020 EC-01).
+# function name (FEAT-020 EC-01). (`codex` used to be the stand-in here; it
+# became a real CLI in FEAT-021, so use a name that can never be registered.)
 for bad_getter in ai_cli_display_name ai_cli_skills_dirs ai_cli_install_script; do
-    if ( "$bad_getter" codex ) >/dev/null 2>&1; then
-        fail "$bad_getter accepted the unregistered 'codex' identifier"
+    if ( "$bad_getter" nosuchcli ) >/dev/null 2>&1; then
+        fail "$bad_getter accepted the unregistered 'nosuchcli' identifier"
     fi
 done
-( ai_cli_launch_cmd codex w '/tutorial' ) >/dev/null 2>&1 \
-    && fail "ai_cli_launch_cmd accepted the unregistered 'codex' identifier"
+( ai_cli_launch_cmd nosuchcli w '/tutorial' ) >/dev/null 2>&1 \
+    && fail "ai_cli_launch_cmd accepted the unregistered 'nosuchcli' identifier"
 ok "unregistered CLI identifiers fail cleanly"
 
 # The registry must be sourceable COLD — no lib/common.sh, no state dir, no

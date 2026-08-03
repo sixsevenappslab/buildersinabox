@@ -15,10 +15,12 @@
 
 set -euo pipefail
 
-# Valid CLI identifiers. Codex is deferred to v1.x (no OAuth device flow yet).
-# The second slot used to be Google's consumer CLI, retired on 2026-06-18 and
-# replaced by its successor, the Antigravity CLI (`agy`).
-BIB_SUPPORTED_AI_CLIS=("claude" "antigravity")
+# Valid CLI identifiers. The second slot used to be Google's consumer CLI,
+# retired on 2026-06-18 and replaced by its successor, the Antigravity CLI
+# (`agy`). Codex (OpenAI, ChatGPT ecosystem) was added in FEAT-021 once its
+# headless `codex login --device-auth` flow refuted the old "no OAuth device
+# flow" blocker.
+BIB_SUPPORTED_AI_CLIS=("claude" "antigravity" "codex")
 
 # The registry's pure getters must work without lib/common.sh (the `biab`
 # wrapper sources this file alone, in a subshell). Provide a minimal `die`
@@ -36,6 +38,9 @@ _ai_cli_props__claude() {
     AI_CLI_DISPLAY_NAME="Claude Code"
     # shellcheck disable=SC2034
     AI_CLI_CHOICE_HINT="needs a paid Claude subscription (Pro or above)."
+    # The executable name used to invoke the CLI (finale copy, docs).
+    # shellcheck disable=SC2034
+    AI_CLI_COMMAND="claude"
     # shellcheck disable=SC2034
     AI_CLI_INSTALL_SCRIPT="install/40-claude-code.sh"
     # $HOME-relative dirs where installed skills get symlinked (source of
@@ -117,6 +122,9 @@ _ai_cli_props__antigravity() {
     AI_CLI_DISPLAY_NAME="Antigravity (agy)"
     # shellcheck disable=SC2034
     AI_CLI_CHOICE_HINT="Google's Antigravity CLI (agy) — needs a Google account."
+    # The executable name used to invoke the CLI (finale copy, docs).
+    # shellcheck disable=SC2034
+    AI_CLI_COMMAND="agy"
     # shellcheck disable=SC2034
     AI_CLI_INSTALL_SCRIPT="install/41-antigravity-cli.sh"
     # Antigravity boxes symlink skills in BOTH ~/.claude/skills AND
@@ -227,6 +235,96 @@ _ai_cli_seed_settings__antigravity() {
 }
 
 # ---------------------------------------------------------------------------
+# Adapter: codex (OpenAI Codex CLI, `codex`)
+# ---------------------------------------------------------------------------
+
+_ai_cli_props__codex() {
+    # shellcheck disable=SC2034  # read via indirection in _ai_cli_prop
+    AI_CLI_DISPLAY_NAME="Codex CLI"
+    # shellcheck disable=SC2034
+    AI_CLI_CHOICE_HINT="OpenAI Codex — sign in with your ChatGPT account."
+    # The executable name used to invoke the CLI (finale copy, docs).
+    # shellcheck disable=SC2034
+    AI_CLI_COMMAND="codex"
+    # shellcheck disable=SC2034
+    AI_CLI_INSTALL_SCRIPT="install/42-codex-cli.sh"
+    # Codex reads globally-registered skills from ~/.agents/skills/ NATIVELY
+    # (its standard cross-tool path) — the very directory Builders in a Box
+    # already uses as its single source of truth. So there is nothing to
+    # symlink: the source dir IS codex's native dir. Declaring ".agents/skills"
+    # here makes install_skill's guard `[[ -e || -L ]]` skip a self-referential
+    # link, keeping every skills consumer a no-op for codex (parity, one loop).
+    # shellcheck disable=SC2034
+    AI_CLI_SKILLS_DIRS=".agents/skills"
+    # codex has no Claude-format hooks, no statusline, and no remote-control
+    # companion app (consumers no-op explicitly, never fail).
+    # shellcheck disable=SC2034
+    AI_CLI_CAPABILITIES=""
+}
+
+# Codex has no remote-control flag; it boots straight into its TUI and, when
+# given a positional argument, treats it as the initial prompt. We pass the
+# prompt as a %q-escaped positional arg (never a slash command — codex invokes
+# skills as `$name`, so the tmux launcher should hand it natural language).
+_ai_cli_launch_cmd__codex() {
+    local window_name="$1"
+    local initial_prompt="${2:-}"
+    if [[ -n "$initial_prompt" ]]; then
+        printf 'codex %q' "$initial_prompt"
+    else
+        printf 'codex'
+    fi
+}
+
+# Non-interactive auth check. A successful `codex login --device-auth` writes a
+# token to ~/.codex/auth.json (with auto-refresh). Testing that the file exists
+# and is non-empty verifies auth without spending quota or triggering OAuth.
+_ai_cli_login_verify_cmd__codex() {
+    local target_user="$1"
+    printf '%s' "su - $target_user -c 'test -s ~/.codex/auth.json'"
+}
+
+# Interactive login: headless device-code OAuth via `codex login --device-auth`.
+# It prints a URL and a short code the user approves from their phone — but ONLY
+# if "device code login" is enabled first in the ChatGPT Security Settings, so we
+# spell that toggle out up front. Exits 0 on success; control returns here.
+_ai_cli_login_run__codex() {
+    local target_user="$1"
+    cat <<EOF
+Codex signs in with your ChatGPT account using a device code. One thing to
+do FIRST, from your phone or laptop browser:
+
+  1. Open ChatGPT → Settings → Security, and turn ON "device code login"
+     (a.k.a. "device authorization"). Without it the code login is refused.
+
+Then we run the login here:
+
+  2. The terminal prints a URL and a short code.
+
+  3. Open the URL on your phone browser, sign in to ChatGPT, type the code,
+     approve. As soon as you approve, this terminal detects it and the
+     installer continues by itself. NOTHING to type back here.
+
+EOF
+    prompt_confirm "Press Enter to start the Codex login (after enabling the toggle)."
+    # Run the headless device-auth login as the target user.
+    sudo -u "$target_user" -H -- codex login --device-auth || true
+}
+
+# EARS Unwanted: never hang on an impossible local browser — fail with a
+# concrete, followable recovery path instead.
+_ai_cli_login_failure_hint__codex() {
+    local target_user="$1"
+    printf '%s' "codex login could not be verified. Most often the ChatGPT 'device code login' toggle is still off — enable it (ChatGPT → Settings → Security) and re-run 'sudo /opt/buildersinabox/payload/install.sh'. Fallbacks: forward Codex's local login port over SSH and log in normally ('ssh -L 1455:localhost:1455 ${target_user}@<box>' then 'codex login'), or set an API key with 'codex login --api-key'. A successful login writes a token to ~${target_user}/.codex/auth.json."
+}
+
+# Codex needs no pre-seeded settings — it reads AGENTS.md and ~/.agents/skills/
+# natively, and its first run is non-interactive once authenticated.
+_ai_cli_seed_settings__codex() {
+    :
+}
+
+# ---------------------------------------------------------------------------
 # Public API — consumers use ONLY the functions below (plus the array).
 # ---------------------------------------------------------------------------
 
@@ -280,7 +378,7 @@ _ai_cli_prop() {
     # shellcheck disable=SC2034  # set by the props block, read via ${!prop}
     local AI_CLI_DISPLAY_NAME="" AI_CLI_CHOICE_HINT="" AI_CLI_INSTALL_SCRIPT=""
     # shellcheck disable=SC2034
-    local AI_CLI_SKILLS_DIRS="" AI_CLI_CAPABILITIES=""
+    local AI_CLI_SKILLS_DIRS="" AI_CLI_CAPABILITIES="" AI_CLI_COMMAND=""
     "_ai_cli_props__${cli}"
     printf '%s' "${!prop}"
 }
@@ -293,6 +391,11 @@ ai_cli_install_script() {
 # Print the human-facing name of a CLI (e.g. "Claude Code").
 ai_cli_display_name() {
     _ai_cli_prop "$1" AI_CLI_DISPLAY_NAME
+}
+
+# Print the executable/command name of a CLI (e.g. "claude", "agy", "codex").
+ai_cli_command() {
+    _ai_cli_prop "$1" AI_CLI_COMMAND
 }
 
 # Print the one-line hint the choosers show next to the identifier.

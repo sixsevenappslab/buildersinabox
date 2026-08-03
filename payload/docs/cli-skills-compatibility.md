@@ -1,7 +1,7 @@
-# CLI skills compatibility: Claude Code ↔ Antigravity CLI (`agy`)
+# CLI skills compatibility: Claude Code ↔ Antigravity CLI (`agy`) ↔ Codex
 
 > Determines whether the bundled SDD skills ship under `~/.agents/skills/`
-> and are consumed identically by both AI CLIs Builders in a Box supports.
+> and are consumed identically by every AI CLI Builders in a Box supports.
 
 **Status:** ✅ Validated empirically for both CLIs.
 
@@ -21,15 +21,23 @@ difference is *where* each CLI looks:
 - **`agy`** does **not** scan `~/.agents/skills/` in `$HOME` — it only reads
   `.agents/skills/` at the *workspace* level. Its global ("Shared") skills
   directory is `~/.gemini/skills/`.  <!-- ~/.gemini is agy's real config home -->
+- **Codex** reads `~/.agents/skills/<name>/` in `$HOME` **natively** — that is
+  its standard global skills path, the very directory Builders in a Box uses as
+  its source of truth. Codex invokes skills as `$name` (not `/name`).
 
 So Builders in a Box keeps a single source of truth at `~/.agents/skills/<name>/`
 and symlinks it into each CLI's native location:
 
-- `~/.claude/skills/<name>` → `~/.agents/skills/<name>`  (Claude Code)
-- `~/.gemini/skills/<name>` → `~/.agents/skills/<name>`   (`agy`, antigravity boxes only)  <!-- agy's real config home -->
+| CLI | Native skills dir | Symlink Builders in a Box creates |
+|-----|-------------------|-----------------------------------|
+| Claude Code | `~/.claude/skills/<name>` | `~/.claude/skills/<name>` → `~/.agents/skills/<name>` |
+| `agy` (antigravity boxes) | `~/.gemini/skills/<name>` | `~/.gemini/skills/<name>` → `~/.agents/skills/<name>`  <!-- agy's real config home --> |
+| Codex | `~/.agents/skills/<name>` | none — the source of truth **is** codex's native dir |
 
-Symlinks are honoured by both CLIs (confirmed on the VM), so there is no
-content duplication and no drift.
+Symlinks are honoured by every CLI (confirmed on the VM), so there is no
+content duplication and no drift. Codex needs **no** new symlink: its native
+dir already is the source of truth, so the scaffold's skills loop is a no-op
+for it (the `[[ -e || -L ]]` guard skips the self-referential link).
 
 ## FEAT-013 spike addendum — `agy` 1.1.0 on headless Ubuntu 24.04
 
@@ -122,8 +130,17 @@ are themselves portable.
 ## Skill-specific notes
 
 - **`quota`** — **Claude Code only.** It reconstructs usage from Claude Code
-  transcripts (`~/.claude/projects/**/*.jsonl`); Antigravity does not write
-  that format, so on an antigravity box the skill still installs but its report
-  prints "no Claude Code transcripts found yet". The companion quota-nudge hook
-  and statusline are Claude-format too, so the scaffold skips them on
-  antigravity boxes (same guard as the other hooks).
+  transcripts (`~/.claude/projects/**/*.jsonl`); neither Antigravity nor Codex
+  writes that format, so on an `agy`/codex box the skill still installs but its
+  report prints "no Claude Code transcripts found yet". The companion
+  quota-nudge hook and statusline are Claude-format too, so the scaffold skips
+  them on non-Claude boxes (same guard as the other hooks).
+
+## Codex — context files + skills invocation
+
+Codex reads **`AGENTS.md`** in the chain global → git-root → cwd — the same
+open-standard context file Builders in a Box already scaffolds for `agy`, so no
+new context file is generated. Skills are invoked as `$name` (or implicitly);
+`/name` only maps to deprecated custom prompts. Codex has no hooks, statusline,
+or remote-control companion app, so it is treated like `agy`: reached over
+SSH + tmux, no companion app.
