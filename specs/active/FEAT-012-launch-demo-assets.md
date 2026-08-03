@@ -65,6 +65,35 @@ Three assets, in priority order:
 - Store assets under `site/` (so the landing can use them and they're in the
   published tree). Keep them small (optimize PNG, prefer SVG cast).
 
+## §2b — Storyboard del vídeo (día PC, ~2026-08-08)
+
+> La pieza viral según Distribución es el VÍDEO del móvil, no el asciinema.
+> Target: 15–20 s, vertical 9:16 (móvil primero; recorte 16:9 para la landing
+> si hace falta). Ángulo ownership: "an old PC + your phone", no seguridad.
+
+| # | t | Plano | Contenido | Captura |
+|---|---|-------|-----------|---------|
+| 1 | 0–2s | Cámara, mano | El mini PC (o portátil viejo) en una estantería/cajón, LED encendido. Texto sobreimpreso: *"an old PC"* | Cámara del móvil de Sara u otro móvil, 60 fps |
+| 2 | 2–5s | Screen-record móvil | Abrir la app de Claude Code → lista de sesiones remotas → tap en `ai-platform` | Grabación nativa de pantalla |
+| 3 | 5–12s | Screen-record móvil | Escribir un prompt real y corto (*"add dark mode and open a PR"*) → el agente arranca y se ve trabajar. Texto: *"your agent, on your hardware"* | Misma grabación; prompt ensayado antes sobre un repo demo preparado |
+| 4 | 12–16s | Cámara | Bloquear el móvil y guardarlo en el bolsillo. Corte → notificación de PR abierta / "done" en pantalla. Texto: *"it keeps working"* | Dos tomas: bolsillo + notificación |
+| 5 | 16–20s | End card | Logo/nombre + `curl -fsSL https://buildersinabox.com/install.sh \| sudo bash` + *"one command, ~15 minutes"* | Estático, generado (misma estética que la landing) |
+
+**Notas de captura (una sola sesión, día PC):**
+- Grabar cada plano el doble de largo de lo necesario; recortar en edición.
+- Hostname/tailnet neutros (`biab-box`) — nada del tailnet personal, ni repos
+  privados, ni notificaciones personales en la barra del móvil (modo no
+  molestar, batería decente, hora "bonita").
+- Ensayar el prompt antes: repo demo pequeño con un cambio vistoso y rápido
+  (dark mode, un README render, un test verde) para que el plano 3 tenga
+  movimiento real en <7 s.
+- Del mismo setup salen los otros dos assets en la misma sesión: el **hero
+  screenshot** (plano 3 congelado: app Claude Code sobre la sesión
+  `ai-platform`, prompt+respuesta visibles) y el **wizard GIF** (timelapse
+  ~20 s del first boot, HDMI o cámara fija).
+- Éxito del asset = alguien que ya usa Claude Code entiende en 20 s que puede
+  tener esto con un comando. Si un plano no empuja a eso, fuera.
+
 ## §4 — QA / done criteria
 
 - [ ] Hero asset present in both README and `site/index.html`.
