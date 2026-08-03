@@ -47,30 +47,15 @@ Spec ref: FEAT-NNN AC-X (if applicable)
 
 ## Regression Checklists
 
-### SOFI
-- [ ] Login/auth flow (Google OAuth)
-- [ ] Cron jobs execute on schedule
-- [ ] Google Classroom sync (import/refresh)
-- [ ] AI chat responds correctly
-- [ ] Reminders trigger and deliver
+Keep one checklist per project and grow it as features ship — every regression
+you catch (or miss) earns a line. A typical web app's list looks like:
 
-### Hezu
-- [ ] Auth (signup/login/refresh token)
-- [ ] Chat flow (send/receive/history)
-- [ ] Subscription (create/cancel/webhook)
-- [ ] i18n (ES/EN switch, fallback keys)
-- [ ] SSE streaming (connect/reconnect/timeout)
-
-### Ganga24
-- [ ] Deal pipeline (scrape → score → publish)
-- [ ] Notifications (Telegram/email delivery)
-- [ ] Affiliate links (correct provider, params)
-- [ ] Redirect service (301, tracking, fallback)
-
-### Chordna
-- [ ] Search (query, autocomplete, results)
-- [ ] Song pages (render, metadata, lyrics)
-- [ ] SEO meta tags (title, description, OG)
+### Example: a web app
+- [ ] Auth flow (signup/login/refresh token)
+- [ ] Core user flow end-to-end (the thing the app is *for*)
+- [ ] Background jobs execute on schedule (cron, queues)
+- [ ] Notifications deliver (email/push/webhook)
+- [ ] External integrations sync (third-party APIs, OAuth refresh)
 - [ ] API health (`/health` returns 200)
 
 ## Testing Commands
@@ -94,25 +79,12 @@ curl -s -o /dev/null -w "%{http_code}" http://localhost:<port>/api/endpoint
 
 ## Smoke Tests (Critical Paths)
 
-### SOFI (port 5000)
+Define 3-4 requests per service that prove it's alive and doing its job — run
+them after every deploy. The shape:
+
+### Example: an API service (port <port>)
 1. `GET /health` → 200
 2. `POST /api/auth/login` → valid token
-3. `GET /api/tasks` (authed) → task list
-4. `GET /api/classroom/courses` (authed) → course data
-
-### Hezu (check docker/pm2)
-1. `GET /health` → 200
-2. `POST /api/auth/register` → user created
-3. `POST /api/chat` (authed) → AI response
-4. `GET /api/subscription/status` → plan info
-
-### Ganga24 (port 8000)
-1. `GET /health` → 200
-2. `GET /api/deals?limit=5` → deal list
-3. `GET /r/<deal-id>` → 301 redirect
-4. `GET /api/notifications/status` → queue info
-
-### Chordna (port 3001)
-1. `GET /health` → 200
-2. `GET /api/search?q=test` → results
-3. `GET /api/songs/<slug>` → song data
+3. `GET /api/<core-resource>` (authed) → expected data
+4. One request through the service's main side effect (a redirect, a queued
+   job, a webhook) → observable result
