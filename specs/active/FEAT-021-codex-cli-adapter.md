@@ -7,10 +7,10 @@
 - **Complejidad:** media
 - **E2E mode:** none (smoke hermético + dryrun CI; E2E real en hardware el día del PC)
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** validacion
+- **Fase:** implementacion
 - **Creado:** 2026-08-03
 - **Actualizado:** 2026-08-03
-- **Validado por Jesus:** [ ]
+- **Validado por Jesus:** [x] (2026-08-03)
 
 ---
 
@@ -240,7 +240,7 @@ bash tools/check-no-personal-refs.sh
 | 1-5 | pendiente | — | — |
 
 ### Blockers
-- [ ] Validación de Jesús pendiente.
+- [x] Validación de Jesús — OK 2026-08-03.
 
 ---
 
