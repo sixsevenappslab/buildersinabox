@@ -7,7 +7,7 @@
 - **Complejidad:** media
 - **E2E mode:** none (smoke hermético + dryrun CI; E2E real en hardware el día del PC)
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** implementacion
+- **Fase:** completada
 - **Creado:** 2026-08-03
 - **Actualizado:** 2026-08-03
 - **Validado por Jesus:** [x] (2026-08-03)
@@ -237,7 +237,7 @@ bash tools/check-no-personal-refs.sh
 ### Progreso
 | Task | Estado | Commit | Notas |
 |------|--------|--------|-------|
-| 1-5 | pendiente | — | — |
+| 1-5 | hecho | 2059ece + c8230a9 (PR #32, mergeada 2026-08-03) | review APROBADO (2 nits corregidos: README gated por CLI, copy "Both"→"All"). Pendiente NO bloqueante: E2E hardware día PC = gate del anuncio público |
 
 ### Blockers
 - [x] Validación de Jesús — OK 2026-08-03.
