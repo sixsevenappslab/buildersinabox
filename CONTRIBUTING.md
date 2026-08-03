@@ -41,6 +41,28 @@ BIB_USER=ubuntu BIB_NAME='' BIB_FLAVOR=default BIB_AI_CLI=claude BIB_OAUTH_MOCK=
 - **English only** in user-facing strings. No personal names, employer references, or real tokens — the guard enforces this.
 - Commit messages: `feat:`, `fix:`, `docs:`, `refactor:`.
 
+## Add your AI CLI (~1 hour)
+
+The payload never branches on a CLI name — every supported CLI is one
+self-contained adapter block in [`payload/lib/ai-cli.sh`](payload/lib/ai-cli.sh).
+Adding one is three steps:
+
+1. Add its identifier to `BIB_SUPPORTED_AI_CLIS`.
+2. Write the adapter block: a props function (`AI_CLI_DISPLAY_NAME`,
+   `AI_CLI_CHOICE_HINT`, `AI_CLI_COMMAND`, `AI_CLI_INSTALL_SCRIPT`,
+   `AI_CLI_SKILLS_DIRS`, `AI_CLI_CAPABILITIES`) plus five behaviour functions:
+   `launch_cmd`, `login_verify_cmd`, `login_run`, `login_failure_hint`,
+   `seed_settings`.
+3. Write one install script under `payload/install/`.
+
+Everything else — the installer's CLI chooser, the wizard's login step, the
+tmux launcher, the workspace scaffold, the wiring smoke and the CI matrix —
+derives from the registry automatically. The three shipped adapters are the
+reference, each exercising a different corner of the contract: `claude`
+(hooks, statusline, remote-control capability), `antigravity` (multiple
+skills dirs), `codex` (native `~/.agents/skills`, headless device auth).
+`payload/test/wiring-smoke.sh` will catch a hole in a new adapter.
+
 ## What goes where
 
 See [`docs/architecture.md`](docs/architecture.md). In short: device code in `payload/`, the USB image in `iso-builder/`, the hosted bootstrap in `installer/web/`, maintainer tools in `tools/`.

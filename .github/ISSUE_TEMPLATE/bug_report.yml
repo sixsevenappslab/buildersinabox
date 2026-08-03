@@ -2,6 +2,12 @@ name: Bug report
 description: Something went wrong during install or use
 labels: ["bug"]
 body:
+  - type: markdown
+    attributes:
+      value: >
+        Ubuntu Server 24.04 (x86-64) is the supported target. Other distros,
+        releases or architectures are best-effort — reports still welcome,
+        clearly labelled as such.
   - type: textarea
     id: what-happened
     attributes:
@@ -17,6 +23,17 @@ body:
         - curl | bash (hosted)
         - git clone + install.sh
         - USB / ISO autoinstall
+    validations:
+      required: true
+  - type: dropdown
+    id: ai-cli
+    attributes:
+      label: AI CLI
+      options:
+        - Claude Code
+        - Antigravity
+        - Codex
+        - Not relevant
     validations:
       required: true
   - type: input

@@ -1,5 +1,9 @@
 # Builders in a Box
 
+[![CI](https://github.com/sixsevenappslab/buildersinabox/actions/workflows/ci.yml/badge.svg)](https://github.com/sixsevenappslab/buildersinabox/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Ubuntu 24.04 LTS](https://img.shields.io/badge/Ubuntu-24.04%20LTS-e95420?logo=ubuntu&logoColor=white)](https://ubuntu.com/download/server)
+
 > **Run Claude Code (or Antigravity) from your phone — one command turns any old PC into a secure, always-on home for your coding agent. ~15 minutes.**
 
 <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
