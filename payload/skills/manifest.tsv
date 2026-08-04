@@ -27,4 +27,12 @@ sdd-growth	core
 sdd-qa	core
 sdd-spec-writer	core
 quota	core
+deploy-verify	core
+no-ai-slop	core
 incident	optional
+debugging	optional
+deploy-ops	optional
+docker-ops	optional
+pm2-ops	optional
+spec-cleanup	optional
+wireframe-generator	optional

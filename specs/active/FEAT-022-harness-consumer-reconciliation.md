@@ -35,6 +35,15 @@ opt-in bring-your-own-token packs.
    lineage table (`core/harness/shared/README.md`, after updating it with
    the marks): propose core vs optional (incident/`biab add` pattern).
    **Gate: Jesús decides before implementing.**
+   **DECIDED 2026-08-04 (Jesús, AskUserQuestion): 2 core + 5 optional** —
+   core: deploy-verify, no-ai-slop; optional (`biab add`): debugging,
+   docker-ops, pm2-ops, spec-cleanup, wireframe-generator. Not exportable:
+   strategy-council, laura-legal, sl-management, linkedin-strategy,
+   content-ganga24, code-review-checklist (dup of bundled code-review).
+   **Addendum 2026-08-05 (Jesús):** +deploy-ops as 6th optional (the
+   initial proposal wrongly assumed it was already bundled); laura-legal
+   confirmed out — deferred to a post-launch generic legal-advisor rewrite
+   (FEAT-036 table annotated accordingly, ai-platform PR #328).
 3. **`docs/` design note "future packs"**: what a BYO-token slack-bridge
    pack and an observability pack would need. Design doc only, no
    implementation.

@@ -18,6 +18,8 @@ curl -fsSL https://buildersinabox.com/install.sh | sudo bash
 
 **Status:** 🚧 early but real. The hosted one-liner above and the [git-clone install](#install) below both work on a fresh Ubuntu 24.04.
 
+> This isn't a demo workflow: Builders in a Box is the installable edition of the same harness [SixSeven Apps builds its own products with](https://sixsevenapps.com/es/apps/harness) — the box gets the way of working, not a copy of anyone's infrastructure.
+
 ---
 
 ## What you get

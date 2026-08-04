@@ -38,6 +38,10 @@ more than one padded for looks. Never invent data.
 5. **If you spot a pattern** (three or more similar incidents already in the
    log), say so plainly and suggest a follow-up — do not open it yourself.
 
+6. **Close out**: if the rule learned implies changing a runbook or another
+   living doc, mention that doc as a follow-up — do not edit it unless the
+   user asks.
+
 ## Boundaries
 
 - Only **append** a new entry and refresh the "Last updated" line. Never edit or

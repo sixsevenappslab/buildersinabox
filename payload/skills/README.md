@@ -30,12 +30,27 @@ Claude Code, `~/.gemini/skills/<name>` for Antigravity CLI — so both find them
 - `qa-testing` — Test plan creation, structured bug reports, regression checklist.
 - `documentator` — Generates/updates technical docs (CLAUDE.md, changelogs, API docs).
 - `ux-review` — Mobile-first UX/UI evaluation criteria.
+- `deploy-verify` — Post-deployment verification checklist: logs, endpoints, smoke tests.
+- `no-ai-slop` — Edits a draft to sound human without flattening the author's voice,
+  or detects AI-writing patterns without rewriting.
+
+### Optional skills (install with `biab add`)
+Shipped in the repo but not installed by default:
+- `incident` — Logs operational incidents as ERR-NNN entries with a fixed template.
+- `debugging` — Production debugging guide: logs, Docker diagnostics, DB queries.
+- `deploy-ops` — Deployment reference card: Docker, Firebase, PM2, rollbacks
+  (pairs with the core `deploy-verify`).
+- `docker-ops` — Docker container management: status, logs, rebuilds, cleanup.
+- `pm2-ops` — PM2 process management for Node.js services.
+- `spec-cleanup` — Interactive triage of a project's accumulated spec drafts.
+- `wireframe-generator` — Wireframes/mockups via the Gemini image API
+  (bring your own `GEMINI_API_KEY`).
 
 ## Coming in a later update
 
 The following skills exist in the maintainer's setup but still need work to
-strip personalization before shipping: `spec-implementer`, `pr-review`,
-`debugging`, and `spec-cleanup`. They will arrive in a follow-up release.
+strip personalization before shipping: `spec-implementer` and `pr-review`.
+They will arrive in a follow-up release.
 
 ## How to invoke a skill
 

@@ -30,7 +30,7 @@ Everything runs locally. Transcripts and aggregates never leave the box.
 | Signal | Lever |
 |--------|-------|
 | Opus/Fable dominate spend | `/model sonnet` for the session — Sonnet handles most routine work at a fraction of the cost. Opus/Fable are worth it for hard reasoning, not mechanical edits. |
-| Simple tasks with a lot of thinking | `/effort low` (or `medium`) for the session. |
+| Simple tasks with a lot of thinking | `/effort low` (or `medium`) for the session — current models use adaptive thinking, so effort is the lever (tuning `MAX_THINKING_TOKENS` no longer applies). |
 | Cache hit <50% with high volume | Sessions with pauses >5 min lose the cache (5m TTL). Group work; use `/clear` instead of re-opening a huge session for one-off questions. |
 | Subagents >40% of spend | Review unnecessary fan-outs and orphaned `agent-*` worktrees (`git worktree list`); pin subagents to a cheaper model where it fits. |
 | Context growing unchecked | `/compact` manually before the auto-compact threshold; `/clear` when switching topics. |
