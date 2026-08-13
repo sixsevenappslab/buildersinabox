@@ -61,9 +61,28 @@ if [[ -z "${GEMINI_API_KEY:-}" ]]; then
   exit 1
 fi
 
+# A control character in the key cannot be escaped away: curl reads the config
+# line by line, so a newline silently truncates the key and a carriage return
+# splits the outgoing HTTP header. Both fail as a corrupted request rather than
+# an error, so reject them here. Usually this means the key was pasted from a
+# CRLF file and carries a stray \r.
+if [[ "$GEMINI_API_KEY" == *[[:cntrl:]]* ]]; then
+  echo "❌ Error: GEMINI_API_KEY contains a control character (a stray newline or carriage return?)"
+  echo "Check where it is set — a key copied out of a Windows-style file often keeps a hidden \\r"
+  exit 1
+fi
+
 if ! command -v jq >/dev/null 2>&1; then
   echo "❌ Error: jq is required to build the request and read the response"
   echo "Install it with: sudo apt-get install -y jq"
+  exit 1
+fi
+
+# The model name goes into the request path. Keep it to the characters real
+# model names use, so a value like 'x?key=other' cannot bend the URL.
+if [[ ! "$MODEL" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  echo "❌ Error: invalid model name: $MODEL"
+  echo "Expected letters, digits, dots, underscores or hyphens (e.g. gemini-3.1-flash-image-preview)"
   exit 1
 fi
 
@@ -86,9 +105,20 @@ REQUEST_BODY=$(jq -n --arg text "$FULL_PROMPT" '{
   generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
 }')
 
-RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}" \
-  -H 'Content-Type: application/json' \
-  -d "$REQUEST_BODY" 2>&1)
+# The key is fed to curl on stdin, never as an argument. Anything in curl's
+# argv — a ?key= in the URL and an -H header alike — shows up in `ps` for
+# every other user on the machine. With --config the argv is just
+# "curl --config -". Escape \ and ", which are what curl's config quoting
+# treats specially; control characters are rejected above, because escaping
+# cannot save them.
+ESCAPED_KEY=${GEMINI_API_KEY//\\/\\\\}
+ESCAPED_KEY=${ESCAPED_KEY//\"/\\\"}
+
+RESPONSE=$(printf 'header = "x-goog-api-key: %s"\n' "$ESCAPED_KEY" \
+  | curl -s --config - \
+      "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent" \
+      -H 'Content-Type: application/json' \
+      -d "$REQUEST_BODY" 2>&1)
 
 # --- Check for errors ---
 ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty' 2>/dev/null)

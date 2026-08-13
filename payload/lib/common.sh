@@ -27,6 +27,11 @@ _bib_log_init() {
         # World-writable so unprivileged steps (e.g. tmux launch under the
         # target user) can append. For v1 this is acceptable; later we can
         # introduce a dedicated 'biab' group.
+        # TODO(2026-08-13): 0666 also lets any local user forge or truncate
+        # this log. Audited today: no secret reaches it — the OAuth login URL
+        # goes to a 0600 mktemp and the password goes to chpasswd on stdin —
+        # but that is a property to re-check before adding any log() call
+        # carrying a token or URL. Proper fix is the 'biab' group above.
         chmod 0666 "$BIB_LOG_FILE" 2>/dev/null || true
     fi
 }
