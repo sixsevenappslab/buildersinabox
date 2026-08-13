@@ -61,6 +61,12 @@ if [[ -z "${GEMINI_API_KEY:-}" ]]; then
   exit 1
 fi
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "❌ Error: jq is required to build the request and read the response"
+  echo "Install it with: sudo apt-get install -y jq"
+  exit 1
+fi
+
 # --- Build full prompt ---
 PREFIX="${STYLE_PREFIX[$STYLE]:-}"
 FULL_PROMPT="${PREFIX}${PROMPT}"
@@ -72,18 +78,17 @@ mkdir -p "$(dirname "$OUTPUT")"
 echo "🎨 Generating ${STYLE} with model ${MODEL}..."
 echo "📝 Prompt: ${FULL_PROMPT}"
 
+# Build the request body with jq so the prompt is escaped properly. A prompt
+# containing a double quote, a backslash or a newline would otherwise produce
+# malformed JSON and the API would reject it.
+REQUEST_BODY=$(jq -n --arg text "$FULL_PROMPT" '{
+  contents: [{ parts: [{ text: $text }] }],
+  generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+}')
+
 RESPONSE=$(curl -s "https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${GEMINI_API_KEY}" \
   -H 'Content-Type: application/json' \
-  -d "{
-    \"contents\": [{
-      \"parts\": [{
-        \"text\": \"${FULL_PROMPT}\"
-      }]
-    }],
-    \"generationConfig\": {
-      \"responseModalities\": [\"TEXT\", \"IMAGE\"]
-    }
-  }" 2>&1)
+  -d "$REQUEST_BODY" 2>&1)
 
 # --- Check for errors ---
 ERROR=$(echo "$RESPONSE" | jq -r '.error.message // empty' 2>/dev/null)
