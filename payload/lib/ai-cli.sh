@@ -305,6 +305,10 @@ Then we run the login here:
      approve. As soon as you approve, this terminal detects it and the
      installer continues by itself. NOTHING to type back here.
 
+     Use a real browser (Chrome/Safari) at that URL — not the ChatGPT app,
+     and not any agent app's "pair device" screen. There is no QR code in
+     this flow: you type the short code on that page and nowhere else.
+
 EOF
     prompt_confirm "Press Enter to start the Codex login (after enabling the toggle)."
     # Run the headless device-auth login as the target user.

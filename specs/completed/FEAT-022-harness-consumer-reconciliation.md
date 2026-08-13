@@ -60,8 +60,12 @@ opt-in bring-your-own-token packs.
 
 ## §4 — Done criteria
 
-- [ ] 8 pairs compared; pending improvements ported or "no delta" noted.
-- [ ] Lineage table updated with export-candidate marks (ai-platform side).
-- [ ] Promotion proposal presented; Jesús's decision recorded here.
-- [ ] `docs/future-packs.md` merged.
-- [ ] README positioning line merged.
+- [x] 8 pairs compared; pending improvements ported or "no delta" noted.
+- [x] Lineage table updated with export-candidate marks (ai-platform side).
+- [x] Promotion proposal presented; Jesús's decision recorded here.
+- [x] `docs/future-packs.md` merged.
+- [x] README positioning line merged.
+
+## §6 — Feedback / tech debt
+
+- TODO (2026-08-05, from pr-review of #36): wireframe-generator builds the Gemini JSON payload by string interpolation; a prompt containing `"` breaks it. Switch to `jq -n --arg`.
