@@ -83,7 +83,7 @@ Everything the installer touches, so you can audit it and undo it:
 
 - **Packages:** a terminal multiplexer, a mesh-VPN client, jq, the GitHub CLI, and your chosen AI CLI (Claude Code or Antigravity).
 - **Files:** the repo at `/opt/buildersinabox`; the `biab` and `bd` commands in `/usr/local/bin`; state in `/var/lib/buildersinabox`; logs in `/var/log/buildersinabox`; an autologin drop-in for `tty1` and a first-boot trigger in `/etc/profile.d/`; small shell helpers in `~/.bashrc.d/`.
-- **SSH:** once the private network is up, sshd is bound to your private-network address only (a drop-in in `/etc/ssh/sshd_config.d/`). If you're connected over SSH from outside that private network — typical on a VPS — the wizard warns you and asks before doing this.
+- **SSH:** two drop-ins in `/etc/ssh/sshd_config.d/`. One enables password and key auth — your sudo password is the SSH credential — and because sshd takes the first value it finds for a setting and ours sorts first, it takes precedence over your own drop-ins for as long as it is installed. The other binds sshd to your private-network address only, once that network is up; if you're connected over SSH from outside it — typical on a VPS — the wizard warns you and asks first. The installer also moves sshd off Ubuntu's socket activation onto a long-running service, which is what makes that binding possible.
 - **Workspace:** `~/ai-platform/` scaffolded in the target user's home, plus Claude Code skills in `~/.claude/skills/` and a few fail-open hooks in `~/.claude/settings.json`.
 - **Opt-in packs only when you ask:** the base install adds nothing heavyweight. `biab pack add browser` is the one exception — it installs Chromium, a dedicated `biab-browser` system user, and a tightly-scoped `sudoers` rule (NOPASSWD for exactly `/usr/local/bin/biab-browse`). `biab pack remove browser` reverses all of it.
 
@@ -93,7 +93,13 @@ To remove all of it:
 sudo /opt/buildersinabox/payload/install.sh --uninstall
 ```
 
-It leaves your home directory, your private-network setup, and your GitHub and agent logins untouched.
+That removes both SSH drop-ins and puts socket activation back (on the next
+boot — it deliberately won't drop the listener under you if you're uninstalling
+over SSH), so sshd returns to your distribution's defaults.
+
+What it deliberately does **not** undo: your home directory, your private-network
+membership, your GitHub and agent logins, your account password, and the packages
+it installed (tmux, jq, gh, Node, the mesh-VPN client, your AI CLI).
 
 ## Security model
 

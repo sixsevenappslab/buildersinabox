@@ -130,6 +130,42 @@ do_uninstall() {
         [[ -n "$stored_user" ]] && target_user="$stored_user"
     fi
 
+    # This guard runs FIRST, before anything is torn down. It offers to abort,
+    # and "abort" has to mean the machine is untouched — the pack teardown below
+    # removes a system user and a sudoers rule, so asking after it would make
+    # the abort message a lie.
+    #
+    # Removing the auth drop-in later hands PasswordAuthentication back to the
+    # distribution default, which on cloud images is "no". Our own security
+    # model says the account password is the SSH credential (install/50-ssh.sh),
+    # so a user who never added a key is relying entirely on that drop-in — and
+    # taking it away can leave a headless box unreachable. 35-ssh-finalize.sh
+    # treats this exact hazard as a hard stop (HOLD-OPEN); so does uninstall.
+    if [[ -e /etc/ssh/sshd_config.d/00-buildersinabox.conf ]]; then
+        local _ak=""
+        if [[ -n "$target_user" ]] && getent passwd "$target_user" >/dev/null; then
+            _ak="$(getent passwd "$target_user" | cut -d: -f6)/.ssh/authorized_keys"
+        fi
+        if [[ -z "$_ak" ]] || ! grep -Eq '^[[:space:]]*[^[:space:]#]' "$_ak" 2>/dev/null; then
+            printf '\n'
+            printf '  WARNING — %s has no SSH key in authorized_keys.\n' "${target_user:-the target user}"
+            printf '  Password login works right now because of a drop-in this uninstall\n'
+            printf '  removes. Your distribution decides what happens next, and on cloud\n'
+            printf '  images that default is "PasswordAuthentication no".\n'
+            printf '  If this box is headless, open a SECOND SSH session and confirm you\n'
+            printf '  can still get in BEFORE you close this one.\n\n'
+            if [[ "$NON_INTERACTIVE" -eq 0 && "$FORCE" -eq 0 && -r /dev/tty ]]; then
+                printf '  Type yes to continue: '
+                local _ack=""
+                read -r _ack < /dev/tty || true
+                if [[ "$_ack" != "yes" ]]; then
+                    printf 'uninstall: aborted, nothing was changed.\n'
+                    exit 1
+                fi
+            fi
+        fi
+    fi
+
     # FEAT-017: best-effort teardown of opt-in packs (e.g. browser) BEFORE
     # /opt/buildersinabox itself is removed below — the pack's own
     # uninstall.sh has to still exist to run. Never fails the overall
@@ -156,10 +192,17 @@ do_uninstall() {
         /usr/local/bin/bd
         /etc/profile.d/biab-firstboot.sh
         /etc/systemd/system/getty@tty1.service.d/autologin.conf
-        # FEAT-014 SSH drop-ins: the Tailscale-only bind, the (legacy) public
-        # hardening file, and the systemd ordering drop-in that makes ssh.service
-        # wait for the tailnet at boot. Removing the bind restores a public
-        # listener so the box stays reachable after uninstall.
+        # FEAT-014 SSH drop-ins: the auth policy, the Tailscale-only bind, the
+        # (legacy) public hardening file, and the systemd ordering drop-in that
+        # makes ssh.service wait for the tailnet at boot. Removing the bind
+        # restores a public listener so the box stays reachable after uninstall.
+        #
+        # 00- MUST be in this list. It sets PasswordAuthentication yes, and
+        # because sshd takes the FIRST value it sees for a keyword and 00 sorts
+        # ahead of everything, leaving it behind keeps password auth forced on
+        # for good — overriding the user's own hardening drop-ins — on a box
+        # they believe they have uninstalled us from.
+        /etc/ssh/sshd_config.d/00-buildersinabox.conf
         /etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf
         /etc/ssh/sshd_config.d/02-buildersinabox-public-hardening.conf
         /etc/systemd/system/ssh.service.d/10-buildersinabox-tailscale-wait.conf
@@ -186,6 +229,20 @@ do_uninstall() {
         rmdir /etc/systemd/system/ssh.service.d 2>/dev/null || true
         systemctl daemon-reload 2>/dev/null || true
         systemctl reload ssh.service 2>/dev/null || true
+
+        # 50-ssh.sh switched the box off Ubuntu's default socket activation so
+        # that sshd would honour ListenAddress. Put that back, but WITHOUT
+        # --now: an uninstall is very often run over SSH, and stopping
+        # ssh.service to hand port 22 to the socket would drop the listener
+        # mid-command. Disabled-but-running is fine until the next boot, when
+        # socket activation takes over again.
+        if systemctl is-enabled ssh.socket >/dev/null 2>&1; then
+            : # already back on socket activation, nothing to do
+        else
+            systemctl disable ssh.service >/dev/null 2>&1 || true
+            systemctl enable ssh.socket >/dev/null 2>&1 || true
+            printf 'uninstall: restored ssh.socket activation (takes effect on next boot; current sshd left running)\n'
+        fi
     fi
 
     # User-level shell snippets installed under ~${target_user}/.bashrc.d/biab-*.
@@ -206,7 +263,11 @@ do_uninstall() {
     if [[ "$found_anything" -eq 0 ]]; then
         printf 'uninstall: nothing to remove — no BIAB state found\n'
     else
-        printf 'uninstall: complete. User home, Tailscale, gh, and Claude auth untouched.\n'
+        printf 'uninstall: complete. sshd is back to your distribution defaults.\n'
+        printf 'uninstall: left alone on purpose — your home directory, the tailnet\n'
+        printf '           membership, your GitHub and agent logins, your account\n'
+        printf '           password, and the packages we installed (tmux, jq, gh,\n'
+        printf '           node, tailscale, the AI CLI).\n'
     fi
     exit 0
 }
