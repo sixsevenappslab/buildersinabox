@@ -11,10 +11,10 @@
   > path redirection, exactly like the existing FEAT-014 unit driver — no runtime
   > UI or endpoint to drive.
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** lista para validacion
+- **Fase:** implementacion
 - **Creado:** 2026-08-15
-- **Actualizado:** 2026-08-15 (§2 + §4 + reconciliacion post-QA)
-- **Validado por Jesus:** [ ]
+- **Actualizado:** 2026-08-15 (validada por Jesus, promovida a active/)
+- **Validado por Jesus:** [x] 2026-08-15
 
 ---
 
@@ -60,7 +60,9 @@
 > anunciaba MUTATION-CAUGHT aunque el driver fuese ciego — verificado). Los tres
 > están corregidos arriba.
 >
-> Falta solo la validación de Jesus para promover a `active/`.
+> **Validada por Jesus el 2026-08-15** y promovida a `active/`. Lista para
+> implementar: Wave 1 (T1→T2) es secuencial, Wave 2 (T3, luego T4 y T5 en
+> paralelo), Wave 3 (T6).
 
 ---
 
