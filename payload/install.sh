@@ -189,9 +189,7 @@ do_uninstall() {
     # tearing the logging infra down, so it must not write into it.
     local paths_to_remove=(
         /usr/local/bin/biab
-        /usr/local/bin/bd
         /etc/profile.d/biab-firstboot.sh
-        /etc/systemd/system/getty@tty1.service.d/autologin.conf
         # FEAT-014 SSH drop-ins: the auth policy, the Tailscale-only bind, the
         # (legacy) public hardening file, and the systemd ordering drop-in that
         # makes ssh.service wait for the tailnet at boot. Removing the bind
@@ -210,6 +208,29 @@ do_uninstall() {
         "$BIB_STATE_DIR"
         /opt/buildersinabox
     )
+
+    # Only remove these two if they are ours. The installer refuses to overwrite
+    # a `bd` or a tty1 autologin the machine already had, so removing them here
+    # unconditionally would delete the user's own files on our way out.
+    #
+    # The patterns are specific rather than just "Builders in a Box", so a file
+    # that merely mentions the product is not mistaken for one of ours. `bd` gets
+    # a second pattern for copies installed before the marker existed — see the
+    # matching note in install/06-bd-cli.sh.
+    local _own _pat
+    for _own in /usr/local/bin/bd /etc/systemd/system/getty@tty1.service.d/autologin.conf; do
+        [[ -e "$_own" ]] || continue
+        case "$_own" in
+            */bd) _pat='Installed by Builders in a Box|brain-dump capture CLI' ;;
+            *)    _pat='Builders in a Box — autologin' ;;
+        esac
+        if grep -Eq "$_pat" "$_own" 2>/dev/null; then
+            paths_to_remove+=("$_own")
+        else
+            printf 'uninstall: leaving %s alone — it is not ours\n' "$_own"
+        fi
+    done
+
     local p
     local removed_ssh_dropin=0
     for p in "${paths_to_remove[@]}"; do
@@ -414,9 +435,29 @@ unset _flavor_manifest
 # Render systemd autologin drop-in from its .in template, substituting
 # ${BIB_USER}. Idempotent — re-renders even if the file already exists
 # so --update keeps the autologin user in sync with state.json.
+#
+# ISO/USB path only. There, the autoinstall hands over a box nobody has ever
+# logged into, and autologin on tty1 is what lets the first-boot wizard run at
+# all (see profile.d/biab-firstboot.sh). The ISO renders this file itself in
+# user-data's late-commands; we re-render so --update can follow a changed
+# bib_user.
+#
+# On a `curl | sudo bash` install we must NOT touch it: the user is already at
+# a shell, so autologin buys nothing, and switching their console to
+# passwordless login is a physical-access downgrade they never asked for. The
+# firstboot trigger is the ISO's fingerprint — it exists on no other path.
 _autologin_in="${SCRIPT_DIR}/systemd/getty@tty1.service.d/autologin.conf.in"
 _autologin_out="/etc/systemd/system/getty@tty1.service.d/autologin.conf"
-if [[ -f "$_autologin_in" ]] && command -v envsubst >/dev/null 2>&1; then
+#
+# Gate on the trigger ALONE. An earlier version also proceeded when an
+# autologin.conf already existed, meaning a machine that had set up its own
+# tty1 autologin (a common kiosk recipe) got it silently rewritten to our user
+# — the exact clobber this change exists to stop. The trigger is never removed
+# after first boot, so ISO boxes stay managed across --update regardless.
+_firstboot_trigger="/etc/profile.d/biab-firstboot.sh"
+if [[ ! -e "$_firstboot_trigger" ]]; then
+    log "install: not an ISO/first-boot install, leaving tty1 autologin alone"
+elif [[ -f "$_autologin_in" ]] && command -v envsubst >/dev/null 2>&1; then
     BIB_USER_RESOLVED="$(state_get '.bib_user')"
     : "${BIB_USER_RESOLVED:=$(bib_user_resolve)}"
     mkdir -p "$(dirname "$_autologin_out")"
@@ -426,7 +467,7 @@ if [[ -f "$_autologin_in" ]] && command -v envsubst >/dev/null 2>&1; then
     log "install: autologin rendered for user=${BIB_USER_RESOLVED}"
     unset BIB_USER_RESOLVED
 fi
-unset _autologin_in _autologin_out
+unset _autologin_in _autologin_out _firstboot_trigger
 
 # Resolve the chosen CLI. An explicit choice (flag / env / state file) wins.
 # Without one, ASK before persisting: silently persisting the default here

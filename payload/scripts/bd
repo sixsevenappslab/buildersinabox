@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # bd — brain-dump capture CLI. Appends a JSONL entry to stratops/brain-dump.jsonl.
+# Installed by Builders in a Box. install/06-bd-cli.sh and the uninstaller grep
+# for that phrase to tell our copy at /usr/local/bin/bd apart from an unrelated
+# `bd` the user already had — so we neither overwrite nor delete their script.
 #
 # Usage:
 #   bd "watch the latency of the chordna health check"

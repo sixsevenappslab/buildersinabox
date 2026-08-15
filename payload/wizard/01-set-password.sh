@@ -33,6 +33,45 @@ if [[ "${BIB_OAUTH_MOCK:-0}" == "1" ]]; then
     exit 0
 fi
 
+# A curl install onto a machine the user already uses is the case this guard
+# exists for: they have a password, they are logged in with it, and replacing
+# it without asking is hostile. Ask them, and default to keeping it.
+#
+# The ISO path must NEVER reach that prompt. subiquity requires a password, so
+# iso-builder/user-data seeds one — a hash of a fixed string that is written in
+# clear text in that file, in a public repo. `passwd -S` calls that a usable
+# password, so a naive check would offer a freshly flashed gift box the choice
+# of keeping a publicly known SSH credential, with "keep" pre-selected.
+#
+# Two independent ways to recognise a box that has never had a real password,
+# so a change to either one cannot quietly re-open that door:
+#   - the seeded hash itself
+#   - the first-boot trigger, which only the ISO leaves behind
+BIB_ISO_SEED_HASH='$6$saltsaltsalt$5l6BdWQOWxbRk5xJUS5UEABZk8sFGwS1mn/iZ2BHHN.AcEVfDc9TLkrtTjpiozaIJaQg9KOH/o/HpRfDPHCcF1'
+current_hash="$(getent shadow "$target_user" 2>/dev/null | cut -d: -f2 || true)"
+
+if [[ "$(passwd -S "$target_user" 2>/dev/null | awk '{print $2}')" == "P" ]] \
+   && [[ "$current_hash" != "$BIB_ISO_SEED_HASH" ]] \
+   && [[ ! -e /etc/profile.d/biab-firstboot.sh ]]; then
+    prompt_header "You already have a password"
+    cat <<EOF
+${target_user} already has a working password on this machine.
+
+Builders in a Box uses your account password as the SSH credential from
+your phone, so it needs one — but it does not need to be a new one.
+Keeping the one you have is normally the right answer.
+EOF
+    if ! prompt_choice "What would you like to do?" \
+        "Keep my current password" "Set a new one"; then
+        die "01-set-password: aborted"
+    fi
+    if [[ "$BIB_PROMPT_VALUE" == "Keep my current password" ]]; then
+        log "01-set-password: keeping the existing password for ${target_user}"
+        phase_done "password_set"
+        exit 0
+    fi
+fi
+
 prompt_header "Set your sudo password"
 
 cat <<EOF

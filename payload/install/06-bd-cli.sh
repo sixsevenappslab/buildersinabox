@@ -19,6 +19,27 @@ if [[ ! -f "$src" ]]; then
     exit 0
 fi
 
+# `bd` is a common enough name that someone may already have one. Overwriting it
+# silently would be bad on its own; --uninstall then deleting it would take their
+# script with us. Only claim the name if it is unclaimed or already ours.
+#
+# Two ways to be ours, and the second one matters: every bd installed before the
+# marker existed has no marker. Matching on the marker alone would classify those
+# boxes' own bd as a stranger's the first time the stack_installed phase is reset,
+# freezing it forever — no more updates, and uninstall would leave it behind.
+# The legacy header line identifies those copies. Keep both checks.
+bd_is_ours() {
+    grep -q 'Installed by Builders in a Box' "$1" 2>/dev/null && return 0
+    grep -q 'brain-dump capture CLI' "$1" 2>/dev/null && return 0
+    return 1
+}
+
+if [[ -e "$target" ]] && ! bd_is_ours "$target"; then
+    warn "06-bd-cli: $target already exists and is not ours — leaving it alone"
+    warn "06-bd-cli: the brain-dump CLI is still available at $src"
+    exit 0
+fi
+
 cp "$src" "$target"
 chmod 0755 "$target"
 log "06-bd-cli: $target installed"
