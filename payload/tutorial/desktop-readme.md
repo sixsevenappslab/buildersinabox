@@ -96,7 +96,8 @@ The simple, default way is SSH over your private Tailscale network:
 2. Make sure **Tailscale** is connected on that device, signed in with
    the same account you used during setup. Your box shows up on your
    tailnet under the name from `tailscale status`.
-3. Connect with Tailscale SSH (no key paste needed):
+3. Connect (it asks for your account password, or uses your key if
+   you imported your GitHub keys during setup):
 
        ssh {{TARGET_USER}}@{{HOSTNAME}}
 
@@ -123,7 +124,8 @@ The simple, default way is SSH over your private Tailscale network:
 2. Make sure **Tailscale** is connected on that device, signed in with
    the same account you used during setup. Your box shows up on your
    tailnet under the name from `tailscale status`.
-3. Connect with Tailscale SSH (no key paste needed):
+3. Connect (it asks for your account password, or uses your key if
+   you imported your GitHub keys during setup):
 
        ssh {{TARGET_USER}}@{{HOSTNAME}}
 
@@ -303,7 +305,7 @@ your account locked, anything weird), there's a fallback:
 1. Install Termius (or any SSH client) on your phone.
 2. Add a host with the name shown by `tailscale status` on the device
    (it's the device's name on your tailnet).
-3. Tailscale SSH handles auth — no key paste needed.
+3. Auth is your account password, or your GitHub key if you imported one.
 4. Once in, run `tmux attach -t ai-platform`.
 
 Your GitHub SSH keys are also in `~/.ssh/authorized_keys` so a raw
@@ -336,8 +338,8 @@ Your primary path IS SSH over Tailscale, so keep these handy:
 
 - Check the box is on your tailnet: run `tailscale status` from another
   device. If the box is offline there, power-cycle it.
-- Your GitHub SSH keys are in `~/.ssh/authorized_keys`, so a raw
-  `ssh <username>@<tailscale-ip>` works even if Tailscale SSH is off.
+- Your GitHub SSH keys are in `~/.ssh/authorized_keys`, so `ssh
+  <username>@<tailscale-ip>` works with your key instead of the password.
 - If `agy` says you're signed out, SSH in and run `agy` once
   interactively to redo the Google OAuth (choose "Google OAuth", paste
   the authorization code).
@@ -372,8 +374,8 @@ Your primary path IS SSH over Tailscale, so keep these handy:
 
 - Check the box is on your tailnet: run `tailscale status` from another
   device. If the box is offline there, power-cycle it.
-- Your GitHub SSH keys are in `~/.ssh/authorized_keys`, so a raw
-  `ssh <username>@<tailscale-ip>` works even if Tailscale SSH is off.
+- Your GitHub SSH keys are in `~/.ssh/authorized_keys`, so `ssh
+  <username>@<tailscale-ip>` works with your key instead of the password.
 - If `codex` says you're signed out, SSH in and run `codex login
   --device-auth` (make sure "device code login" is enabled in ChatGPT →
   Settings → Security first), or forward the login port and log in

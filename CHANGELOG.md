@@ -34,7 +34,7 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 - Interactive prompts in `install.sh` read from `/dev/tty`, so they work under `curl | sudo bash`.
 - Trimmed tutorial Beat 7 to `tmuxc` + `/morning-check`, with the brain-dump `bd` reduced to a one-line mention.
 - Genericized USB-gift copy that had leaked into the generic install path (re-flash instructions, "unplug the monitor", the Windows-recovery section of the device README).
-- The bundled GitHub login now also imports your GitHub SSH keys into `~/.ssh/authorized_keys`, so a raw `ssh <user>@<host>` works as a fallback when Tailscale SSH or the Claude Code app is unreachable.
+- The bundled GitHub login now also imports your GitHub SSH keys into `~/.ssh/authorized_keys`, so `ssh <user>@<host>` can authenticate with your key instead of your account password.
 - The optional Spec-Driven Development skills (`biab add sdd`) are now in English and rewritten for the single-session model: roles are invoked as in-session skills (`/sdd-spec-writer`, `/sdd-qa`, `/sdd-growth`, `/sdd-docs`) instead of background agents, with no chat-app integration. References now point only to bundled skills.
 - The bundled coach example (`FEAT-002`) is now in English.
 

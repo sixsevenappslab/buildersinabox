@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Wizard step: finalize SSH so the user can reach the box from their phone.
-# Defense in depth: Tailscale SSH (set up in 10-tailscale-up.sh via `tailscale up --ssh`)
-# as the primary path, plus the user's GitHub SSH keys imported into
-# ~/.ssh/authorized_keys as a fallback for raw `ssh ubuntu@<tailscale-ip>`.
+# Auth is the account password (set in 01-set-password) or a key. This script
+# only prepares an empty ~/.ssh/authorized_keys with safe permissions; the
+# GitHub key import happens later, in /tutorial Beat 2, once gh is authenticated
+# (see the note at ssh_finalize_main). We do NOT use Tailscale SSH:
+# 10-tailscale-up.sh runs plain `tailscale up`, deliberately, because the phone
+# SSH clients people actually use (Termius, ConnectBot) speak password and key
+# auth only. Full reasoning in install/50-ssh.sh.
 #
 # Tailscale-only bind of sshd is applied here (now that Tailscale is up we
 # know which interface to listen on) — but never in a way that can lock the

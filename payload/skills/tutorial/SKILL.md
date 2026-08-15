@@ -128,7 +128,7 @@ After they confirm, verify (this is the only signal that actually matters):
 gh auth status 2>&1
 ```
 
-If green, import the user's GitHub SSH keys into `~/.ssh/authorized_keys`. This is a belt-and-suspenders fallback: Tailscale SSH is the primary path, but if the Claude app or Tailscale is ever unreachable, a raw `ssh <user>@<tailscale-host>` from any machine holding their GitHub key still gets them in.
+If green, import the user's GitHub SSH keys into `~/.ssh/authorized_keys`. SSH into the box authenticates with the account password by default; importing their key means `ssh <user>@<tailscale-host>` from any machine holding it gets them in without typing a password on a phone keyboard.
 
 ```bash
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
@@ -141,7 +141,7 @@ if keys="$(gh api /user/keys --jq '.[].key' 2>/dev/null)"; then
   done <<< "$keys"
   echo "Imported $added GitHub SSH key(s) into ~/.ssh/authorized_keys."
 else
-  echo "No GitHub SSH keys fetched (you may have none uploaded) — Tailscale SSH still works regardless."
+  echo "No GitHub SSH keys fetched (you may have none uploaded) — you can still SSH in with your account password."
 fi
 ```
 

@@ -163,7 +163,8 @@ EOF
            ${_finale_host}
 
     3. Connect:   ssh ${_finale_user}@${_finale_host}
-       Tailscale SSH handles the keys — no password paste needed.
+       It asks for the password you set at the start of this wizard.
+       If you imported your GitHub keys, your key is used instead.
 
     4. Once you're in, attach the session:
 
