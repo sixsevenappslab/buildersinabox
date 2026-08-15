@@ -231,6 +231,20 @@ do_uninstall() {
         fi
     done
 
+    # The bwrap AppArmor profile (install/42-codex-cli.sh) is a security config
+    # we put outside /opt, so uninstall has to take it back out — but only if it
+    # is ours. Unload it first; a profile file removed while still loaded stays
+    # in force until the next boot.
+    if [[ -e /etc/apparmor.d/bwrap ]]; then
+        if grep -q 'Installed by Builders in a Box' /etc/apparmor.d/bwrap 2>/dev/null; then
+            command -v apparmor_parser >/dev/null 2>&1 \
+                && apparmor_parser -R /etc/apparmor.d/bwrap 2>/dev/null || true
+            paths_to_remove+=(/etc/apparmor.d/bwrap)
+        else
+            printf 'uninstall: leaving /etc/apparmor.d/bwrap alone — it is not ours\n'
+        fi
+    fi
+
     local p
     local removed_ssh_dropin=0
     for p in "${paths_to_remove[@]}"; do
