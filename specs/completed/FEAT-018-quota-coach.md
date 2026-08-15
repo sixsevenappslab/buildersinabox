@@ -103,7 +103,7 @@ Rutas verificadas en el repo (2026-07-11):
 - `payload/wizard/40-scaffold.sh:196` — `install_hooks()` registra hooks vía merge jq sobre settings.json; **skip explícito en boxes Antigravity** (línea 200, "Claude-format hooks not applicable").
 - `payload/skills/manifest.tsv` — tiers `core|optional`; todo lo actual es core.
 - No existe statusline en el payload hoy (verificado con find) — el segmento statusline es pieza nueva, de ahí la condición "solo si el usuario no tiene uno".
-- Implementación de referencia (adaptar, no copiar literal): `ai-platform/core/claude-harness/skills/quota/scripts/quota_report.py`, `hooks/model-nudge.sh`, `statusline.py` (PR ai-platform#271). Diferencias a aplicar: inglés, sin política Sonnet-default de mhserver (mensaje neutral), convenciones biab-* (lib.sh, set -euo pipefail), guard python3/jq con `command -v`.
+- Implementación de referencia (adaptar, no copiar literal): `ai-platform/core/claude-harness/skills/quota/scripts/quota_report.py`, `hooks/model-nudge.sh`, `statusline.py` (PR ai-platform#271). Diferencias a aplicar: inglés, sin la política Sonnet-default del harness upstream (mensaje neutral), convenciones biab-* (lib.sh, set -euo pipefail), guard python3/jq con `command -v`.
 
 ### Alcance
 

@@ -169,10 +169,10 @@ Probable N/A (mejora de producto instalado). Ángulo posible si se quiere: "your
   skills dentro de su árbol (`plugins/sdd-workflow/skills/<skill>/SKILL.md`), no las
   referencia. Para BIAB esto obliga a decidir el layout (ver Decisiones abiertas).
 - `ai-platform/core/claude-harness/skills/incident/SKILL.md` — skill `incident` de
-  referencia para la Pieza 3. **Fuertemente acoplada a stratops/mhserver:** ruta
+  referencia para la Pieza 3. **Fuertemente acoplada al entorno upstream:** ruta
   hardcodeada `~/ai-platform/stratops/ops/INCIDENTS.md`, formato de commit `docs(ops):`,
-  referencias a "Jesús", EXEC-NNN, RUNBOOKS.md/DR.md. La versión BIAB debe ser genérica:
-  sin stratops, sin nombres propios, sin convenciones de PR de mhserver, template
+  nombres propios, EXEC-NNN, RUNBOOKS.md/DR.md. La versión BIAB debe ser genérica:
+  sin stratops, sin nombres propios, sin las convenciones de PR del upstream, template
   embebido en la propia skill (el upstream delega el template a un fichero externo).
 
 **CLI de plugins de Claude Code (verificado localmente con `claude plugin --help`):**
@@ -316,7 +316,7 @@ recomendación; Jesús elige antes de implementar.
    del workspace → asignar `ERR-NNN` = máx existente +1 vía `grep -oE 'ERR-[0-9]+' | sort -V | tail -1`
    → append de entrada con template embebido: **Symptom / Root cause / Fix applied / Rule
    learned**, entrada más reciente arriba, actualizar "Last updated"). Sin stratops, sin
-   nombres propios, sin convenciones de commit de mhserver. Ruta del log: `~/ai-platform/stratops/ops/INCIDENTS.md` (el scaffold ya crea `stratops/`; la skill hace `mkdir -p` de `ops/`
+   nombres propios, sin las convenciones de commit del upstream. Ruta del log: `~/ai-platform/stratops/ops/INCIDENTS.md` (el scaffold ya crea `stratops/`; la skill hace `mkdir -p` de `ops/`
    y crea el fichero con cabecera + Template + Entries si no existe).
    - verify: en un workspace de prueba, invocar la skill dos veces crea `ERR-001` y luego `ERR-002` (número siguiente correcto); con un `INCIDENTS.md` que ya tiene `ERR-007`, la siguiente es `ERR-008`.
    - done: personal-refs/no-Spanish guard limpio; `manifest.tsv` con `incident optional`.

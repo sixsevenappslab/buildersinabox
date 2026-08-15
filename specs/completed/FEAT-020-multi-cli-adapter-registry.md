@@ -497,7 +497,7 @@ bash -c 'source payload/lib/ai-cli.sh; ai_cli_skills_dirs antigravity'   # sin c
   única línea que el grep literal del verify detecta es la del pre-seed
   movida, cuya semántica está cubierta por (3).
 - **EC-04 en el smoke con PATH stub:** ejecutar el launch cmd hostil tal cual
-  lanzaría el CLI real en máquinas que lo tienen instalado (mhserver). Se
+  lanzaría el CLI real en máquinas que lo tienen instalado (la del maintainer). Se
   ejecuta bajo `PATH` que solo contiene `touch`: si el escape %q regresara, el
   `touch` inyectado se ejecuta y crea el marker; si es correcto, no.
 - **Copy del finale SSH:** solo se interpola `ai_cli_display_name` donde el

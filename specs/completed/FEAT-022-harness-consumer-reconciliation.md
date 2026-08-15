@@ -29,7 +29,7 @@ opt-in bring-your-own-token packs.
    morning-check←project-health, executive←elena-vp-product,
    ui-ux-consultant←lucas-uxui, quota←`core/harness/claude/skills/quota`):
    port pending improvements from the FEAT-034 Wave B reconciliation,
-   genericizing (no mhserver paths, no portfolio project names;
+   genericizing (no upstream-machine paths, no portfolio project names;
    `tools/check-no-personal-refs.sh` must pass).
 2. **Evaluate promoting** shared/ skills marked "export candidate" in the
    lineage table (`core/harness/shared/README.md`, after updating it with

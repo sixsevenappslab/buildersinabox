@@ -135,7 +135,7 @@ Already shipped in `payload/bashrc.d/tmuxc.sh`. The tutorial (Beat 7) demos it. 
 2. `payload/tmux/launch-main.sh`: rename session `main` → `root`, single window in `~/ai-platform/`, initial prompt `/tutorial`. Strip the project-window conditional (it lives in `/first-project` now).
 3. `payload/wizard/36-phone-bridge.sh`: drop GitHub from the "what's left" preview.
 4. `payload/skills/welcome/SKILL.md`: replace body with "type `/tutorial`" stub.
-5. Manual verify: dryrun in mhserver still passes.
+5. Manual verify: dryrun on the maintainer's box still passes.
 
 **Wave 2 — `/tutorial` skill (this commit).**
 1. Create `payload/skills/tutorial/SKILL.md` with all 8 beats.

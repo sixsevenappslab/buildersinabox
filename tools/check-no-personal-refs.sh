@@ -50,6 +50,14 @@ PATTERNS=(
     "\bPaco\b"
 )
 
+# Private-infrastructure names. Scanned across the WHOLE repo, not just the
+# shippable tree — specs/ never reaches a device, but it IS public the moment
+# the repo is, and the maintainer's server hostname should not be in it.
+# Keep this list to machine/host names; personal names belong above.
+INFRA_PATTERNS=(
+    "mhserver"
+)
+
 exit_code=0
 echo "Scanning the shippable tree for personal references..."
 echo "Excluded: specs/, maintainer/ flavor subdirs, tools/, .git/, LICENSE, ISO sources, maintainer notes"
@@ -66,8 +74,32 @@ for pattern in "${PATTERNS[@]}"; do
     fi
 done
 
+echo "Scanning the whole repo (specs/ included) for private-infra names..."
+echo
+
+# Only .git and this script itself are exempt: .git holds history, and the
+# patterns are spelled out above.
+INFRA_EXCLUDES=(
+    --exclude-dir=.git
+    --exclude-dir=node_modules
+    --exclude-dir=.staging
+    --exclude-dir=out
+    --exclude=check-no-personal-refs.sh
+    --exclude=ubuntu-*.iso
+)
+
+for pattern in "${INFRA_PATTERNS[@]}"; do
+    matches=$(grep -rnEI "${INFRA_EXCLUDES[@]}" "$pattern" . 2>/dev/null || true)
+    if [[ -n "$matches" ]]; then
+        printf '%s\n' "── Found private-infra references to /$pattern/:"
+        printf '%s\n' "$matches" | sed 's|^\./||; s|^|    |'
+        printf '\n'
+        exit_code=1
+    fi
+done
+
 if [[ $exit_code -eq 0 ]]; then
-    echo "Clean. No personal references found in the shippable tree."
+    echo "Clean. No personal or private-infra references found."
 else
     echo "FAIL: scrub these before shipping. Either generalise the wording,"
     echo "      move the file to gift/, or add it to the EXCLUDES list above"
