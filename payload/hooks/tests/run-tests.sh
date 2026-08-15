@@ -245,11 +245,18 @@ mkdir -p "$BIB_STATE_DIR" "$BIB_LOG_DIR"
 # shellcheck source=/dev/null
 source "$REPO/payload/lib/common.sh"
 # ai-cli.sh defines ai_cli_has_capability(), which install_hooks() gates on.
-# Without it the gate errors out, `!` flips the non-zero into success, and every
-# assertion below runs against a settings.json that was never written — the
-# whole block passes as a silent no-op. It MUST be sourced.
+# Without it the gate errors out, `!` flips the non-zero into success, and
+# install_hooks() takes its skip path, so every assertion below runs against a
+# settings.json that was never written. It MUST be sourced.
 # shellcheck source=/dev/null
 source "$REPO/payload/lib/ai-cli.sh"
+# Both libs declare `set -euo pipefail`, and `source` applies that to US. This
+# harness deliberately runs without -e (line 10) because it counts failures
+# itself via ok/bad; with -e inherited, the first bare assignment whose command
+# fails kills the run mid-suite — no summary line, and every later section
+# silently never executes. That is exactly how the seed-block breakage above
+# stayed hidden. Take -e back off; keep -u and pipefail.
+set +e
 # Extract install_hooks() verbatim from the scaffold and drive it in isolation.
 eval "$(sed -n '/^install_hooks()/,/^}/p' "$REPO/payload/wizard/40-scaffold.sh")"
 # These are consumed by the eval'd install_hooks (invisible to shellcheck).
@@ -337,6 +344,17 @@ nb="$(jq '[.hooks.UserPromptSubmit[].hooks[].command | select(endswith("/biab-qu
 [[ "${nb:-0}" -eq 1 ]] && ok "quota-nudge not duplicated on rerun (dedup)" || bad "quota-nudge duplicated: count=$nb"
 nu="$(jq '[.hooks.UserPromptSubmit[].hooks[].command | select(. == "/user/mine-ups.sh")] | length' "$S")"
 [[ "${nu:-0}" -eq 1 ]] && ok "user hook still single after rerun" || bad "user hook count off: $nu"
+# A group of OURS that the user has edited must not cause a double registration.
+# Deleting biab-lint.sh out of the PostToolUse group we installed leaves a group
+# that no longer matches ours as a whole; appending ours wholesale would then run
+# biab-format.sh twice per event. Dedup is per command, so only the missing one
+# comes back and nothing fires twice.
+printf '%s' '{"hooks":{"PostToolUse":[{"matcher":"Edit|Write","hooks":[{"type":"command","command":"'"$PAYLOAD_DIR"'/hooks/biab-format.sh"}]}]}}' > "$S"
+install_hooks >/dev/null 2>&1
+nfmt="$(jq '[.hooks.PostToolUse[].hooks[].command | select(endswith("/biab-format.sh"))] | length' "$S")"
+[[ "${nfmt:-0}" -eq 1 ]] && ok "edited biab group: surviving command not duplicated" || bad "biab-format.sh registered ${nfmt}x after edit (double execution)"
+nlint="$(jq '[.hooks.PostToolUse[].hooks[].command | select(endswith("/biab-lint.sh"))] | length' "$S")"
+[[ "${nlint:-0}" -eq 1 ]] && ok "edited biab group: missing command restored once" || bad "biab-lint.sh count off after edit: $nlint"
 # FEAT-019: a user's OWN SessionStart hook is preserved too (SessionStart is a
 # context-injection event → additive, same policy as UserPromptSubmit), biab's
 # specs hook is added alongside it, and a rerun stays idempotent.
@@ -351,21 +369,33 @@ nbs="$(jq '[.hooks.SessionStart[].hooks[].command | select(endswith("/biab-specs
 [[ "${nbs:-0}" -eq 1 ]] && ok "specs hook not duplicated on rerun (dedup)" || bad "specs hook duplicated: count=$nbs"
 nus="$(jq '[.hooks.SessionStart[].hooks[].command | select(. == "/user/mine-ss.sh")] | length' "$S")"
 [[ "${nus:-0}" -eq 1 ]] && ok "user SessionStart hook still single after rerun" || bad "user SessionStart hook count off: $nus"
-# A settings.json that is valid JSON but has a hook group we can't process must
-# NOT cost the user their file. The merge writes into the file it reads, so a jq
+# A settings.json that is valid JSON but that the merge cannot process must NOT
+# cost the user their file. The merge writes into the file it reads, so a jq
 # error (stderr only, empty stdout) used to truncate it to a blank line and take
-# every unrelated key with it. Bail and leave it alone instead.
-printf '%s' '{"env":{"KEEP":"me"},"apiKeyHelper":"/user/key.sh","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":"not-an-array"}]}}' > "$S"
+# every unrelated key with it. Bail and leave it alone instead. An event holding
+# a string instead of an array of groups is one shape jq cannot work with.
+printf '%s' '{"env":{"KEEP":"me"},"permissions":{"allow":["Bash"]},"hooks":{"PreToolUse":"not-an-array"}}' > "$S"
 before="$(cat "$S")"
 install_hooks >/dev/null 2>&1
 # -s is not enough here: the truncating write leaves a single newline behind,
 # which is a 1-byte file and passes -s. Require actual non-whitespace content.
 grep -q '[^[:space:]]' "$S" 2>/dev/null \
-    && ok "malformed hook group: settings.json not truncated" || bad "settings.json was TRUNCATED (user config lost)"
-jq -e . "$S" >/dev/null 2>&1 && ok "malformed hook group: settings.json still valid JSON" || bad "settings.json left invalid: $(cat "$S")"
-jq -e '.env.KEEP == "me" and .apiKeyHelper == "/user/key.sh"' "$S" >/dev/null 2>&1 \
-    && ok "malformed hook group: unrelated user keys survived" || bad "unrelated user keys lost: $(cat "$S")"
-[[ "$(cat "$S")" == "$before" ]] && ok "malformed hook group: file left byte-identical" || bad "file was modified despite the bail"
+    && ok "unmergeable settings: not truncated" || bad "settings.json was TRUNCATED (user config lost)"
+jq -e . "$S" >/dev/null 2>&1 && ok "unmergeable settings: still valid JSON" || bad "settings.json left invalid: $(cat "$S")"
+jq -e '.env.KEEP == "me" and (.permissions.allow | index("Bash"))' "$S" >/dev/null 2>&1 \
+    && ok "unmergeable settings: unrelated user keys survived" || bad "unrelated user keys lost: $(cat "$S")"
+[[ "$(cat "$S")" == "$before" ]] && ok "unmergeable settings: file left byte-identical" || bad "file was modified despite the bail"
+# A group whose own .hooks is not an array is tolerated rather than fatal: the
+# per-command dedup reads it with `.hooks[]?`, which yields nothing instead of
+# erroring. The user keeps their odd entry and ours is added beside it.
+printf '%s' '{"env":{"KEEP":"me"},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":"not-an-array"}]}}' > "$S"
+install_hooks >/dev/null 2>&1
+jq -e '.env.KEEP == "me"' "$S" >/dev/null 2>&1 \
+    && ok "odd hook group: unrelated user keys survived" || bad "unrelated user keys lost: $(cat "$S")"
+jq -e '[.hooks.PreToolUse[] | select(.hooks == "not-an-array")] | length == 1' "$S" >/dev/null 2>&1 \
+    && ok "odd hook group: user's own entry kept verbatim" || bad "user's odd entry lost: $(jq -c '.hooks.PreToolUse' "$S")"
+jq -e '[.hooks.PreToolUse[].hooks[]?.command] | any(endswith("/biab-guardrail.sh"))' "$S" >/dev/null 2>&1 \
+    && ok "odd hook group: ours still registered alongside" || bad "biab guardrail missing: $(jq -c '.hooks.PreToolUse' "$S")"
 rm -rf "$target_home"
 
 # --- antigravity box: no ~/.claude/settings.json created, skip logged ---

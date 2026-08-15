@@ -201,13 +201,15 @@ install_hooks() {
         # machine and their own ~/.claude/settings.json. The global rule (never
         # overwrite user config) now applies to every event, with no exception.
         #
-        # Groups dedupe on (matcher, command list), so a rerun never adds a
-        # second biab entry, while a user group that merely shares a command
-        # under a different matcher keeps both. Note the key cannot recognise a
-        # group as "ours, but edited": if you delete one command out of a group
-        # we installed, the next run stops matching it and adds our full group
-        # alongside your edited one. That is the deliberate cost of never
-        # removing anything — we cannot tell your edit from someone else's hook.
+        # Dedup is per COMMAND, scoped to groups sharing the same matcher: for
+        # each group we seed, drop the commands already registered under that
+        # matcher, and add the group only if anything is left. Comparing whole
+        # groups instead would miss a group of ours the user has edited — delete
+        # one command out of it and the next run stops recognising it and appends
+        # our full group beside theirs, so the surviving command fires twice.
+        # Per-command comparison keeps a rerun a no-op, restores only the pieces
+        # that are actually missing, and still adds ours under our own matcher
+        # when the same command exists under a different one.
         #
         # Capture into a variable FIRST, then write. `printf '%s\n' "$(jq ...)"
         # > "$settings"` reads and truncates the same file, so a jq error (which
@@ -217,16 +219,21 @@ install_hooks() {
         # path has to be closed.
         local merged
         if ! merged="$(jq --argjson ours "$ours" '
-            def group_key: [ .matcher, (.hooks // [] | map(.command)) ];
-            def dedupe_groups:
-                reduce .[] as $g ([];
-                    if any(.[]?; group_key == ($g | group_key))
-                    then . else . + [$g] end);
             . as $user
             | reduce ($ours.hooks | keys_unsorted[]) as $ev (
                 $user;
-                .hooks[$ev] = ((($user.hooks[$ev] // []) + ($ours.hooks[$ev] // []))
-                               | dedupe_groups))
+                . as $acc
+                | ($user.hooks[$ev] // []) as $mine
+                | [ ($ours.hooks[$ev] // [])[]
+                    | . as $og
+                    | [ $mine[] | select(.matcher == $og.matcher)
+                                | .hooks[]?.command ] as $have
+                    | .hooks = [ (.hooks // [])[]
+                                 | select(.command as $c
+                                          | ($have | index($c)) == null) ]
+                    | select((.hooks | length) > 0) ] as $add
+                | $acc
+                | .hooks[$ev] = ($mine + $add))
         ' "$settings" 2>/dev/null)" || [[ -z "$merged" ]]; then
             warn "40-scaffold: could not merge hooks into ${settings} — leaving it untouched"
             return 0
