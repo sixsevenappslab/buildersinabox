@@ -147,11 +147,12 @@ _external_ssh_peer() {
 }
 
 # authorized_keys has a usable key when it holds at least one non-blank,
-# non-comment line.
+# non-comment line. The definition lives in lib/common.sh (FEAT-024) because
+# install.sh's uninstall lockout guard asks the same question, and the two
+# answering it differently is a lockout waiting to happen. Kept as a thin alias
+# so the call sites below read the same as before.
 _authorized_keys_present() {
-    local f="$1"
-    [[ -f "$f" ]] || return 1
-    grep -Eq '^[[:space:]]*[^[:space:]#]' "$f"
+    bib_authorized_keys_present "$1"
 }
 
 # Set PasswordAuthentication + KbdInteractiveAuthentication to <yes|no> in the

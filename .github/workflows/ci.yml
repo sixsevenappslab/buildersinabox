@@ -53,6 +53,17 @@ jobs:
       - name: SSH finalize decision unit tests (FEAT-014)
         run: bash payload/test/ssh-finalize-decision.sh
 
+      # FEAT-024: the install/uninstall ownership contract — "only touch what is
+      # ours, and put back what we changed". Asserted nowhere until now: the
+      # 2026-08-14 audit found six defects in it by reading the code while CI
+      # stayed green, and the fixes then introduced three more of the same
+      # class. Every case reproduces one of those. Runs as a normal user (it
+      # refuses to start as root), sourcing install.sh as a library and pointing
+      # the whole teardown at a mktemp -d — no VM, no network. The real `sshd -T`
+      # precedence check skips cleanly where no sshd binary exists.
+      - name: Install/uninstall ownership contract (FEAT-024)
+        run: bash payload/test/uninstall-contract.sh
+
       # Same gap the browser pack had (see browser-pack-tests below): this suite
       # existed but nothing ran it, so it rotted unnoticed. It had been exiting
       # 2 partway through the scaffold-seed block for some time — the harness

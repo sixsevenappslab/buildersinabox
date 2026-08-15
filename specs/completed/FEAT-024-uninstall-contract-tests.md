@@ -11,9 +11,9 @@
   > path redirection, exactly like the existing FEAT-014 unit driver — no runtime
   > UI or endpoint to drive.
 - **Reconciliation owner:** sdd-coordinator
-- **Fase:** implementacion
+- **Fase:** completada
 - **Creado:** 2026-08-15
-- **Actualizado:** 2026-08-15 (validada por Jesus, promovida a active/)
+- **Actualizado:** 2026-08-15 (implementada, PR #52)
 - **Validado por Jesus:** [x] 2026-08-15
 
 ---
@@ -818,6 +818,14 @@ mutate() {
     local label="$1" file="$2" expr="$3" rc=0
     git diff --quiet -- "$file" || { echo "ABORT: $file ya esta sucio"; return 2; }
     sed -i "$expr" "$file"
+    # Un `sed` que no encaja con nada reporta MISSED sin haber probado NADA —
+    # la misma enfermedad de verde-vacuo que esta FEAT existe para matar, un
+    # nivel por encima. Dos expresiones de esta batería llegaron obsoletas a la
+    # implementacion por esto exactamente (ver nota al pie).
+    if git diff --quiet -- "$file"; then
+        echo "ABORT: la mutacion no cambio ningun byte de $file (expresion obsoleta)"
+        return 2
+    fi
     if ! bash -n "$file" 2>/dev/null; then
         git checkout -- "$file"
         echo "ABORT: la mutacion rompio la sintaxis de $file (rojo por el motivo equivocado)"
@@ -834,19 +842,27 @@ mutate() {
 }
 
 mutate "QA-29 (#42) 00-conf fuera de paths_to_remove" \
-       payload/install.sh   '/00-buildersinabox.conf$/d'
+       payload/install.sh   '\#^[[:space:]]*"\${BIB_UNINSTALL_ROOT}/etc/ssh/sshd_config\.d/00-buildersinabox\.conf"$#d'
 mutate "QA-30 (#44) patron legacy de bd" \
        payload/lib/common.sh 's/|brain-dump capture CLI//'
 mutate "QA-32 propiedad ignorada, borrar siempre" \
-       payload/install.sh   's/if grep -Eq "$_pat" "$_own" 2>\/dev\/null; then/if true; then/'
+       payload/install.sh   's/if bib_path_is_ours "\$_own" "\$_pat"; then/if true; then/'
 mutate "QA-33 (#41) perfil borrado sin descargar" \
        payload/install.sh   's/apparmor_parser -R/true -R/'
 mutate "QA-34 reload -> restart (lockout)" \
        payload/install.sh   's/systemctl reload ssh.service/systemctl restart ssh.service/'
-# Comprobadas contra el install.sh de esta rama: cada una toca exactamente una
-# linea y deja el fichero sintacticamente valido (`sed -i '/…conf$/d'` borra la
-# de :203, no la del guard de :144; borrar la linea de `apparmor_parser -R`
-# entera romperia la continuacion `\` de :240, por eso se sustituye por `true`).
+# Las cinco EJECUTADAS contra el codigo implementado (5/5 MUTATION-CAUGHT, arbol
+# limpio despues). Cada una toca exactamente una linea y deja el fichero
+# sintacticamente valido; borrar la linea de `apparmor_parser -R` entera
+# romperia su continuacion `\`, por eso se sustituye por `true`.
+#
+# NOTA — dos de estas expresiones nacieron obsoletas y hubo que corregirlas:
+# QA-29 anclaba en `.conf$`, pero T2 dejo las rutas entre comillas (la linea
+# ahora acaba en `"`), y QA-32 buscaba el `grep -Eq` inline que T1 sustituyo por
+# `bib_path_is_ours`. Ninguna cambiaba un solo byte: reportaban MISSED sin haber
+# probado nada, y la version anterior de esta seccion afirmaba que estaban
+# "comprobadas contra el install.sh de esta rama". No lo estaban. De ahi el
+# guard de "0 bytes cambiados" en `mutate()`.
 #
 # QA-31 (mover el guard SSH detras del teardown de packs), QA-35 (quitar un
 # prefijo $BIB_UNINSTALL_ROOT) y QA-36 (meta-mutacion al propio driver) no son
@@ -891,4 +907,33 @@ instala la caja.
 
 ## 6. Feedback
 
-> Vacío hasta después del deploy.
+Implementada en PR #52. Para esta FEAT el merge **es** el despliegue: lo que
+entrega es un step de CI, no algo que llegue a una caja.
+
+Resultado: `payload/test/uninstall-contract.sh`, 78 aserciones, ~2 s, sin root
+ni red ni VM, ejecutándose en el job `lint`. Verificado en el runner, no solo en
+local — incluido el caso `sshd -T` real, que comprueba con un sshd de verdad que
+antes del uninstall nuestro `00-` fuerza `PasswordAuthentication yes` y después
+vuelve a mandar el drop-in de la distro. Esa es la prueba literal del bug de #42.
+
+Desviaciones y correcciones, para quien lea esto después:
+
+- El `<verify>` de T2 topa el diff de `install.sh` en 80 líneas; salieron 93. El
+  código son 37 líneas añadidas; el resto es comentario a la densidad del
+  fichero. No se recortaron explicaciones para cuadrar el número.
+- Dos de los cinco `sed` de la batería de mutaciones de §4 nacieron obsoletos y
+  no cambiaban ningún byte — reportaban `MISSED` sin probar nada, y el texto
+  afirmaba que estaban comprobados contra esta rama. Corregidos y **ejecutados**
+  (5/5 `MUTATION-CAUGHT`), con un guard de "0 bytes cambiados" en `mutate()`.
+- E-07 esperaba el literal `the target user` para una cuenta irresoluble; esa
+  cadena solo sale cuando `target_user` está vacío. El driver asierta ambos
+  subcasos por separado.
+
+Defecto encontrado por el propio driver, en la costura de esta FEAT y no en el
+instalador: el for-list del teardown de packs interpolaba el prefijo sin
+comillas, así que un prefijo con espacio no encajaba con nada y **se saltaba
+todos los teardowns en silencio**. Corregido comillando el prefijo y dejando el
+glob final sin comillar; E-13 lo asierta.
+
+Sigue pendiente, sin cambios: el listener sshd vivo solo lo valida la pasada
+manual en hardware, misma laguna declarada que FEAT-014.

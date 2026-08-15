@@ -308,3 +308,47 @@ apt_update_once() {
         export BIB_APT_UPDATED
     fi
 }
+
+# ---------------------------------------------------------------------------
+# Ownership predicates (FEAT-024)
+# ---------------------------------------------------------------------------
+# One definition each, because the install side and the uninstall side asking
+# the same question in two places is how #44 happened: the installer refused to
+# overwrite a file that the uninstaller then deleted. If these ever need to
+# change, they change here and both sides move together.
+#
+# The SC2034 disables below are because these constants are read by the scripts
+# that source this file, never here — a one-file-at-a-time linter cannot see it.
+
+# The marker every file we write carries.
+BIB_OWNERSHIP_MARKER='Installed by Builders in a Box'
+
+# `bd` has two ways to be ours. The second matters: every bd installed before
+# the marker existed carries no marker, and matching on the marker alone would
+# classify those boxes' own bd as a stranger's — freezing updates forever and
+# leaving it behind on uninstall. See install/06-bd-cli.sh.
+# shellcheck disable=SC2034
+BIB_BD_OWNERSHIP_PATTERN="${BIB_OWNERSHIP_MARKER}|brain-dump capture CLI"
+
+# The tty1 autologin drop-in. Deliberately specific: a file that merely
+# mentions the product is not ours. Note the em dash (U+2014) — it must match
+# payload/systemd/getty@tty1.service.d/autologin.conf.in byte for byte.
+# shellcheck disable=SC2034
+BIB_AUTOLOGIN_OWNERSHIP_PATTERN='Builders in a Box — autologin'
+
+# True when <file> exists and matches <extended-regex>. Silent; never fails the
+# caller under `set -e` (a non-match is an answer, not an error).
+bib_path_is_ours() {
+    local f="$1" pat="$2"
+    [[ -e "$f" ]] || return 1
+    grep -Eq "$pat" "$f" 2>/dev/null
+}
+
+# authorized_keys has a usable key when it holds at least one non-blank,
+# non-comment line. Consumed by the wizard's SSH finalize step and by the
+# uninstall lockout guard — they must agree on what "has a key" means.
+bib_authorized_keys_present() {
+    local f="$1"
+    [[ -f "$f" ]] || return 1
+    grep -Eq '^[[:space:]]*[^[:space:]#]' "$f"
+}

@@ -28,10 +28,12 @@ fi
 # boxes' own bd as a stranger's the first time the stack_installed phase is reset,
 # freezing it forever — no more updates, and uninstall would leave it behind.
 # The legacy header line identifies those copies. Keep both checks.
+#
+# The pattern itself lives in lib/common.sh (FEAT-024): install.sh's
+# do_uninstall has to reach the same verdict, and #44 is what happens when the
+# two copies drift.
 bd_is_ours() {
-    grep -q 'Installed by Builders in a Box' "$1" 2>/dev/null && return 0
-    grep -q 'brain-dump capture CLI' "$1" 2>/dev/null && return 0
-    return 1
+    bib_path_is_ours "$1" "$BIB_BD_OWNERSHIP_PATTERN"
 }
 
 if [[ -e "$target" ]] && ! bd_is_ours "$target"; then

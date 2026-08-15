@@ -34,6 +34,19 @@ BIB_USER=ubuntu BIB_NAME='' BIB_FLAVOR=default BIB_AI_CLI=claude BIB_OAUTH_MOCK=
 
 `payload/install.sh --uninstall` cleanly removes everything BIAB-owned (and leaves your home, Tailscale, GitHub, and Claude auth untouched), so you can iterate.
 
+If you touch the installer or the uninstaller, run the ownership-contract driver
+before opening the PR — it asserts that we only remove what is ours and put back
+what we changed:
+
+```bash
+bash payload/test/uninstall-contract.sh
+```
+
+No root, no network, no VM: it sources `install.sh` as a library and points the
+whole teardown at a temporary directory. **Never run it with `sudo`** — it
+refuses to start as root, because under root a missed path prefix would delete
+from your real `/etc`.
+
 ## Conventions
 
 - `set -euo pipefail` at the top of every script.

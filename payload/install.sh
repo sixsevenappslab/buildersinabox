@@ -42,6 +42,17 @@ SELFTEST_MODE=0
 AI_CLI_ARG=""
 FLAVOR_ARG=""
 
+# FEAT-024: root prefix for every absolute path do_uninstall touches, so the
+# unit driver can point the whole teardown at a mktemp -d instead of the real
+# /etc. Empty on a real box — the paths below are byte-identical to what they
+# were. Honoured ONLY when the file is sourced as a library, so a stray
+# BIB_UNINSTALL_ROOT_TEST in someone's environment can never redirect (or
+# escape) a genuine uninstall.
+BIB_UNINSTALL_ROOT=""
+if [[ "${BIB_INSTALL_LIB:-0}" == "1" ]]; then
+    BIB_UNINSTALL_ROOT="${BIB_UNINSTALL_ROOT_TEST:-}"
+fi
+
 usage() {
     cat <<'EOF'
 Usage: sudo install.sh [options]
@@ -67,7 +78,11 @@ Options:
 EOF
 }
 
-while [[ $# -gt 0 ]]; do
+# FEAT-024: payload/test/uninstall-contract.sh sources this file to unit-test
+# do_uninstall. The guard belongs in the loop CONDITION, not around it: when
+# sourced, "$@" is whatever the *caller* was invoked with, so the `case *)`
+# below would kill the test driver with "unknown argument".
+while [[ "${BIB_INSTALL_LIB:-0}" != "1" && $# -gt 0 ]]; do
     case "$1" in
         --force)              FORCE=1; shift ;;
         --skip-wizard)        SKIP_WIZARD=1; shift ;;
@@ -141,12 +156,12 @@ do_uninstall() {
     # so a user who never added a key is relying entirely on that drop-in — and
     # taking it away can leave a headless box unreachable. 35-ssh-finalize.sh
     # treats this exact hazard as a hard stop (HOLD-OPEN); so does uninstall.
-    if [[ -e /etc/ssh/sshd_config.d/00-buildersinabox.conf ]]; then
+    if [[ -e "${BIB_UNINSTALL_ROOT}/etc/ssh/sshd_config.d/00-buildersinabox.conf" ]]; then
         local _ak=""
         if [[ -n "$target_user" ]] && getent passwd "$target_user" >/dev/null; then
             _ak="$(getent passwd "$target_user" | cut -d: -f6)/.ssh/authorized_keys"
         fi
-        if [[ -z "$_ak" ]] || ! grep -Eq '^[[:space:]]*[^[:space:]#]' "$_ak" 2>/dev/null; then
+        if [[ -z "$_ak" ]] || ! bib_authorized_keys_present "$_ak"; then
             printf '\n'
             printf '  WARNING — %s has no SSH key in authorized_keys.\n' "${target_user:-the target user}"
             printf '  Password login works right now because of a drop-in this uninstall\n'
@@ -154,10 +169,23 @@ do_uninstall() {
             printf '  images that default is "PasswordAuthentication no".\n'
             printf '  If this box is headless, open a SECOND SSH session and confirm you\n'
             printf '  can still get in BEFORE you close this one.\n\n'
-            if [[ "$NON_INTERACTIVE" -eq 0 && "$FORCE" -eq 0 && -r /dev/tty ]]; then
+            # FEAT-024: /dev/tty is never readable on a CI runner, so the abort
+            # path would be untestable if we kept reading it directly. Take the
+            # source from BIB_PROMPT_INPUT — but ONLY in library mode, because
+            # otherwise anyone with that variable exported (payload/test/dryrun.sh
+            # exports it) would turn a real uninstall's "warn and continue" into
+            # an abort. On a real box this stays exactly `/dev/tty`.
+            local _prompt_src="/dev/tty"
+            if [[ "${BIB_INSTALL_LIB:-0}" == "1" ]]; then
+                _prompt_src="${BIB_PROMPT_INPUT:-/dev/tty}"
+            fi
+            if [[ "$NON_INTERACTIVE" -eq 0 && "$FORCE" -eq 0 && -r "$_prompt_src" ]]; then
                 printf '  Type yes to continue: '
                 local _ack=""
-                read -r _ack < /dev/tty || true
+                # `|| true` is load-bearing: read returns non-zero on EOF, and
+                # this file runs under `set -e`, so without it an empty input
+                # would kill do_uninstall BEFORE the abort message below prints.
+                read -r _ack < "$_prompt_src" || true
                 if [[ "$_ack" != "yes" ]]; then
                     printf 'uninstall: aborted, nothing was changed.\n'
                     exit 1
@@ -173,7 +201,10 @@ do_uninstall() {
     # silently skipped (source of truth for what to remove lives in the
     # pack itself, per FEAT-017 §2.2).
     local pack_dir
-    for pack_dir in /opt/buildersinabox/payload/pack/*/; do
+    # Quote the prefix but NOT the trailing glob: an unquoted for-list word-
+    # splits, so a BIB_UNINSTALL_ROOT containing a space would split into words,
+    # match nothing, and skip every pack teardown in silence.
+    for pack_dir in "${BIB_UNINSTALL_ROOT}"/opt/buildersinabox/payload/pack/*/; do
         [[ -d "$pack_dir" ]] || continue
         local pack_uninstall="${pack_dir}uninstall.sh"
         if [[ -x "$pack_uninstall" ]]; then
@@ -188,8 +219,8 @@ do_uninstall() {
     # resurrect /var/log/buildersinabox right after we remove it. Uninstall is
     # tearing the logging infra down, so it must not write into it.
     local paths_to_remove=(
-        /usr/local/bin/biab
-        /etc/profile.d/biab-firstboot.sh
+        "${BIB_UNINSTALL_ROOT}/usr/local/bin/biab"
+        "${BIB_UNINSTALL_ROOT}/etc/profile.d/biab-firstboot.sh"
         # FEAT-014 SSH drop-ins: the auth policy, the Tailscale-only bind, the
         # (legacy) public hardening file, and the systemd ordering drop-in that
         # makes ssh.service wait for the tailnet at boot. Removing the bind
@@ -200,13 +231,13 @@ do_uninstall() {
         # ahead of everything, leaving it behind keeps password auth forced on
         # for good — overriding the user's own hardening drop-ins — on a box
         # they believe they have uninstalled us from.
-        /etc/ssh/sshd_config.d/00-buildersinabox.conf
-        /etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf
-        /etc/ssh/sshd_config.d/02-buildersinabox-public-hardening.conf
-        /etc/systemd/system/ssh.service.d/10-buildersinabox-tailscale-wait.conf
+        "${BIB_UNINSTALL_ROOT}/etc/ssh/sshd_config.d/00-buildersinabox.conf"
+        "${BIB_UNINSTALL_ROOT}/etc/ssh/sshd_config.d/01-buildersinabox-tailscale.conf"
+        "${BIB_UNINSTALL_ROOT}/etc/ssh/sshd_config.d/02-buildersinabox-public-hardening.conf"
+        "${BIB_UNINSTALL_ROOT}/etc/systemd/system/ssh.service.d/10-buildersinabox-tailscale-wait.conf"
         "$BIB_LOG_DIR"
         "$BIB_STATE_DIR"
-        /opt/buildersinabox
+        "${BIB_UNINSTALL_ROOT}/opt/buildersinabox"
     )
 
     # Only remove these two if they are ours. The installer refuses to overwrite
@@ -214,17 +245,19 @@ do_uninstall() {
     # unconditionally would delete the user's own files on our way out.
     #
     # The patterns are specific rather than just "Builders in a Box", so a file
-    # that merely mentions the product is not mistaken for one of ours. `bd` gets
-    # a second pattern for copies installed before the marker existed — see the
-    # matching note in install/06-bd-cli.sh.
+    # that merely mentions the product is not mistaken for one of ours. They
+    # live in lib/common.sh (FEAT-024) because install/06-bd-cli.sh asks the
+    # same question on the way in — the two drifting apart is exactly how #44
+    # happened.
     local _own _pat
-    for _own in /usr/local/bin/bd /etc/systemd/system/getty@tty1.service.d/autologin.conf; do
+    for _own in "${BIB_UNINSTALL_ROOT}/usr/local/bin/bd" \
+                "${BIB_UNINSTALL_ROOT}/etc/systemd/system/getty@tty1.service.d/autologin.conf"; do
         [[ -e "$_own" ]] || continue
         case "$_own" in
-            */bd) _pat='Installed by Builders in a Box|brain-dump capture CLI' ;;
-            *)    _pat='Builders in a Box — autologin' ;;
+            */bd) _pat="$BIB_BD_OWNERSHIP_PATTERN" ;;
+            *)    _pat="$BIB_AUTOLOGIN_OWNERSHIP_PATTERN" ;;
         esac
-        if grep -Eq "$_pat" "$_own" 2>/dev/null; then
+        if bib_path_is_ours "$_own" "$_pat"; then
             paths_to_remove+=("$_own")
         else
             printf 'uninstall: leaving %s alone — it is not ours\n' "$_own"
@@ -235,13 +268,14 @@ do_uninstall() {
     # we put outside /opt, so uninstall has to take it back out — but only if it
     # is ours. Unload it first; a profile file removed while still loaded stays
     # in force until the next boot.
-    if [[ -e /etc/apparmor.d/bwrap ]]; then
-        if grep -q 'Installed by Builders in a Box' /etc/apparmor.d/bwrap 2>/dev/null; then
+    local _bwrap="${BIB_UNINSTALL_ROOT}/etc/apparmor.d/bwrap"
+    if [[ -e "$_bwrap" ]]; then
+        if bib_path_is_ours "$_bwrap" "$BIB_OWNERSHIP_MARKER"; then
             command -v apparmor_parser >/dev/null 2>&1 \
-                && apparmor_parser -R /etc/apparmor.d/bwrap 2>/dev/null || true
-            paths_to_remove+=(/etc/apparmor.d/bwrap)
+                && apparmor_parser -R "$_bwrap" 2>/dev/null || true
+            paths_to_remove+=("$_bwrap")
         else
-            printf 'uninstall: leaving /etc/apparmor.d/bwrap alone — it is not ours\n'
+            printf 'uninstall: leaving %s alone — it is not ours\n' "$_bwrap"
         fi
     fi
 
@@ -252,7 +286,7 @@ do_uninstall() {
             printf 'uninstall: removing %s\n' "$p"
             rm -rf -- "$p"
             found_anything=1
-            [[ "$p" == /etc/ssh/sshd_config.d/* || "$p" == /etc/systemd/system/ssh.service.d/* ]] \
+            [[ "$p" == "${BIB_UNINSTALL_ROOT}"/etc/ssh/sshd_config.d/* || "$p" == "${BIB_UNINSTALL_ROOT}"/etc/systemd/system/ssh.service.d/* ]] \
                 && removed_ssh_dropin=1
         fi
     done
@@ -261,7 +295,7 @@ do_uninstall() {
     # waits on the (now-removed) Tailscale bind and the listener returns to its
     # public default immediately (reload keeps live sessions — no lockout).
     if [[ "$removed_ssh_dropin" -eq 1 ]] && command -v systemctl >/dev/null 2>&1; then
-        rmdir /etc/systemd/system/ssh.service.d 2>/dev/null || true
+        rmdir "${BIB_UNINSTALL_ROOT}/etc/systemd/system/ssh.service.d" 2>/dev/null || true
         systemctl daemon-reload 2>/dev/null || true
         systemctl reload ssh.service 2>/dev/null || true
 
@@ -306,9 +340,18 @@ do_uninstall() {
     fi
     exit 0
 }
-
 if [[ "$UNINSTALL_MODE" -eq 1 ]]; then
     do_uninstall
+fi
+
+# FEAT-024: everything above this line is definitions and no-ops; everything
+# below installs a machine. payload/test/uninstall-contract.sh sources the file
+# to get do_uninstall, so stop here for it. `return` ends the sourcing without
+# reindenting the 250 lines below into an `if`; the `|| exit 0` covers someone
+# running install.sh with BIB_INSTALL_LIB exported by accident, where `return`
+# at top level is an error and would abort under `set -e`.
+if [[ "${BIB_INSTALL_LIB:-0}" == "1" ]]; then
+    return 0 2>/dev/null || exit 0
 fi
 
 # ---------------------------------------------------------------------------
