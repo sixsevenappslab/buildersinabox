@@ -244,6 +244,12 @@ export BIB_STATE_FILE="$SBOX/state/state.json"
 mkdir -p "$BIB_STATE_DIR" "$BIB_LOG_DIR"
 # shellcheck source=/dev/null
 source "$REPO/payload/lib/common.sh"
+# ai-cli.sh defines ai_cli_has_capability(), which install_hooks() gates on.
+# Without it the gate errors out, `!` flips the non-zero into success, and every
+# assertion below runs against a settings.json that was never written — the
+# whole block passes as a silent no-op. It MUST be sourced.
+# shellcheck source=/dev/null
+source "$REPO/payload/lib/ai-cli.sh"
 # Extract install_hooks() verbatim from the scaffold and drive it in isolation.
 eval "$(sed -n '/^install_hooks()/,/^}/p' "$REPO/payload/wizard/40-scaffold.sh")"
 # These are consumed by the eval'd install_hooks (invisible to shellcheck).
@@ -291,12 +297,32 @@ printf '%s' '{"statusLine":{"type":"command","command":"/user/mine-sl.sh"}}' > "
 install_hooks >/dev/null 2>&1
 jq -e '.statusLine.command == "/user/mine-sl.sh"' "$S" >/dev/null \
     && ok "seed: existing statusLine preserved (not overwritten)" || bad "statusLine overwritten"
-# AC-E3: pre-existing user key survives, user's own PreToolUse replaced
+# Pre-existing user key survives, AND so does the user's own PreToolUse hook.
+# Supersedes FEAT-015 AC-E3, which replaced the guardrail events outright:
+# every event is additive now, we never remove a hook the user had.
 printf '%s' '{"env":{"FOO":"bar"},"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"/user/mine.sh"}]}]}}' > "$S"
 install_hooks >/dev/null 2>&1
 jq -e '.env.FOO=="bar"' "$S" >/dev/null && ok "merge keeps unrelated user key (.env.FOO)" || bad "user key lost"
-jq -e '[.hooks.PreToolUse[].hooks[].command] | index("/user/mine.sh") | not' "$S" >/dev/null \
-    && ok "user PreToolUse replaced by ours (documented replace semantics)" || bad "user PreToolUse survived unexpectedly"
+jq -e '[.hooks.PreToolUse[].hooks[].command] | index("/user/mine.sh")' "$S" >/dev/null \
+    && ok "user PreToolUse hook preserved (additive merge)" || bad "user PreToolUse hook LOST"
+jq -e '[.hooks.PreToolUse[].hooks[].command] | any(endswith("/biab-guardrail.sh"))' "$S" >/dev/null \
+    && ok "biab guardrail added alongside user's PreToolUse" || bad "biab guardrail missing after additive merge"
+install_hooks >/dev/null 2>&1   # rerun → must stay idempotent
+npt="$(jq '[.hooks.PreToolUse[].hooks[].command | select(endswith("/biab-guardrail.sh"))] | length' "$S")"
+[[ "${npt:-0}" -eq 1 ]] && ok "guardrail not duplicated on rerun (dedup)" || bad "guardrail duplicated: count=$npt"
+nmine="$(jq '[.hooks.PreToolUse[].hooks[].command | select(. == "/user/mine.sh")] | length' "$S")"
+[[ "${nmine:-0}" -eq 1 ]] && ok "user PreToolUse still single after rerun" || bad "user PreToolUse count off: $nmine"
+# Same policy for the other two events that used to replace: PostToolUse, Stop.
+printf '%s' '{"hooks":{"PostToolUse":[{"matcher":"Edit|Write","hooks":[{"type":"command","command":"/user/mine-post.sh"}]}],"Stop":[{"hooks":[{"type":"command","command":"/user/mine-stop.sh"}]}]}}' > "$S"
+install_hooks >/dev/null 2>&1
+jq -e '[.hooks.PostToolUse[].hooks[].command] | index("/user/mine-post.sh")' "$S" >/dev/null \
+    && ok "user PostToolUse hook preserved (additive merge)" || bad "user PostToolUse hook LOST"
+jq -e '[.hooks.Stop[].hooks[].command] | index("/user/mine-stop.sh")' "$S" >/dev/null \
+    && ok "user Stop hook preserved (additive merge)" || bad "user Stop hook LOST"
+jq -e '[.hooks.PostToolUse[].hooks[].command] | any(endswith("/biab-format.sh"))' "$S" >/dev/null \
+    && ok "biab PostToolUse hooks added alongside user's" || bad "biab PostToolUse hooks missing"
+jq -e '[.hooks.Stop[].hooks[].command] | any(endswith("/biab-session-log.sh"))' "$S" >/dev/null \
+    && ok "biab Stop hook added alongside user's" || bad "biab Stop hook missing"
 # AC-Q8 / QA-8 (FEAT-018): a user's OWN UserPromptSubmit hook is preserved
 # (additive merge, unlike the replace-semantics events above), biab's nudge is
 # added alongside it, and a rerun does NOT duplicate biab's entry (idempotent).
@@ -325,6 +351,21 @@ nbs="$(jq '[.hooks.SessionStart[].hooks[].command | select(endswith("/biab-specs
 [[ "${nbs:-0}" -eq 1 ]] && ok "specs hook not duplicated on rerun (dedup)" || bad "specs hook duplicated: count=$nbs"
 nus="$(jq '[.hooks.SessionStart[].hooks[].command | select(. == "/user/mine-ss.sh")] | length' "$S")"
 [[ "${nus:-0}" -eq 1 ]] && ok "user SessionStart hook still single after rerun" || bad "user SessionStart hook count off: $nus"
+# A settings.json that is valid JSON but has a hook group we can't process must
+# NOT cost the user their file. The merge writes into the file it reads, so a jq
+# error (stderr only, empty stdout) used to truncate it to a blank line and take
+# every unrelated key with it. Bail and leave it alone instead.
+printf '%s' '{"env":{"KEEP":"me"},"apiKeyHelper":"/user/key.sh","hooks":{"PreToolUse":[{"matcher":"Bash","hooks":"not-an-array"}]}}' > "$S"
+before="$(cat "$S")"
+install_hooks >/dev/null 2>&1
+# -s is not enough here: the truncating write leaves a single newline behind,
+# which is a 1-byte file and passes -s. Require actual non-whitespace content.
+grep -q '[^[:space:]]' "$S" 2>/dev/null \
+    && ok "malformed hook group: settings.json not truncated" || bad "settings.json was TRUNCATED (user config lost)"
+jq -e . "$S" >/dev/null 2>&1 && ok "malformed hook group: settings.json still valid JSON" || bad "settings.json left invalid: $(cat "$S")"
+jq -e '.env.KEEP == "me" and .apiKeyHelper == "/user/key.sh"' "$S" >/dev/null 2>&1 \
+    && ok "malformed hook group: unrelated user keys survived" || bad "unrelated user keys lost: $(cat "$S")"
+[[ "$(cat "$S")" == "$before" ]] && ok "malformed hook group: file left byte-identical" || bad "file was modified despite the bail"
 rm -rf "$target_home"
 
 # --- antigravity box: no ~/.claude/settings.json created, skip logged ---

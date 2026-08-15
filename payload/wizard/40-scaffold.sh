@@ -190,30 +190,48 @@ install_hooks() {
         Stop:        [ {                         hooks: [ { type: "command", command: ($d + "/biab-session-log.sh") } ] } ]
       } }')"
     if [[ -f "$settings" ]] && jq -e . "$settings" >/dev/null 2>&1; then
-        # Deep-merge keeps replace-semantics for the guardrail events BIAB owns
-        # and must enforce (FEAT-015 AC-E3: our PreToolUse/PostToolUse/Stop groups
-        # win outright — a user can't weaken them). The context-injection events,
-        # UserPromptSubmit (FEAT-018) and SessionStart (FEAT-019), MUST be additive
-        # instead: a user with their own hook on either keeps it. So after the deep
-        # merge we rebuild both as (user's groups ++ ours), deduped by the command
-        # strings each group carries. Dedup keeps reruns idempotent (no second biab
-        # entry) and the user's own entries survive. Split by event type on purpose:
-        # owned guardrails replace, context injectors merge (global rule: never
-        # overwrite user config).
-        printf '%s\n' "$(jq --argjson ours "$ours" '
+        # NEVER remove anything the user already had. Every event we seed is
+        # additive: each one is rebuilt as (user's groups ++ ours), so a user
+        # who already has a PreToolUse / PostToolUse / Stop / UserPromptSubmit /
+        # SessionStart hook keeps it, and ours runs alongside.
+        #
+        # This supersedes the earlier split (FEAT-015 AC-E3), where the guardrail
+        # events replaced the user's groups outright so they "could not be
+        # weakened". Owning the user's config is not ours to do — this is their
+        # machine and their own ~/.claude/settings.json. The global rule (never
+        # overwrite user config) now applies to every event, with no exception.
+        #
+        # Groups dedupe on (matcher, command list), so a rerun never adds a
+        # second biab entry, while a user group that merely shares a command
+        # under a different matcher keeps both. Note the key cannot recognise a
+        # group as "ours, but edited": if you delete one command out of a group
+        # we installed, the next run stops matching it and adds our full group
+        # alongside your edited one. That is the deliberate cost of never
+        # removing anything — we cannot tell your edit from someone else's hook.
+        #
+        # Capture into a variable FIRST, then write. `printf '%s\n' "$(jq ...)"
+        # > "$settings"` reads and truncates the same file, so a jq error (which
+        # goes to stderr, leaving stdout empty) would blank the whole file and
+        # take every unrelated key — env, permissions, apiKeyHelper — with it.
+        # On a change whose entire point is "never lose the user's config", that
+        # path has to be closed.
+        local merged
+        if ! merged="$(jq --argjson ours "$ours" '
+            def group_key: [ .matcher, (.hooks // [] | map(.command)) ];
             def dedupe_groups:
                 reduce .[] as $g ([];
-                    if any(.[]?; (.hooks // [] | map(.command))
-                                 == ($g.hooks // [] | map(.command)))
+                    if any(.[]?; group_key == ($g | group_key))
                     then . else . + [$g] end);
-            (.hooks.UserPromptSubmit // [])        as $userUPS
-            | (.hooks.SessionStart // [])           as $userSS
-            | ($ours.hooks.UserPromptSubmit // [])  as $oursUPS
-            | ($ours.hooks.SessionStart // [])      as $oursSS
-            | (. * $ours)
-            | .hooks.UserPromptSubmit = (($userUPS + $oursUPS) | dedupe_groups)
-            | .hooks.SessionStart     = (($userSS + $oursSS) | dedupe_groups)
-        ' "$settings")" > "$settings"
+            . as $user
+            | reduce ($ours.hooks | keys_unsorted[]) as $ev (
+                $user;
+                .hooks[$ev] = ((($user.hooks[$ev] // []) + ($ours.hooks[$ev] // []))
+                               | dedupe_groups))
+        ' "$settings" 2>/dev/null)" || [[ -z "$merged" ]]; then
+            warn "40-scaffold: could not merge hooks into ${settings} — leaving it untouched"
+            return 0
+        fi
+        printf '%s\n' "$merged" > "$settings"
     else
         printf '%s\n' "$ours" > "$settings"
     fi
@@ -226,11 +244,17 @@ install_hooks() {
     if ai_cli_has_capability "$scaffold_ai_cli" statusline \
             && [[ -f "$sl_script" ]] && ! jq -e '.statusLine' "$settings" >/dev/null 2>&1; then
         chmod +x "$sl_script" 2>/dev/null || true
-        local sl
+        local sl sl_merged
         sl="$(jq -n --arg c "python3 ${sl_script}" \
             '{statusLine: {type: "command", command: $c}}')"
-        printf '%s\n' "$(jq --argjson sl "$sl" '. * $sl' "$settings")" > "$settings"
-        log "40-scaffold: installed BIAB statusline at $settings"
+        # Same truncate-on-jq-failure hazard as the hooks merge above.
+        if sl_merged="$(jq --argjson sl "$sl" '. * $sl' "$settings" 2>/dev/null)" \
+                && [[ -n "$sl_merged" ]]; then
+            printf '%s\n' "$sl_merged" > "$settings"
+            log "40-scaffold: installed BIAB statusline at $settings"
+        else
+            warn "40-scaffold: could not add the statusline to ${settings} — leaving it untouched"
+        fi
     else
         log "40-scaffold: statusLine already set (or script missing) — leaving it untouched"
     fi

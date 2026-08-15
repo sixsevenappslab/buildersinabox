@@ -53,6 +53,19 @@ jobs:
       - name: SSH finalize decision unit tests (FEAT-014)
         run: bash payload/test/ssh-finalize-decision.sh
 
+      # Same gap the browser pack had (see browser-pack-tests below): this suite
+      # existed but nothing ran it, so it rotted unnoticed. It had been exiting
+      # 2 partway through the scaffold-seed block for some time — the harness
+      # never sourced ai-cli.sh, install_hooks() took its skip path, and the
+      # first assertion against the settings.json it never wrote killed the run
+      # under `set -e`. Roughly 40 later assertions (quota nudge, specs hook)
+      # were not running at all. Red the whole time, with nothing watching.
+      # It covers the hooks contract AND the ~/.claude/settings.json merge
+      # policy (we never remove a hook the user already had).
+      # Formatters are optional: missing black/ruff/shfmt turn into SKIPs.
+      - name: Hooks + scaffold-seed test suite
+        run: bash payload/hooks/tests/run-tests.sh
+
       - name: git archive cleanliness
         run: |
           # The shippable tarball must not contain maintainer-only paths.

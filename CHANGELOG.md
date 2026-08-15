@@ -7,6 +7,13 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Changed
+- The scaffold never replaces a hook you already had. Registering our hooks into `~/.claude/settings.json` is now additive for every event: `PreToolUse`, `PostToolUse` and `Stop` used to be treated as ours to own and overwrote whatever you had configured there. Your hooks stay, ours run alongside them, and re-running the scaffold still adds no duplicates.
+
+### Fixed
+- A failed merge can no longer cost you your `~/.claude/settings.json`. The scaffold read and rewrote the file in one step, so if the merge errored the file was truncated to a blank line — taking unrelated settings (`env`, `apiKeyHelper`, and the rest) with it. It now leaves the file untouched and warns instead.
+- The hooks + scaffold-seed test suite (`payload/hooks/tests/run-tests.sh`) now runs in CI and actually exercises the scaffold. It had been aborting partway through for some time, skipping roughly 40 later assertions — red, with nothing running it to notice.
+
 ## [0.2.0] - 2026-07-12
 
 ### Added
