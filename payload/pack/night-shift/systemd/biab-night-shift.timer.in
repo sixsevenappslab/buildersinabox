@@ -1,0 +1,17 @@
+# Builders in a Box — night shift timer (FEAT-025).
+#
+# Persistent=false is deliberate. With Persistent=true a box that was switched
+# off at 03:00 would fire the pass on the next boot — quite possibly at
+# midday, with the owner sitting in front of it and not expecting it. A missed
+# pass is a non-event; a surprise pass is spending nobody consented to.
+[Unit]
+Description=Builders in a Box night shift schedule
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=false
+RandomizedDelaySec=900
+Unit=biab-night-shift.service
+
+[Install]
+WantedBy=timers.target

@@ -77,6 +77,61 @@ Your phone ──private network──▶ your box ──▶ your AI CLI + works
 
 More detail in [`docs/architecture.md`](docs/architecture.md).
 
+## Optional: the night shift
+
+> **This one spends money. Read the whole section before you switch it on.**
+
+`biab pack add night-shift` installs a scheduled job that, at 03:00, picks
+**one** spec you have already validated, implements it with your AI CLI, and
+**stops at the pull request**. You approve a spec on Sunday evening and find a
+PR waiting on Monday morning, on hardware you own.
+
+It is **opt-in and installed switched off**. Installing Builders in a Box never
+schedules anything, and adding the pack does not either: a freshly added pack
+*simulates*. Run `biab-night-shift run` and it will tell you which spec it would
+have picked and what it would have done, having spent nothing and written
+nothing. Turning that into real work takes a second, deliberate step:
+
+```bash
+biab pack add night-shift      # installs it, switched off
+biab-night-shift run           # simulate: what would it do tonight?
+biab-night-shift status        # installed? armed? how did last night go?
+sudo biab-night-shift arm      # shows the cost, then asks you to type ARM
+sudo biab-night-shift disarm   # back to simulating, nothing uninstalled
+```
+
+**What it costs.** A real pass runs your AI CLI unattended, on your own
+subscription, while you are asleep and nobody is watching the meter. One spec
+per night, no retries, capped at **$2.00 per pass** (`--max-budget-usd`) and
+**one hour** of wall clock, enforced by systemd. `arm` prints those numbers —
+plus your last seven days of spend, if the `quota` skill has a cache — *before*
+it asks you anything.
+
+Two honest caveats. The dollar cap is the CLI's own flag; on a subscription
+account the binding limit in practice is the one-hour timeout and the
+one-spec-per-night rule, not the dollar figure. And a spec that turns out to be
+ambiguous can still burn a pass — which is why a spec that has been attempted
+is not retried for 14 days.
+
+**What it will not do.** It never merges, never releases, never pushes to your
+main branch. That is not a request in a prompt: a `PreToolUse` hook inspects
+every shell command the agent tries to run and blocks those outright, and the
+hook is loaded from the command line, so the agent cannot remove it by editing
+its own settings. It also refuses to start at all if your working tree is
+dirty, and it only ever picks specs whose frontmatter carries a
+`validated_by` — your approval is what authorises the spending.
+
+**Switching it off.** `sudo biab-night-shift disarm` (keeps the pack, stops the
+spending), `touch /var/lib/buildersinabox/night-shift/state/night-shift-disabled`
+or `BIAB_NIGHT_SHIFT_DISABLED=1` (skip passes without disarming), or
+`sudo biab pack remove night-shift` (removes the timer, the service, the runner
+and all its state).
+
+**One CLI only, for now.** Arming requires a headless mode, a per-run spend cap
+*and* a mechanical tool guard. Today only Claude Code has all three, so on an
+Antigravity or Codex box the pack installs and simulates but cannot be armed —
+and it tells you that when you add it, not when you try to turn it on.
+
 ## What it changes on your system
 
 Everything the installer touches, so you can audit it and undo it:
@@ -85,7 +140,7 @@ Everything the installer touches, so you can audit it and undo it:
 - **Files:** the repo at `/opt/buildersinabox`; the `biab` and `bd` commands in `/usr/local/bin`; state in `/var/lib/buildersinabox`; logs in `/var/log/buildersinabox`; an autologin drop-in for `tty1` and a first-boot trigger in `/etc/profile.d/`; small shell helpers in `~/.bashrc.d/`.
 - **SSH:** two drop-ins in `/etc/ssh/sshd_config.d/`. One enables password and key auth — your sudo password is the SSH credential — and because sshd takes the first value it finds for a setting and ours sorts first, it takes precedence over your own drop-ins for as long as it is installed. The other binds sshd to your private-network address only, once that network is up; if you're connected over SSH from outside it — typical on a VPS — the wizard warns you and asks first. The installer also moves sshd off Ubuntu's socket activation onto a long-running service, which is what makes that binding possible.
 - **Workspace:** `~/ai-platform/` scaffolded in the target user's home, plus Claude Code skills in `~/.claude/skills/` and a few fail-open hooks in `~/.claude/settings.json`.
-- **Opt-in packs only when you ask:** the base install adds nothing heavyweight. `biab pack add browser` is the one exception — it installs Chromium, a dedicated `biab-browser` system user, and a tightly-scoped `sudoers` rule (NOPASSWD for exactly `/usr/local/bin/biab-browse`). `biab pack remove browser` reverses all of it.
+- **Opt-in packs only when you ask:** the base install adds nothing heavyweight and schedules nothing. `biab pack add browser` installs Chromium, a dedicated `biab-browser` system user, and a tightly-scoped `sudoers` rule (NOPASSWD for exactly `/usr/local/bin/biab-browse`). `biab pack add night-shift` installs `/usr/local/bin/biab-night-shift`, a `biab-night-shift` systemd service and timer in `/etc/systemd/system/` (root-owned, so the agent cannot rewrite its own schedule or drop its own guard), and a state tree under `/var/lib/buildersinabox/night-shift/` — enabled but disarmed, spending nothing until you run `biab-night-shift arm`. `biab pack remove <name>` reverses either of them.
 
 To remove all of it:
 

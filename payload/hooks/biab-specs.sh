@@ -28,6 +28,43 @@ command -v jq >/dev/null 2>&1 || exit 0
 cwd="$(biab_json '.cwd')"
 [[ -n "$cwd" && -d "$cwd" ]] || cwd="$PWD"
 
+# --- night shift (FEAT-025), opt-in pack ------------------------------------
+# When the pack has run a pass, tell the next session how it went. The file is
+# written by the runner and holds FIXED FIELDS ONLY — a verdict from a closed
+# set, a URL already matched against an anchored regex, a timestamp. None of
+# the model's prose is in it, and none of it is put here: an unattended agent
+# writing text that gets injected into its successor's context would be a
+# prompt-injection channel from the machine to itself (FEAT-025 §3 Never).
+#
+# Silent on a box without the pack (the file does not exist), and fail-open
+# like every other path in this hook.
+_night_block() {
+    local f="${BIB_STATE_DIR:-/var/lib/buildersinabox}/night-shift/state/last-run.json"
+    [[ -r "$f" ]] || return 0
+    local json verdict spec reason ts url
+    # Bounded read: a corrupt or enormous summary must not be slurped.
+    json="$(head -c 8192 -- "$f" 2>/dev/null || true)"
+    [[ -n "$json" ]] || return 0
+    verdict="$(printf '%s' "$json" | jq -r '.verdict // empty' 2>/dev/null || true)"
+    [[ -n "$verdict" ]] || return 0
+    spec="$(printf '%s' "$json"    | jq -r '.spec    // empty' 2>/dev/null || true)"
+    reason="$(printf '%s' "$json"  | jq -r '.reason  // empty' 2>/dev/null || true)"
+    ts="$(printf '%s' "$json"      | jq -r '.ts      // empty' 2>/dev/null || true)"
+    url="$(printf '%s' "$json"     | jq -r '.pr_url  // empty' 2>/dev/null || true)"
+    # Belt and braces over the runner's own sanitising: strip control
+    # characters and truncate here too, so a summary written by anything else
+    # still cannot smuggle escape sequences into the session.
+    _clean() { printf '%s' "$1" | tr -d '[:cntrl:]' | cut -c "1-${2:-120}" || true; }
+    local line
+    line="Night shift — last pass: $(_clean "${verdict:-?}" 24)"
+    [[ -n "$reason" ]] && line+=" ($(_clean "$reason" 60))"
+    [[ -n "$spec" ]]   && line+=" on $(_clean "$spec" 120)"
+    [[ -n "$ts" ]]     && line+=" at $(_clean "$ts" 32)"
+    [[ -n "$url" ]]    && line+=$'\n'"  PR: $(_clean "$url" 200)"
+    printf '%s' "$line"
+}
+night_block="$(_night_block || true)"
+
 # Walk up from cwd looking for a specs/ dir with draft/ or active/.
 dir="$cwd"
 specs=""
@@ -39,7 +76,15 @@ while [[ -n "$dir" && "$dir" != "/" ]]; do
     dir="$(dirname "$dir")"
 done
 
-[[ -n "$specs" ]] || exit 0
+if [[ -z "$specs" ]]; then
+    # No specs dir anywhere up the tree. Still worth reporting a night-shift
+    # pass if there was one — it happened in someone else's project.
+    if [[ -n "$night_block" ]]; then
+        jq -cn --arg c "$night_block" \
+            '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}'
+    fi
+    exit 0
+fi
 
 # _list <dir> — newline-separated *.md basenames (sorted), empty if none.
 # A missing dir is normal (first session has only specs/draft, active/ appears
@@ -60,7 +105,13 @@ n_active=0
 [[ -n "$drafts" ]] && n_drafts="$(printf '%s\n' "$drafts" | wc -l)"
 [[ -n "$active" ]] && n_active="$(printf '%s\n' "$active" | wc -l)"
 
-[[ "$n_drafts" -eq 0 && "$n_active" -eq 0 ]] && exit 0
+if [[ "$n_drafts" -eq 0 && "$n_active" -eq 0 ]]; then
+    if [[ -n "$night_block" ]]; then
+        jq -cn --arg c "$night_block" \
+            '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}'
+    fi
+    exit 0
+fi
 
 # Oldest draft age in days (mtime-based; a staleness signal, not an audit).
 oldest_note=""
@@ -91,6 +142,7 @@ _names() { printf '%s\n' "$1" | head -6 | paste -sd, - | sed 's/,/, /g' || true;
 summary="Pending specs in ${specs}: ${n_drafts} draft, ${n_active} active${oldest_note}"
 [[ "$n_drafts" -gt 0 ]] && summary+=$'\n'"  draft: $(_names "$drafts")"
 [[ "$n_active" -gt 0 ]] && summary+=$'\n'"  active: $(_names "$active")"
+[[ -n "$night_block" ]] && summary+=$'\n'"$night_block"
 
 jq -cn --arg c "$summary" \
     '{hookSpecificOutput:{hookEventName:"SessionStart",additionalContext:$c}}'

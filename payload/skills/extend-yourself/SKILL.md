@@ -30,8 +30,8 @@ Use roughly these categories. Don't read them aloud as a list — ask "what are 
 | A new shell helper / alias | `~/.bashrc.d/<name>.sh` | `~/.bashrc.d/biab-tmuxc.sh` |
 | A new step in the first-boot wizard | `/opt/buildersinabox/payload/wizard/NN-name.sh` | any of the existing `wizard/*.sh` |
 | A new bundled FEAT spec waiting in your project | `~/ai-platform/projects/<project>/specs/draft/FEAT-NNN-<slug>.md` | `FEAT-002-personal-slack-coach.md` |
-| A new system service (daemon) | `~/.config/systemd/user/<name>.service` | (none bundled — but FEAT-002's coach will be one) |
-| A new cron-like scheduled task | `~/.config/systemd/user/<name>.timer` + matching `.service` | (none bundled) |
+| A new system service (daemon) | `~/.config/systemd/user/<name>.service` | the opt-in night-shift pack ships one (`biab pack add night-shift`) |
+| A new cron-like scheduled task | `~/.config/systemd/user/<name>.timer` + matching `.service` | the night-shift timer, installed only if you ask for the pack |
 | Modify an existing wizard step | edit `/opt/buildersinabox/payload/wizard/NN-*.sh` in place | n/a, just edit |
 | Pull upstream updates from the BIAB project itself | `cd /opt/buildersinabox && git pull` | n/a |
 
@@ -106,7 +106,7 @@ User-level systemd unit, so it runs without root.
 1. Write `~/.config/systemd/user/<name>.service`. Use `Type=simple`, `ExecStart=/path/to/your/binary`, `Restart=on-failure`.
 2. `systemctl --user daemon-reload`
 3. `systemctl --user enable --now <name>.service`
-4. Make sure linger is enabled so the unit survives logout: `loginctl enable-linger "$USER"` (already enabled at first boot).
+4. Make sure linger is enabled so the unit survives logout: `loginctl enable-linger "$USER"`. **Check it rather than assume it** — only the USB/ISO install turns linger on; after a `curl | sudo bash` install it is off, so a user unit stops firing as soon as your last session ends. For anything that has to run whether or not you are logged in (an overnight job, say), write a *system* unit in `/etc/systemd/system/` with `User=<you>` instead — that is what the night-shift pack does.
 5. Logs via `journalctl --user -u <name>.service`.
 
 ### Pulling upstream updates

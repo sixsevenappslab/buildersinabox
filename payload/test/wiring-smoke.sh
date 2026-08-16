@@ -128,6 +128,52 @@ for reg_cli in "${BIB_SUPPORTED_AI_CLIS[@]}"; do
 done
 ok "registry completeness (${BIB_SUPPORTED_AI_CLIS[*]})"
 
+# --- 7. The `unattended` capability is a security promise (FEAT-025) --------
+# Declaring it asserts three things at once: a headless mode, a per-run spend
+# cap, and a mechanical tool guard. Only claude has all three today. This is
+# pinned per CLI rather than left to whatever the registry happens to say,
+# because adding a CLI to it silently is how a box ends up spending unattended
+# with no guard (FEAT-025 §3 Ask First).
+for reg_cli in "${BIB_SUPPORTED_AI_CLIS[@]}"; do
+    unattended=0
+    ai_cli_has_capability "$reg_cli" unattended && unattended=1
+    case "$reg_cli" in
+        claude)
+            [[ "$unattended" -eq 1 ]] \
+                || fail "registry[$reg_cli]: expected the 'unattended' capability" ;;
+        *)
+            [[ "$unattended" -eq 0 ]] \
+                || fail "registry[$reg_cli]: declares 'unattended' — that is a security promise (headless + spend cap + tool guard), not a name check. See FEAT-025 §3 Ask First." ;;
+    esac
+    if [[ "$unattended" -eq 1 ]]; then
+        # Third argument is an OPAQUE guard directory: the adapter decides
+        # what inside it matters (hooks settings here, execpolicy rules for
+        # another CLI). Naming one CLI's knobs in the signature would force
+        # the next one in through an `if` on the CLI name.
+        ucmd="$(ai_cli_unattended_cmd "$reg_cli" /tmp/x /tmp/guard 'implement the spec')"
+        for needle in ' -p ' '--settings' '--max-budget-usd'; do
+            [[ "$ucmd" == *"$needle"* ]] \
+                || fail "registry[$reg_cli]: unattended cmd is missing $needle: $ucmd"
+        done
+        [[ "$ucmd" == *"/tmp/guard/"* ]] \
+            || fail "registry[$reg_cli]: unattended cmd ignores the guard directory: $ucmd"
+    else
+        ( ai_cli_unattended_cmd "$reg_cli" /tmp/x /tmp/guard p ) >/dev/null 2>&1 \
+            && fail "registry[$reg_cli]: ai_cli_unattended_cmd answered for a CLI without the capability"
+    fi
+done
+# Injection safety, same probe as the launch command: the prompt and the paths
+# are %q-escaped, so a hostile spec path cannot break out of the argument when
+# the string is handed to a shell.
+u_marker="${BIB_STATE_DIR}/unattended-pwned"
+u_stub="${BIB_STATE_DIR}/u-stub-bin"
+mkdir -p "$u_stub"
+ln -sf "$(command -v touch)" "${u_stub}/touch"
+hostile_ucmd="$(ai_cli_unattended_cmd claude "/tmp;touch $u_marker" /tmp/guard "go;touch $u_marker")"
+PATH="$u_stub" bash -c "$hostile_ucmd" >/dev/null 2>&1 || true
+[[ ! -e "$u_marker" ]] || fail "unattended cmd is injectable: '$hostile_ucmd' created $u_marker"
+ok "unattended capability pinned per CLI and the command escapes its arguments"
+
 # An UNREGISTERED identifier must fail cleanly through ai_cli_validate on
 # every getter — never a bash "command not found" from composing a missing
 # function name (FEAT-020 EC-01). (`codex` used to be the stand-in here; it

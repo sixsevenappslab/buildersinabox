@@ -40,6 +40,12 @@ jobs:
           bash -n payload/pack/browser/install.sh
           bash -n payload/pack/browser/uninstall.sh
           bash -n payload/pack/browser/lib.sh
+          bash -n payload/pack/night-shift/bin/biab-night-shift
+          bash -n payload/pack/night-shift/install.sh
+          bash -n payload/pack/night-shift/uninstall.sh
+          bash -n payload/pack/night-shift/lib.sh
+          bash -n payload/pack/night-shift/hooks/no-merge-guard.sh
+          bash -n payload/pack/night-shift/tests/test-pack.sh
           [ -f installer/web/install.sh ] && bash -n installer/web/install.sh || true
 
       - name: No personal references in the shippable tree
@@ -76,6 +82,21 @@ jobs:
       # Formatters are optional: missing black/ruff/shfmt turn into SKIPs.
       - name: Hooks + scaffold-seed test suite
         run: bash payload/hooks/tests/run-tests.sh
+
+      # FEAT-025: the night-shift pack. Sections A and B need no root, no
+      # network and no systemd — they cover the opt-in invariants, the
+      # fail-closed mode matrix, the PreToolUse guard (including the two cases
+      # that exist because a guard reading an env var instead of stdin JSON
+      # would pass every test while checking nothing), and real passes against
+      # mktemp fixtures with a CLI mock that records its own invocation.
+      # Section C (real install, root) skips cleanly here and is exercised in
+      # the manual hardware pass.
+      #
+      # The mutation battery (tests/mutations.sh) is deliberately NOT run
+      # here: it rewrites files in the working tree and restores them, which
+      # has no business sharing a job with the normal suite.
+      - name: Night-shift pack test suite (FEAT-025)
+        run: bash payload/pack/night-shift/tests/test-pack.sh
 
       - name: git archive cleanliness
         run: |

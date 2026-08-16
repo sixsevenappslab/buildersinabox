@@ -38,7 +38,7 @@ set -euo pipefail
 # under an inherited `set -e` and nobody noticed, because a driver that stops
 # mid-file looks exactly like a driver that passed. The summary is printed from
 # a trap so it appears even then.
-EXPECTED_ASSERTIONS=78
+EXPECTED_ASSERTIONS=89
 
 PAYLOAD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -989,4 +989,141 @@ if [[ "$(grep -c 'opt-present' "$SENTINEL" 2>/dev/null || echo 0)" -eq 2 ]]; the
     ok "E-16: both installed packs are torn down while /opt still exists"
 else
     bad "E-16: expected 2 pack teardowns before /opt removal, got '$(cat "$SENTINEL" 2>/dev/null)'"
+fi
+
+# ===========================================================================
+# Block NS — the night-shift pack's teardown (FEAT-025 §4.6)
+# ===========================================================================
+# The night-shift pack is the first thing BIAB installs OUTSIDE /opt that is
+# not an ssh drop-in: two system units, a binary on PATH, a root-owned file
+# that decides whether the box spends money unattended, and a state tree. The
+# TODO at the top of this file says a new path carries no automatic assertion.
+# These are the new paths.
+#
+# Unlike the browser fixture above, the seeded uninstall.sh here EXECS THE
+# REAL ONE (through a wrapper that still records the /opt-ordering line). That
+# is deliberate: it is what makes `sed`-ing the pack's teardown list turn this
+# driver red, instead of testing a stub that can never disagree with the
+# shipped code.
+
+_seed_night_shift() {
+    local r="$1"
+    local ns="$r/var/lib/buildersinabox/night-shift"
+    mkdir -p "$r/etc/systemd/system" "$r/usr/local/bin" \
+             "$ns/state/attempted" "$ns/guard" \
+             "$r/opt/buildersinabox/payload/pack/night-shift"
+    printf '[Unit]\nDescription=night shift\n' > "$r/etc/systemd/system/biab-night-shift.service"
+    printf '[Timer]\nOnCalendar=*-*-* 03:00:00\n'  > "$r/etc/systemd/system/biab-night-shift.timer"
+    printf '#!/usr/bin/env bash\n# Installed by Builders in a Box\n' > "$r/usr/local/bin/biab-night-shift"
+    chmod +x "$r/usr/local/bin/biab-night-shift"
+    printf 'real' > "$ns/mode"
+    printf '{"hooks":{}}\n' > "$ns/guard/settings.json"
+    printf '2.00\n'            > "$ns/guard/budget-usd"
+    : > "$ns/state/attempted/FEAT-001-demo.md.stamp"
+    printf '{"schema":1}\n' > "$ns/state/last-run.json"
+
+    # NS-9: somebody else's timer, sitting in the same directory.
+    printf '[Timer]\nOnCalendar=daily\n' > "$r/etc/systemd/system/zz-foreign.timer"
+    cp "$r/etc/systemd/system/zz-foreign.timer" "$r/ref-foreign.timer"
+
+    cat > "$r/opt/buildersinabox/payload/pack/night-shift/uninstall.sh" <<EOF
+#!/usr/bin/env bash
+if [[ -d "\${BIB_TEST_OPT:-}" ]]; then
+    printf 'night-shift opt-present\n' >> "\${BIB_TEST_SENTINEL}"
+else
+    printf 'night-shift opt-gone\n' >> "\${BIB_TEST_SENTINEL}"
+fi
+exec env BIB_NIGHT_SHIFT_TEST=1 BIB_NIGHT_SHIFT_ROOT_TEST="$r" \\
+    BIB_STATE_DIR="$r/var/lib/buildersinabox" \\
+    bash "${PAYLOAD_DIR}/pack/night-shift/uninstall.sh"
+EOF
+    chmod +x "$r/opt/buildersinabox/payload/pack/night-shift/uninstall.sh"
+}
+
+seed
+_seed_night_shift "$SC"
+run_uninstall
+
+_ns="$SC/var/lib/buildersinabox/night-shift"
+
+# NS-1 / NS-2 — the units. A timer left enabled and pointing at a service that
+# no longer exists tries to fire every night and fills the journal with errors
+# on a box the user believes we are gone from.
+[[ ! -e "$SC/etc/systemd/system/biab-night-shift.service" ]] \
+    && ok "NS-1: the night-shift service unit is gone" \
+    || bad "NS-1: /etc/systemd/system/biab-night-shift.service survived the uninstall"
+[[ ! -e "$SC/etc/systemd/system/biab-night-shift.timer" ]] \
+    && ok "NS-2: the night-shift timer unit is gone" \
+    || bad "NS-2: /etc/systemd/system/biab-night-shift.timer survived the uninstall"
+
+# NS-3 — the runner.
+[[ ! -e "$SC/usr/local/bin/biab-night-shift" ]] \
+    && ok "NS-3: /usr/local/bin/biab-night-shift is gone" \
+    || bad "NS-3: the night-shift runner survived the uninstall"
+
+# NS-4 — the file that decides the spending cannot outlive the uninstall.
+[[ ! -e "$_ns/mode" ]] \
+    && ok "NS-4: the night-shift mode file is gone" \
+    || bad "NS-4: the mode file survived — a reinstall would come back already armed"
+
+# NS-5 — attempt stamps and summaries are our state, and go with us.
+[[ ! -e "$_ns/state" ]] \
+    && ok "NS-5: the night-shift state tree (stamps, summary) is gone" \
+    || bad "NS-5: the night-shift state tree survived the uninstall"
+
+# NS-6 — the rendered guard settings.
+[[ ! -e "$_ns/guard" ]] \
+    && ok "NS-6: the whole guard directory (rendered settings, budget) is gone" \
+    || bad "NS-6: the guard directory survived the uninstall"
+
+# NS-7 — deleting a unit file without disabling it first leaves the symlink in
+# timers.target.wants/ behind.
+grep -q 'disable --now biab-night-shift.timer' "$SC/systemctl.log" \
+    && ok "NS-7: the timer was disabled (--now) before its unit file was deleted" \
+    || bad "NS-7: no 'disable --now biab-night-shift.timer' in the systemctl log: $(tr '\n' ';' < "$SC/systemctl.log")"
+
+# NS-8 — ordering, not just presence: reloading before the removal leaves
+# systemd with the unit still loaded.
+_ns_last="$(grep -n 'biab-night-shift' "$SC/systemctl.log" | tail -1 | cut -d: -f1)"
+_dr_last="$(grep -n 'daemon-reload' "$SC/systemctl.log" | tail -1 | cut -d: -f1)"
+if [[ -n "$_ns_last" && -n "$_dr_last" && "$_dr_last" -gt "$_ns_last" ]]; then
+    ok "NS-8: daemon-reload comes after the last biab-night-shift command"
+else
+    bad "NS-8: reload ordering wrong (last night-shift line=${_ns_last:-none}, last daemon-reload=${_dr_last:-none})"
+fi
+
+# NS-9 — the contract is "only touch what is ours". Same class of defect as
+# #42's sshd drop-ins.
+if [[ -f "$SC/etc/systemd/system/zz-foreign.timer" ]] \
+   && cmp -s "$SC/etc/systemd/system/zz-foreign.timer" "$SC/ref-foreign.timer"; then
+    ok "NS-9: a foreign systemd timer in the same directory survives byte-identical"
+else
+    bad "NS-9: a foreign systemd timer was removed or modified"
+fi
+
+# NS-11 — idempotence: running the pack's own teardown again changes nothing
+# and says so. (Checked directly, because after the pass above /opt is gone
+# and the teardown loop has nothing left to call.)
+_ns_again="$(BIB_NIGHT_SHIFT_TEST=1 BIB_NIGHT_SHIFT_ROOT_TEST="$SC" \
+    BIB_STATE_DIR="$SC/var/lib/buildersinabox" \
+    bash "${PAYLOAD_DIR}/pack/night-shift/uninstall.sh" 2>&1)" && _ns_rc=0 || _ns_rc=$?
+if [[ "$_ns_rc" -eq 0 && "$_ns_again" == *"nothing to remove"* && "$_ns_again" != *"removing"* ]]; then
+    ok "NS-11: a second pack teardown exits 0, removes nothing and says nothing to remove"
+else
+    bad "NS-11: second teardown rc=$_ns_rc output: $_ns_again"
+fi
+
+# NS-10 (extends E-16 to three packs) — every installed pack is torn down, all
+# of them while /opt still exists.
+seed
+_seed_night_shift "$SC"
+mkdir -p "$SC/opt/buildersinabox/payload/pack/second"
+cp "$SC/opt/buildersinabox/payload/pack/browser/uninstall.sh" \
+   "$SC/opt/buildersinabox/payload/pack/second/uninstall.sh"
+run_uninstall
+if [[ "$(grep -c 'opt-present' "$SENTINEL" 2>/dev/null || echo 0)" -eq 3 ]] \
+   && grep -q 'night-shift opt-present' "$SENTINEL" 2>/dev/null; then
+    ok "NS-10: browser, second AND night-shift are all torn down while /opt still exists"
+else
+    bad "NS-10: expected 3 pack teardowns before /opt removal, got '$(tr '\n' ';' < "$SENTINEL" 2>/dev/null)'"
 fi

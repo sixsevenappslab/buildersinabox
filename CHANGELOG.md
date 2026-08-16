@@ -7,7 +7,17 @@ and this project aims to follow [Semantic Versioning](https://semver.org/spec/v2
 
 ## [Unreleased]
 
+### Added
+- **Opt-in night shift** (`biab pack add night-shift`): at 03:00 the box picks one spec you have already validated, implements it with your AI CLI, and stops at the pull request. Validated spec at night, pull request in the morning, on hardware you own.
+  **It spends your subscription unattended, so it is switched off twice over.** Installing Builders in a Box schedules nothing; adding the pack installs a *disarmed* timer that only simulates — `biab-night-shift run` names the spec it would pick and spends nothing. Real passes need `sudo biab-night-shift arm`, which prints the per-pass cap ($2.00), the one-hour systemd timeout and your last seven days of spend **before** asking you to type a confirmation word. `disarm` stops the spending without uninstalling anything, and `BIAB_NIGHT_SHIFT_DISABLED=1` or a sentinel file skips a night.
+  It never merges, releases or pushes to your main branch. That is not a line in a prompt: a `PreToolUse` hook, loaded from the command line so the agent cannot remove it by editing its own settings, inspects every shell command and blocks those outright. It also refuses to run on a dirty working tree, takes one spec per night with no retries, and will not re-attempt a spec for 14 days — the brake that stops an ambiguous spec becoming a recurring bill.
+  Today only Claude Code can be armed (arming requires a headless mode, a spend cap and a mechanical tool guard); on Antigravity or Codex the pack installs and simulates, and tells you so when you add it rather than when you try to switch it on.
+- The AI-CLI registry gained an `unattended` capability and an `ai_cli_unattended_cmd` verb, so what a box may do unsupervised is declared once in its adapter instead of inferred from the CLI's name.
+- `payload/test/uninstall-contract.sh` grew eleven cases (`NS-1`…`NS-11`) covering everything the night shift leaves outside `/opt`: both systemd units, the runner, the file that authorises spending, the state tree and the guard directory — including that the timer is disabled before its unit file is deleted, that `daemon-reload` comes afterwards, and that a stranger's timer in the same directory survives byte-identical.
+
 ### Changed
+- `extend-yourself` no longer claims linger is enabled at first boot. It only is on the USB/ISO path; after a `curl | sudo bash` install a user-level timer stops firing as soon as your last session ends, which is why the night shift ships a system unit instead.
+- The starter spec template carries a `validated_by` field. Without it, a box in starter mode could never produce a spec the night shift was allowed to pick up — the feature would have been unusable out of the box.
 - The scaffold never replaces a hook you already had. Registering our hooks into `~/.claude/settings.json` is now additive for every event: `PreToolUse`, `PostToolUse` and `Stop` used to be treated as ours to own and overwrote whatever you had configured there. Your hooks stay, ours run alongside them, and re-running the scaffold still adds no duplicates.
 
 ### Fixed

@@ -49,9 +49,42 @@ _ai_cli_props__claude() {
     AI_CLI_SKILLS_DIRS=".claude/skills"
     # Capabilities: hooks (Claude-format settings hooks), statusline
     # (statusLine key in settings.json), remote-control (companion app
-    # attaches to the tmux session via --remote-control).
+    # attaches to the tmux session via --remote-control), unattended (can run
+    # a whole job headless, under a spend cap, with a mechanical tool guard —
+    # see ai_cli_unattended_cmd).
     # shellcheck disable=SC2034
-    AI_CLI_CAPABILITIES="hooks statusline remote-control"
+    AI_CLI_CAPABILITIES="hooks statusline remote-control unattended"
+}
+
+# Build the headless command for an unattended, PR-only run (FEAT-025).
+#
+# The third argument is an OPAQUE guard directory: the caller fills it, each
+# adapter reads whatever it needs out of it. Claude reads settings.json (the
+# PreToolUse hook that mechanically blocks merge/deploy/push-to-main) and
+# budget-usd. A future adapter reads something else entirely — an execpolicy
+# rules file, a sandbox config — without the caller or this signature changing.
+# The alternative, naming Claude's own knobs in the signature, would force the
+# next CLI in through an `if` by name, which is precisely what the adapter
+# registry exists to prevent.
+#
+# -p is the headless mode. --settings LOADS ADDITIONAL settings, so the guard
+# rides in on the command line and the agent cannot shake it off by rewriting
+# its own ~/.claude/settings.json. Every interpolated value is %q-escaped: a
+# spec path can contain spaces, quotes or a $(…), and this string is handed
+# to a shell.
+_ai_cli_unattended_cmd__claude() {
+    local cwd="$1" guard_dir="$2" prompt="$3"
+    local settings="${guard_dir}/settings.json"
+    # Conservative default if the caller left no budget file: a cap that is
+    # too low wastes a pass, a cap that is missing wastes a subscription.
+    local budget="2.00"
+    if [[ -r "${guard_dir}/budget-usd" ]]; then
+        local raw
+        raw="$(head -c 16 -- "${guard_dir}/budget-usd" 2>/dev/null | tr -dc '0-9.')"
+        [[ -n "$raw" ]] && budget="$raw"
+    fi
+    printf 'cd %q && claude -p %q --settings %q --max-budget-usd %q --permission-mode bypassPermissions' \
+        "$cwd" "$prompt" "$settings" "$budget"
 }
 
 # Build the tmux launch command. Claude has a first-class
@@ -138,6 +171,14 @@ _ai_cli_props__antigravity() {
     AI_CLI_SKILLS_DIRS=$'.claude/skills\n.gemini/skills'
     # agy has no Claude-format hooks, no statusline, and no remote-control
     # companion app (FEAT-015 §2.5: consumers no-op explicitly, never fail).
+    #
+    # It deliberately does NOT declare `unattended` either (FEAT-025). It has
+    # -p, but no turn or cost cap (only --print-timeout, 5 minutes by default,
+    # which a real implementation does not fit inside) and no mechanical tool
+    # guard at all. The only way to make it write unsupervised would be
+    # --dangerously-skip-permissions, which this very adapter refuses to use
+    # in _ai_cli_login_run__antigravity. Declaring the capability is a safety
+    # promise, not a name check: a CLI that cannot run caged does not run.
     # shellcheck disable=SC2034
     AI_CLI_CAPABILITIES=""
 }
@@ -258,6 +299,12 @@ _ai_cli_props__codex() {
     AI_CLI_SKILLS_DIRS=".agents/skills"
     # codex has no Claude-format hooks, no statusline, and no remote-control
     # companion app (consumers no-op explicitly, never fail).
+    #
+    # `unattended` is not declared yet (FEAT-025). codex has the pieces —
+    # `codex exec`, --output-last-message, an execpolicy that mechanically
+    # denies `gh pr merge` and `git push origin main` — but wiring and proving
+    # them is its own feature, and this capability is a security promise that
+    # must be demonstrated before it is made.
     # shellcheck disable=SC2034
     AI_CLI_CAPABILITIES=""
 }
@@ -437,6 +484,27 @@ ai_cli_launch_cmd() {
     shift
     ai_cli_validate "$cli"
     "_ai_cli_launch_cmd__${cli}" "$@"
+}
+
+# ai_cli_unattended_cmd <cli> <cwd> <guard-dir> <prompt> — print the full
+# headless command for an unattended, PR-only run (FEAT-025).
+#
+# <guard-dir> is opaque to the caller: it hands over a directory it has
+# populated, and the adapter decides what inside it is meaningful. That is
+# what keeps a second CLI (execpolicy rules rather than a hooks settings file)
+# from needing a branch on the CLI's name anywhere outside this file.
+#
+# Guarded by the capability rather than by dispatch alone: a CLI that has not
+# declared `unattended` has no verb to compose, and "command not found" is a
+# terrible way to learn that a box cannot run the night shift.
+ai_cli_unattended_cmd() {
+    local cli="$1"
+    shift
+    ai_cli_validate "$cli"
+    if ! ai_cli_has_capability "$cli" unattended; then
+        die "ai-cli: '$cli' does not declare the 'unattended' capability (needs headless mode + a spend cap + a mechanical tool guard)"
+    fi
+    "_ai_cli_unattended_cmd__${cli}" "$@"
 }
 
 # ai_cli_login_verify_cmd <cli> <target-user> — print a non-interactive

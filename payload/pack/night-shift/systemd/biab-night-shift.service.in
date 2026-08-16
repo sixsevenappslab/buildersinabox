@@ -1,0 +1,28 @@
+# Builders in a Box — night shift (FEAT-025). OPT-IN, installed by
+# `biab pack add night-shift` and DISARMED until a human runs
+# `sudo biab-night-shift arm`.
+#
+# This file is a TEMPLATE. The pack's install.sh renders it with envsubst,
+# substituting ${BIB_USER} for the resolved operator account.
+#
+# A SYSTEM unit, not a `systemd --user` one, on purpose. The night shift runs
+# AS the operator, and ~/.config/systemd/user/ belongs to the operator — an
+# unattended agent could edit its own ExecStart, drop the --settings that
+# loads the no-merge guard, or widen the schedule. Under /etc/systemd/system/
+# it cannot. (The `curl | sudo bash` path also never enables linger, so a user
+# timer would simply not fire once the last session ended.)
+[Unit]
+Description=Builders in a Box night shift (opt-in, pull-request only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=${BIB_USER}
+# The wall-clock cap. Keep in sync with NIGHT_TIMEOUT_SECONDS in
+# payload/pack/night-shift/lib.sh — `biab-night-shift arm` shows this number
+# to the user before asking for confirmation, and it must not be a promise the
+# system does not keep.
+TimeoutStartSec=3600
+ExecStart=/usr/local/bin/biab-night-shift run
+Nice=10

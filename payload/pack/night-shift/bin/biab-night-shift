@@ -1,0 +1,505 @@
+#!/usr/bin/env bash
+# biab-night-shift — the Builders in a Box night shift (FEAT-025).
+#
+#   biab-night-shift run       one pass: pick a validated spec, implement it,
+#                              stop at the pull request. Simulates unless the
+#                              box has been armed.
+#   biab-night-shift status    what is installed, armed, disabled, last pass
+#   sudo biab-night-shift arm  show the cost, ask, then allow real passes
+#   sudo biab-night-shift disarm   back to simulating, pack left installed
+#
+# WHAT THIS SPENDS. A real pass runs your AI CLI unattended against your own
+# repository, on your own subscription, while you are asleep. That is why
+# nothing here spends anything until a human with sudo runs `arm` and types a
+# confirmation word, and why every path that is not exactly "armed" simulates.
+#
+# THE PASS NEVER MERGES. It opens a pull request and stops. That is enforced
+# by a PreToolUse hook (hooks/no-merge-guard.sh) loaded through --settings,
+# not by asking nicely in the prompt.
+#
+# Sourcing this file with BIB_NIGHT_SHIFT_LIB=1 defines the functions and runs
+# nothing (same pattern as payload/install.sh's BIB_INSTALL_LIB) — that is how
+# the test suite drives a real-mode pass in a sandbox without there being any
+# environment variable capable of skipping the gate. Setting that variable in
+# the service's environment would make the run a no-op, never a spend.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PACK_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+PAYLOAD_DIR="$(cd "${PACK_DIR}/../.." && pwd)"
+
+# shellcheck source=../lib.sh
+source "${PACK_DIR}/lib.sh"
+# shellcheck source=../../../lib/ai-cli.sh
+source "${PAYLOAD_DIR}/lib/ai-cli.sh"
+
+# ---------------------------------------------------------------------------
+# Small helpers
+# ---------------------------------------------------------------------------
+
+say() { printf 'night-shift: %s\n' "$*"; }
+err() { printf 'night-shift: %s\n' "$*" >&2; }
+
+# night_ai_cli — which CLI this box runs. Explicit env wins, then the state
+# file, then the registry default. Never a hardcoded name: the registry is the
+# source of truth (FEAT-020).
+night_ai_cli() {
+    if [[ -n "${BIB_AI_CLI:-}" ]]; then
+        printf '%s' "$BIB_AI_CLI"
+        return 0
+    fi
+    local state_file="${BIB_STATE_FILE:-${BIB_STATE_DIR:-/var/lib/buildersinabox}/state.json}"
+    if [[ -f "$state_file" ]] && command -v jq >/dev/null 2>&1; then
+        local c
+        c="$(jq -r '.ai_cli // empty' "$state_file" 2>/dev/null || true)"
+        if [[ -n "$c" ]]; then
+            printf '%s' "$c"
+            return 0
+        fi
+    fi
+    printf '%s' "${BIB_SUPPORTED_AI_CLIS[0]}"
+}
+
+night_flavor() {
+    local state_file="${BIB_STATE_FILE:-${BIB_STATE_DIR:-/var/lib/buildersinabox}/state.json}"
+    if [[ -f "$state_file" ]] && command -v jq >/dev/null 2>&1; then
+        jq -r '.flavor // "default"' "$state_file" 2>/dev/null || printf 'default'
+    else
+        printf 'default'
+    fi
+}
+
+# night_is_disabled — the kill switch. Env var OR sentinel file, the same
+# shape as the hooks kill switch (payload/hooks/lib.sh:17-21) but with its own
+# names and its own file: turning off the editor's hooks and turning off
+# unattended spending are different decisions, and hanging both on one file
+# guarantees somebody switches off one thinking they switched off the other.
+night_is_disabled() {
+    [[ "${BIAB_NIGHT_SHIFT_DISABLED:-0}" == "1" ]] && return 0
+    [[ -e "$NIGHT_DISABLED_SENTINEL" ]] && return 0
+    return 1
+}
+
+# night_write_summary <verdict> <reason> <project> <spec> <url>
+#
+# FIXED FIELDS ONLY. The verdict is one of a closed set, the URL has already
+# been matched against an anchored regex, and every free-ish field is stripped
+# of control characters and truncated. The model's prose never reaches this
+# file, because this file is injected into the next session's context and an
+# unattended agent writing text that gets injected into its successor is a
+# prompt-injection channel from the machine to itself (§3 Never).
+night_write_summary() {
+    local verdict="$1" reason="$2" project="$3" spec="$4" url="$5"
+    mkdir -p "$NIGHT_STATE_DIR" 2>/dev/null || return 0
+    local tmp="${NIGHT_SUMMARY_FILE}.tmp"
+    if command -v jq >/dev/null 2>&1; then
+        jq -n \
+            --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg verdict "$(night_clean_field "$verdict" 24)" \
+            --arg reason "$(night_clean_field "$reason" 48)" \
+            --arg project "$(night_clean_field "$project" 64)" \
+            --arg spec "$(night_clean_field "$spec" 120)" \
+            --arg url "$(night_clean_field "$url" 200)" \
+            '{schema:1, ts:$ts, verdict:$verdict, reason:$reason, project:$project, spec:$spec, pr_url:$url}' \
+            > "$tmp" 2>/dev/null || return 0
+        mv -f "$tmp" "$NIGHT_SUMMARY_FILE" 2>/dev/null || true
+    fi
+    return 0
+}
+
+# night_finish <verdict> <reason> [project] [spec] [url] — write the summary,
+# say it out loud (the journal is where the detail lives) and leave.
+night_finish() {
+    local verdict="$1" reason="$2" project="${3:-}" spec="${4:-}" url="${5:-}"
+    night_write_summary "$verdict" "$reason" "$project" "$spec" "$url"
+    say "verdict=${verdict} reason=${reason}${spec:+ spec=$(night_clean_field "$spec" 120)}${url:+ pr=${url}}"
+    return 0
+}
+
+# ---------------------------------------------------------------------------
+# Candidate selection
+# ---------------------------------------------------------------------------
+# Prints one line per candidate: <rank><TAB><project><TAB><repo><TAB><spec>
+# Sorted by priority, then path, so the ordering is deterministic.
+night_list_candidates() {
+    local projects_root="$1"
+    [[ -d "$projects_root" ]] || return 0
+    local project_dir project repo spec
+    for project_dir in "$projects_root"/*/; do
+        [[ -d "$project_dir" ]] || continue
+        repo="${project_dir%/}"
+        project="$(basename -- "$repo")"
+        night_is_git_repo "$repo" || continue
+        [[ -d "${repo}/specs/active" ]] || continue
+        while IFS= read -r spec; do
+            [[ -n "$spec" ]] || continue
+            night_spec_is_candidate "$spec" || continue
+            printf '%s\t%s\t%s\t%s\n' \
+                "$(night_spec_priority_rank "$spec")" "$project" "$repo" "$spec"
+        done < <(find "${repo}/specs/active" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort || true)
+    done
+}
+
+# Why there is nothing to do, in words rather than a shrug. A box in SDD
+# "starter" mode whose specs have no validation field at all can never produce
+# a candidate; saying "no work tonight" there would be a lie by omission.
+night_no_candidate_reason() {
+    local projects_root="$1"
+    [[ -d "$projects_root" ]] || { printf 'no-projects'; return 0; }
+    local any_project=0 any_spec=0 any_field=0
+    local project_dir repo spec
+    for project_dir in "$projects_root"/*/; do
+        [[ -d "$project_dir" ]] || continue
+        repo="${project_dir%/}"
+        night_is_git_repo "$repo" || continue
+        any_project=1
+        [[ -d "${repo}/specs/active" ]] || continue
+        while IFS= read -r spec; do
+            [[ -n "$spec" ]] || continue
+            any_spec=1
+            night_spec_has_field "$spec" validated_by && any_field=1
+        done < <(find "${repo}/specs/active" -maxdepth 1 -type f -name '*.md' 2>/dev/null || true)
+    done
+    if [[ "$any_project" -eq 0 ]]; then printf 'no-projects'; return 0; fi
+    if [[ "$any_spec" -eq 0 ]];    then printf 'no-active-specs'; return 0; fi
+    if [[ "$any_field" -eq 0 ]];   then printf 'starter-mode-has-no-validated-by'; return 0; fi
+    printf 'no-validated-specs'
+}
+
+# ---------------------------------------------------------------------------
+# night_pass <verdict> — ONE pass. <verdict> is "real" or anything else
+# (which means simulate). It is an argument, never an environment lookup:
+# there is no variable anywhere in this pack that can turn a simulated pass
+# into a real one. bin's `run` subcommand always passes the result of
+# night_mode_gate; the test suite passes a verdict it computed itself, which
+# proves the CLI mock can be caught without leaving a key inside the cage.
+# ---------------------------------------------------------------------------
+night_pass() {
+    local verdict="${1:-dry}"
+    local spending="dry-run"
+    night_should_spend "$verdict" && spending="real"
+
+    if night_is_disabled; then
+        night_finish "disabled" "kill-switch-set"
+        return 0
+    fi
+
+    mkdir -p "$NIGHT_STATE_DIR" "$NIGHT_ATTEMPT_DIR" 2>/dev/null || true
+    if [[ ! -d "$NIGHT_ATTEMPT_DIR" ]] || ! touch "${NIGHT_ATTEMPT_DIR}/.writable" 2>/dev/null; then
+        # No attempt directory means no brake, and no brake means an ambiguous
+        # spec becomes a recurring bill. Stop before spending anything.
+        err "cannot write to $NIGHT_ATTEMPT_DIR — refusing to run"
+        night_finish "aborted" "state-not-writable"
+        return 0
+    fi
+    rm -f "${NIGHT_ATTEMPT_DIR}/.writable" 2>/dev/null || true
+
+    # One pass at a time: the timer firing while a manual pass is running
+    # would otherwise be double spending (F-19).
+    if command -v flock >/dev/null 2>&1 && : > "$NIGHT_LOCK_FILE" 2>/dev/null; then
+        exec 9< "$NIGHT_LOCK_FILE"
+        if ! flock -n 9; then
+            night_finish "skipped" "already-running"
+            return 0
+        fi
+    fi
+
+    local candidates
+    candidates="$(night_list_candidates "$NIGHT_PROJECTS_ROOT")"
+
+    if [[ -z "$candidates" ]]; then
+        night_finish "no-candidates" "$(night_no_candidate_reason "$NIGHT_PROJECTS_ROOT")"
+        return 0
+    fi
+
+    # Exactly one candidate per pass. No queue, no retries (§1 NFR).
+    local chosen project repo spec stamp
+    chosen=""
+    while IFS= read -r line; do
+        [[ -n "$line" ]] || continue
+        project="$(printf '%s' "$line" | cut -f2)"
+        spec="$(printf '%s' "$line" | cut -f4)"
+        stamp="${NIGHT_ATTEMPT_DIR}/$(night_attempt_key "$project" "$spec")"
+        if night_attempt_is_fresh "$stamp"; then
+            continue
+        fi
+        chosen="$line"
+        break
+    done < <(printf '%s\n' "$candidates" | sort -t$'\t' -k1,1 -k4,4)
+
+    if [[ -z "$chosen" ]]; then
+        night_finish "no-candidates" "recently-attempted"
+        return 0
+    fi
+
+    project="$(printf '%s' "$chosen" | cut -f2)"
+    repo="$(printf '%s' "$chosen" | cut -f3)"
+    spec="$(printf '%s' "$chosen" | cut -f4)"
+
+    # Checked in BOTH modes, and before the attempt stamp: an abort that cost
+    # nothing must leave the spec a candidate again tomorrow, and a dry run
+    # that hid a dirty tree would be advertising work it could not do.
+    if ! night_tree_is_clean "$repo"; then
+        night_finish "aborted" "dirty-tree:$(night_clean_field "$(night_first_dirty_path "$repo")" 60)" \
+            "$project" "$spec" ""
+        return 0
+    fi
+
+    if [[ "$spending" != "real" ]]; then
+        # The whole path above ran for real; only the CLI call is skipped.
+        local why="disarmed"
+        [[ -e "$NIGHT_MODE_FILE" ]] && why="mode-file-unrecognised"
+        say "[dry run] would implement ${spec} in ${repo}"
+        say "[dry run] nothing was written, no tokens were spent. Arm with: sudo biab-night-shift arm"
+        night_finish "dry-run" "$why" "$project" "$spec" ""
+        return 0
+    fi
+
+    # ---- from here on the pass may spend ----
+
+    if ! night_repo_has_remote "$repo"; then
+        night_finish "aborted" "no-git-remote" "$project" "$spec" ""
+        return 0
+    fi
+
+    if ! command -v gh >/dev/null 2>&1 || ! gh auth status >/dev/null 2>&1; then
+        # Spending a whole pass to discover the pull request cannot be opened
+        # is spending wasted.
+        night_finish "aborted" "gh-not-authenticated" "$project" "$spec" ""
+        return 0
+    fi
+
+    local cli
+    cli="$(night_ai_cli)"
+    if ! ai_cli_has_capability "$cli" unattended; then
+        night_finish "aborted" "cli-lacks-unattended-capability" "$project" "$spec" ""
+        return 0
+    fi
+
+    # THE BRAKE. Stamp BEFORE the call, exactly like
+    # autonomous-implementer.sh:168-179: a pass that dies half way (timeout,
+    # power cut, quota exhausted) must still leave a mark, or a spec that
+    # always kills the pass gets relaunched every single night forever.
+    #
+    # Written as one standalone statement — not `touch … || { … }` — on
+    # purpose: deleting this single line has to remove the brake WITHOUT also
+    # breaking the syntax, or the mutation battery would score a catch nobody
+    # actually made. The verdict is taken from the filesystem just below.
+    touch -- "${NIGHT_STATE_DIR}/attempted/$(night_attempt_key "$project" "$spec")" 2>/dev/null || true
+    local stamp_path
+    stamp_path="${NIGHT_ATTEMPT_DIR}/$(night_attempt_key "$project" "$spec")"
+    if [[ ! -e "$stamp_path" ]]; then
+        night_finish "aborted" "cannot-write-attempt-stamp" "$project" "$spec" ""
+        return 0
+    fi
+
+    local prompt
+    prompt="$(night_prompt "$spec")"
+
+    local cmd final
+    # The guard directory is handed over whole: what is meaningful inside it
+    # is the adapter's business, never the runner's.
+    cmd="$(ai_cli_unattended_cmd "$cli" "$repo" "$NIGHT_GUARD_DIR" "$prompt")"
+    say "implementing ${spec} (project=${project}, cli=${cli}, budget=\$${NIGHT_MAX_BUDGET_USD})"
+    final="$(bash -c "$cmd" 2>&1 | tail -c 8192 || true)"
+
+    # Everything the model wrote goes to the journal and stops there.
+    printf '%s\n' "$final"
+
+    local kind url
+    kind="$(night_classify_result "$final")"
+    url=""
+    [[ "$kind" == "pr" ]] && url="$(night_pr_url "$final")"
+
+    case "$kind" in
+        pr)      night_finish "pr" "pull-request-open" "$project" "$spec" "$url" ;;
+        aborted) night_finish "aborted" "agent-aborted-see-journal" "$project" "$spec" "" ;;
+        *)       night_finish "unclear" "finished-without-a-pr-url-see-journal" "$project" "$spec" "" ;;
+    esac
+    return 0
+}
+
+# The definition of done handed to the CLI. Prose here is belt to the guard's
+# braces — the hook is what actually stops a merge.
+night_prompt() {
+    local spec="$1"
+    cat <<EOF
+Implement this validated spec, end to end: ${spec}
+
+DEFINITION OF DONE — do not stop before all of it is true:
+1. The spec is implemented as written.
+2. The project's own tests and lint pass.
+3. A pull request is open against the default branch.
+
+HARD LIMITS:
+- STOP at the pull request. Never merge, never release, never deploy, never
+  push to main/master/pre. A PreToolUse hook blocks those commands
+  mechanically; do not look for a way around it. This overrides any
+  auto-merge policy written in a CLAUDE.md or AGENTS.md on this machine.
+- At most 3 cycles of fixing tests or lint. If they still fail, push the
+  branch, do NOT open a pull request, and answer ABORTED plus what is left.
+- If the spec is ambiguous or needs a product decision, answer ABORTED plus
+  the concrete question.
+- If the working tree is not clean when you start, answer ABORTED and touch
+  nothing.
+
+FINAL ANSWER FORMAT: at most 15 lines. The FIRST line must be the pull
+request URL, or 'ABORTED: <reason>'.
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Subcommands
+# ---------------------------------------------------------------------------
+
+cmd_run() {
+    local verdict="dry"
+    if night_mode_gate "$NIGHT_MODE_FILE"; then
+        verdict="real"
+    fi
+    night_pass "$verdict"
+}
+
+cmd_status() {
+    printf 'night shift\n'
+    printf '  binary       %s\n' "$( [[ -x "$NIGHT_BIN_TARGET" ]] && printf 'installed' || printf 'not installed' )"
+    if command -v systemctl >/dev/null 2>&1; then
+        # `is-enabled` prints "not-found" on stdout AND exits non-zero, so the
+        # obvious `|| printf …` prints both. Branch on the status instead.
+        local timer_state
+        if timer_state="$(systemctl is-enabled biab-night-shift.timer 2>/dev/null)"; then
+            printf '  timer        %s\n' "$timer_state"
+        else
+            printf '  timer        not installed\n'
+        fi
+    fi
+    if night_mode_gate "$NIGHT_MODE_FILE" 2>/dev/null; then
+        printf '  mode         ARMED — passes run for real and spend your subscription\n'
+    else
+        printf '  mode         simulating (not armed). Arm with: sudo biab-night-shift arm\n'
+    fi
+    printf '  kill switch  %s\n' "$( night_is_disabled && printf 'ON — no pass will run' || printf 'off' )"
+    printf '  budget       $%s per pass, %ss wall clock\n' "$NIGHT_MAX_BUDGET_USD" "$NIGHT_TIMEOUT_SECONDS"
+    if [[ -f "$NIGHT_SUMMARY_FILE" ]] && command -v jq >/dev/null 2>&1; then
+        printf '  last pass    %s\n' "$(jq -r '"\(.verdict // "?") (\(.reason // "?")) \(.spec // "") \(.pr_url // "")"' "$NIGHT_SUMMARY_FILE" 2>/dev/null || printf 'unreadable')"
+    else
+        printf '  last pass    none recorded\n'
+    fi
+}
+
+# The seven-day spend estimate, read from the box's own quota cache when the
+# `quota` skill has written one. Never a network call, never an account.
+night_recent_spend_line() {
+    local summary="${HOME:-/nonexistent}/.claude/cache/quota/summary.json"
+    if [[ -f "$summary" ]] && command -v jq >/dev/null 2>&1; then
+        local v
+        v="$(jq -r '.last_7d_usd // .week_usd // empty' "$summary" 2>/dev/null || true)"
+        if [[ -n "$v" ]]; then
+            printf '  your last 7 days, cost-equivalent: $%s (from the quota skill'\''s cache)\n' "$v"
+            return 0
+        fi
+    fi
+    printf '  your last 7 days: not available (run the /quota skill once to build the cache)\n'
+}
+
+cmd_arm() {
+    local cli flavor answer
+    cli="$(night_ai_cli)"
+
+    # Refuse BEFORE showing anything or asking anything: on a box whose CLI
+    # has no headless mode, no spend cap and no tool guard there is nothing to
+    # confirm (§2 point 3 — this is the "declare which ones it does not work
+    # with" half of the promise).
+    if ! ai_cli_has_capability "$cli" unattended; then
+        err "cannot arm this box: the '${cli}' CLI does not declare the 'unattended' capability."
+        err "Arming needs all three of: a headless mode, a per-run spend cap, and a mechanical tool guard."
+        err "Simulated passes keep working — 'biab-night-shift run' will still tell you which spec it would pick."
+        return 1
+    fi
+
+    printf 'Arming the night shift means this box will run your AI CLI unattended,\n'
+    printf 'on your subscription, while you are asleep.\n\n'
+    printf 'What one pass can cost:\n'
+    printf '  hard cap per pass:   $%s (--max-budget-usd)\n' "$NIGHT_MAX_BUDGET_USD"
+    printf '  wall-clock cap:      %s seconds, enforced by systemd (TimeoutStartSec)\n' "$NIGHT_TIMEOUT_SECONDS"
+    printf '  passes per night:    1, one spec, no retries\n'
+    night_recent_spend_line
+    printf '\n'
+    printf 'The pass stops at the pull request. It never merges, releases or pushes\n'
+    printf 'to your main branch — a hook blocks those commands.\n\n'
+
+    flavor="$(night_flavor)"
+
+    printf 'Type ARM (in capitals) to allow real passes, anything else to cancel: '
+    read -r answer || answer=""
+    if [[ "$answer" != "ARM" ]]; then
+        err "not armed (nothing was written). The box keeps simulating."
+        return 1
+    fi
+
+    if [[ "$flavor" == "gift" ]]; then
+        printf '\nThis box was set up as a gift. Whoever is holding it now pays for what\n'
+        printf 'it spends tonight, and may not have expected that.\n'
+        printf 'Type IUNDERSTAND to confirm you are that person: '
+        read -r answer || answer=""
+        if [[ "$answer" != "IUNDERSTAND" ]]; then
+            err "not armed (nothing was written)."
+            return 1
+        fi
+    fi
+
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+        err "the mode file must be created by root — a file you can write is not a confirmation the agent cannot forge."
+        err "re-run: sudo biab-night-shift arm"
+        return 1
+    fi
+
+    mkdir -p "$NIGHT_ROOT_DIR"
+    install -o root -g root -m 0644 /dev/null "$NIGHT_MODE_FILE"
+    printf 'real' > "$NIGHT_MODE_FILE"
+    chown root:root "$NIGHT_MODE_FILE"
+    chmod 0644 "$NIGHT_MODE_FILE"
+    say "armed. Turn it off again at any time with: sudo biab-night-shift disarm"
+    say "or stop a single night without disarming: touch $NIGHT_DISABLED_SENTINEL"
+    return 0
+}
+
+cmd_disarm() {
+    if [[ ! -e "$NIGHT_MODE_FILE" ]]; then
+        say "already disarmed (the pack stays installed and the timer stays enabled)."
+        return 0
+    fi
+    if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+        err "removing the mode file needs root. Re-run: sudo biab-night-shift disarm"
+        return 1
+    fi
+    rm -f "$NIGHT_MODE_FILE"
+    say "disarmed. The pack is still installed and the timer still fires — passes just simulate again."
+    return 0
+}
+
+usage() {
+    cat <<'EOF'
+Usage: biab-night-shift <command>
+
+  run       run one pass now (simulates unless the box is armed)
+  status    show what is installed, armed, disabled, and how the last pass went
+  arm       show the cost, ask for confirmation, then allow real passes (sudo)
+  disarm    go back to simulating without uninstalling anything (sudo)
+EOF
+}
+
+# Library mode: define everything, run nothing.
+if [[ "${BIB_NIGHT_SHIFT_LIB:-0}" == "1" ]]; then
+    return 0 2>/dev/null || exit 0
+fi
+
+case "${1:-}" in
+    run)     cmd_run ;;
+    status)  cmd_status ;;
+    arm)     cmd_arm ;;
+    disarm)  cmd_disarm ;;
+    -h|--help|help) usage ;;
+    *)       usage >&2; exit 1 ;;
+esac

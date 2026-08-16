@@ -206,7 +206,11 @@ biab — Builders in a Box CLI
   biab logs      follow the bootstrap log
   biab update    pull latest BIAB + re-run install scripts (no reinstall needed)
   biab add       install an optional bundled skill (e.g. 'biab add incident')
-  biab pack      manage opt-in heavyweight capability packs (e.g. browser)
+  biab pack      manage opt-in heavyweight capability packs
+                 (browser: a sandboxed headless Chromium the agent can drive.
+                  night-shift: overnight work on specs you have validated —
+                  installed switched OFF, and it spends your subscription
+                  once you switch it on, so read what it prints.)
                  biab pack list            show available packs + status
                  biab pack add <name>      install a pack
                  biab pack remove <name>   uninstall a pack
