@@ -516,7 +516,12 @@ sesión abierta.
 
 ---
 
-## 9. FEAT-026 — la pregunta binaria de Codex
+## 9. FEAT-026 — la pregunta binaria de Codex (OPCIONAL desde EXEC-015)
+
+> FEAT-026 quedó **archivada** el 2026-08-17 (EXEC-015): fuera del alcance
+> pre-launch, reabre solo si un usuario real la pide. Esta sección ya no es
+> gate de nada — pero si sobra tiempo con el mini PC delante, F-01 es barata
+> de contestar y deja la decisión precocinada.
 
 No es verificación, es **investigación**: el pack de Codex no existe todavía.
 Estos dos casos deciden si FEAT-026 se puede construir tal como está escrita.

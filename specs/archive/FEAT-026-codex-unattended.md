@@ -15,7 +15,10 @@
 - **Reconciliation owner:** sdd-coordinator
 - **Depende de:** FEAT-025 — **mergeada** el 2026-08-16 (PR #54), pack en
   `payload/pack/night-shift/`. La dependencia está satisfecha.
-- **Fase:** requisitos
+- **Fase:** ARCHIVADA (2026-08-17, EXEC-015) — cortada del alcance pre-launch.
+  Reabre solo si un usuario real (issue/instalacion) pide Codex en el night shift.
+  La pregunta binaria de `CODEX_HOME` (F-01) puede contestarse barata en la pasada
+  de hardware si sobra tiempo; no bloquea nada.
 - **Creado:** 2026-08-16
 - **Actualizado:** 2026-08-17 (reconciliada contra `main` post-merge de FEAT-025:
   §2 punto 6, §4.3, R6, §4.7 y citas de línea de `payload/lib/ai-cli.sh`)

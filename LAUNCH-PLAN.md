@@ -82,11 +82,21 @@ Los reales, por prioridad:
 | B10 | **Trim Beat 7 del tutorial**: quitar pitch de stratops/PORTFOLIO/bd-triage; dejar tmuxc + /morning-check + 1 frase. Headline "~15 min to first SSH" (no "15 min" total) | S | Donde el extraño abandona (min 25-30). |
 | B11 | **Quitar "Modules coming: Conerator, Observio, Pathtrip"** del footer landing + README hook (1 línea de roadmap máx.) | S | 3 nombres vaporware en una página que pide sudo. Esencialista + Distribución + revisor coinciden. |
 
-## 2. Beta externa mínima (el punto medio con el Contrarian) — 1 semana en paralelo
+## 2. Beta externa mínima — SUPERSEDED 2026-08-17 (EXEC-015)
 
-- 2-3 personas de la red (LinkedIn DM personal, no post público) que instalen SIN ayuda: una en VPS, una en mini PC/homelab, idealmente una con Gemini.
-- Éxito = completan hasta "Claude responde desde el móvil" sin WhatsApp de rescate. Cada fricción → issue.
-- Si 0/3 completan → NO flip; arreglar y repetir. Esto sustituye a las "10 cajas a 50€".
+> **Las betas ya no bloquean el flip; bloquean el Show HN.** Decidido con
+> strategy-council 5 voces (`stratops/decisions/EXEC-015`): el flip se hace **en
+> silencio** al día siguiente de pasar `HARDWARE-PASS.md`, sin anuncio — ninguna
+> persona externa puede posponerlo, y blinda la fecha dura del 2026-10-31. Las
+> betas corren contra el repo ya público.
+
+- 3 personas de la red (DM personal, no post público) que instalen SIN ayuda:
+  una en VPS, una en mini PC/homelab.
+- Éxito = completan hasta "Claude responde desde el móvil" sin WhatsApp de
+  rescate. Cada fricción → issue en el repo (ya público).
+- **Show HN al completar 2/3.** Fallback anti-bloqueo: si a los 14 días del flip
+  no hay 2 betas completadas, Show HN con la demo propia como evidencia.
+- Las betas son además la fábrica de los ≥3 testimonios que exige el gate de §3.
 
 ## 3. Gate reescrito (obligatorio antes del flip)
 
@@ -100,7 +110,7 @@ Fuera "paying betas" (imposible en OSS-only). Nuevo gate a 6 semanas del launch:
 
 **Preparación (la semana del launch):**
 - Email capture en landing (Buttondown/Resend, S)
-- Show HN draft — ~~ángulo seguridad (§0b)~~ **SUPERSEDED 2026-07-13**: tras un segundo strategy-council + research de audiencias, el ángulo elegido es **ownership / old-PC revive** (el dato de las 42.665 cajas baja al cuerpo, no al título, para que el hilo no arranque como debate de seguridad). Draft final abajo ⬇.
+- Show HN draft — ~~ángulo seguridad (§0b)~~ ~~ownership / old-PC revive (2026-07-13)~~ **SUPERSEDED 2026-08-17 (EXEC-015)**: el ángulo es **guards / contrato de confianza**. Motivo (research de mercado del 17-08): "ownership" ya lo ocupan Orca (42,9k stars, "your own subscription", apps móviles) y Otto ("Own your AI. Not rented from a cloud"); Anthropic cubre "Claude Code desde el móvil" oficialmente; lo que nadie vende es *specs validadas por humano + guards mecánicos anti-merge*. El ángulo seguridad-control puntúa en HN (Agent Safehouse 753 pts vs launchers 21-160). Titular de trabajo: **"Show HN: An AI agent that codes overnight on your own mini PC — and can't merge without you"**. El draft ownership de abajo queda como base del cuerpo (el hueco Pro/Max self-hosted es el párrafo dos), pero título y primer párrafo se reescriben al contrato de guards. Ni "night shift" en el título (nombre usado 4+ veces) ni "own your AI" (gastado).
 - Post LinkedIn draft (excepción puntual EXEC-004, misma figura que Juntale — anotar en EXEC): "Construí mi propio servidor de IA y se lo regalé a mi jefe; hoy lo libero" + una línea del ángulo seguridad (42k cajas expuestas; la mía no escucha en internet). Encaja con autoridad data/IA, no con crianza.
 - Posts r/selfhosted + r/homelab (angle seguridad-primero: "42,665 exposed agent boxes; here's one with zero public ports" + "your laptop shouldn't be the always-on server")
 - Email corto a Tailscale DevRel (viven de estos casos; Aperture demuestra que cortejan el use case de agentes)
@@ -157,13 +167,21 @@ Fuera "paying betas" (imposible en OSS-only). Nuevo gate a 6 semanas del launch:
 
 ## 6. Timeline
 
-| Semana | Qué |
+> **Timeline reescrito 2026-08-17 (EXEC-015)** — el de julio (abajo, tachado)
+> murió por atar el flip a las betas.
+
+| Cuándo | Qué |
 |---|---|
-| Sem 1 (jul 8-14) | Fix pack B1-B11 (~6-8h) + reclutar 2-3 betas + email capture en landing |
-| Sem 2 (jul 15-21) | Betas instalan; arreglar lo que rompan; grabar vídeo móvil definitivo; republish v0.2.0 |
-| Sem 2-3 | **Flip público + Día L** (primer sábado disponible tras betas OK) |
-| Sem 3-9 | Cap 4h/semana; medir contra el gate nuevo |
-| Sem 9 (~sep) | Checkpoint contra gate §3 → seguir / mantenimiento pasivo |
+| Hoy (17-08) | FEAT-026 archivada; mensaje a Paco pidiendo feedback; EXEC-015 firmado |
+| +1 día (timebox 1 día) | Titular guards en README + landing + título/párrafo 1 del Show HN |
+| Día del mini PC (~19-08) | `HARDWARE-PASS.md` completa + demo/hero grabados en la misma sesión |
+| Día siguiente al hardware pass | **Flip silencioso**: `tools/publish.sh --tag` + visibility public. Sin anuncio |
+| Misma semana | Reclutar 3 betas por DM contra el repo ya público |
+| Al completar 2/3 betas (o +14 días del flip, lo que llegue antes) | **Show HN** (sábado 09:00 ET) + r/selfhosted a los 2-3 días + email Tailscale DevRel + 3 posts LinkedIn (EXEC-012) |
+| 6 semanas post-flip | Checkpoint contra gate §3 → seguir / mantenimiento pasivo |
+
+~~Sem 1 (jul 8-14): fix pack + betas + email capture · Sem 2: betas instalan ·
+Sem 2-3: flip + Día L tras betas OK · Sem 9: checkpoint~~
 
 ## 7. Riesgo de agenda que el consejo señaló unánime
 
