@@ -15,6 +15,7 @@ BIZ-PLAN-LIFESTYLE.md export-ignore
 LAUNCH-PLAN.md export-ignore
 HYPOTHESES.md export-ignore
 MAINTAINING.md export-ignore
+HARDWARE-PASS.md export-ignore
 
 # SDD process docs — internal artefacts, never ship in `git archive`.
 # (Repo browsing on GitHub still shows them; future publish flow may move
