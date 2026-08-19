@@ -82,10 +82,10 @@ Los reales, por prioridad:
 | B10 | **Trim Beat 7 del tutorial**: quitar pitch de stratops/PORTFOLIO/bd-triage; dejar tmuxc + /morning-check + 1 frase. Headline "~15 min to first SSH" (no "15 min" total) | S | Donde el extraño abandona (min 25-30). |
 | B11 | **Quitar "Modules coming: Conerator, Observio, Pathtrip"** del footer landing + README hook (1 línea de roadmap máx.) | S | 3 nombres vaporware en una página que pide sudo. Esencialista + Distribución + revisor coinciden. |
 
-## 2. Beta externa mínima — SUPERSEDED 2026-08-17 (EXEC-015)
+## 2. Beta externa mínima — SUPERSEDED 2026-08-17 (EXEC-016)
 
 > **Las betas ya no bloquean el flip; bloquean el Show HN.** Decidido con
-> strategy-council 5 voces (`stratops/decisions/EXEC-015`): el flip se hace **en
+> strategy-council 5 voces (`stratops/decisions/EXEC-016`): el flip se hace **en
 > silencio** al día siguiente de pasar `HARDWARE-PASS.md`, sin anuncio — ninguna
 > persona externa puede posponerlo, y blinda la fecha dura del 2026-10-31. Las
 > betas corren contra el repo ya público.
@@ -110,13 +110,35 @@ Fuera "paying betas" (imposible en OSS-only). Nuevo gate a 6 semanas del launch:
 
 **Preparación (la semana del launch):**
 - Email capture en landing (Buttondown/Resend, S)
-- Show HN draft — ~~ángulo seguridad (§0b)~~ ~~ownership / old-PC revive (2026-07-13)~~ **SUPERSEDED 2026-08-17 (EXEC-015)**: el ángulo es **guards / contrato de confianza**. Motivo (research de mercado del 17-08): "ownership" ya lo ocupan Orca (42,9k stars, "your own subscription", apps móviles) y Otto ("Own your AI. Not rented from a cloud"); Anthropic cubre "Claude Code desde el móvil" oficialmente; lo que nadie vende es *specs validadas por humano + guards mecánicos anti-merge*. El ángulo seguridad-control puntúa en HN (Agent Safehouse 753 pts vs launchers 21-160). Titular de trabajo: **"Show HN: An AI agent that codes overnight on your own mini PC — and can't merge without you"**. El draft ownership de abajo queda como base del cuerpo (el hueco Pro/Max self-hosted es el párrafo dos), pero título y primer párrafo se reescriben al contrato de guards. Ni "night shift" en el título (nombre usado 4+ veces) ni "own your AI" (gastado).
+- Show HN draft — ~~ángulo seguridad (§0b)~~ ~~ownership / old-PC revive (2026-07-13)~~ **SUPERSEDED 2026-08-17 (EXEC-016)**: el ángulo es **guards / contrato de confianza**. Motivo (research de mercado del 17-08): "ownership" ya lo ocupan Orca (42,9k stars, "your own subscription", apps móviles) y Otto ("Own your AI. Not rented from a cloud"); Anthropic cubre "Claude Code desde el móvil" oficialmente; lo que nadie vende es *specs validadas por humano + guards mecánicos anti-merge*. El ángulo seguridad-control puntúa en HN (Agent Safehouse 753 pts vs launchers 21-160). Titular de trabajo: **"Show HN: An AI agent that codes overnight on your own mini PC — and can't merge without you"**. El draft ownership de abajo queda como base del cuerpo (el hueco Pro/Max self-hosted es el párrafo dos), pero título y primer párrafo se reescriben al contrato de guards. Ni "night shift" en el título (nombre usado 4+ veces) ni "own your AI" (gastado).
 - Post LinkedIn draft (excepción puntual EXEC-004, misma figura que Juntale — anotar en EXEC): "Construí mi propio servidor de IA y se lo regalé a mi jefe; hoy lo libero" + una línea del ángulo seguridad (42k cajas expuestas; la mía no escucha en internet). Encaja con autoridad data/IA, no con crianza.
 - Posts r/selfhosted + r/homelab (angle seguridad-primero: "42,665 exposed agent boxes; here's one with zero public ports" + "your laptop shouldn't be the always-on server")
 - Email corto a Tailscale DevRel (viven de estos casos; Aperture demuestra que cortejan el use case de agentes)
 - Mención dirigida a refugiados Gemini CLI (la cuota 1000→20/día es rabia fresca; BIAB ofrece elección de CLI)
 
-### Draft final del Show HN — ángulo ownership (elegido 2026-07-13)
+### Draft final del Show HN — ángulo guards (elegido 2026-08-17/20, EXEC-016)
+
+> Título y primer comentario reescritos al contrato de guards (specs validadas por
+> humano + hook mecánico anti-merge/push). Sustituye al draft ownership de abajo,
+> que queda como referencia histórica — no se ejecuta.
+
+**Título:**
+
+`Show HN: An AI agent that codes overnight on your own mini PC — and can't merge without you`
+
+**Primer comentario (autor, al publicar):**
+
+> I wanted my coding agent to work while I slept, on hardware I own — not on someone else's server. The part that scared me wasn't the agent writing bad code; it was the agent merging it. So before I let it run unattended, I built the thing that had to exist first: a spec I approve *before* it starts, and a mechanical guard that blocks every merge and push attempt at the tool layer — loaded from the command line, so the agent can't edit it out of its own settings even if it tried.
+>
+> `curl -fsSL https://buildersinabox.com/install.sh | sudo bash` turns any Ubuntu 24.04 box — a mini PC, a homelab VM, that old laptop in a drawer — into a persistent dev server you reach from your phone: Claude Code or Google's Antigravity, in a tmux session that never dies, over a private Tailscale network, SSH hardened, GitHub wired up. On top of that, an opt-in night shift: approve a spec on Sunday night, find a PR waiting Monday morning — the agent stops there every time, by design, not by prompt.
+>
+> Early-2026 scans found ~42,665 self-hosted agent boxes exposed to the public internet, most with auth bypass — this is built so the end state is structurally not one of them (Tailscale-only, zero public ports).
+>
+> Not a hosted service — if you just want an agent running in the background, Anthropic's Cowork does that. This is for when the agent needs *your* machine, working while you're not watching, and you want proof — not a promise — that it can't go further than a pull request. MIT, everything it touches is listed in the README, `--uninstall` reverses all of it.
+>
+> Happy to talk through the guard mechanism, the SDD workflow, or the security model — around all day.
+
+### Draft — ángulo ownership (superseded 2026-08-17, EXEC-016; referencia histórica, elegido 2026-07-13)
 
 > Gancho = ahorro/propiedad; el dato de seguridad (42.665) va en el cuerpo, no en el título. Esquiva las landmines del §1.4 del BIZ-PLAN (nada de "sovereignty/privacy", "keys not passwords", ni "anti-Anthropic").
 
@@ -167,17 +189,17 @@ Fuera "paying betas" (imposible en OSS-only). Nuevo gate a 6 semanas del launch:
 
 ## 6. Timeline
 
-> **Timeline reescrito 2026-08-17 (EXEC-015)** — el de julio (abajo, tachado)
+> **Timeline reescrito 2026-08-17 (EXEC-016)** — el de julio (abajo, tachado)
 > murió por atar el flip a las betas.
 
 | Cuándo | Qué |
 |---|---|
-| Hoy (17-08) | FEAT-026 archivada; mensaje a Paco pidiendo feedback; EXEC-015 firmado |
+| Hoy (17-08) | FEAT-026 archivada; mensaje a Paco pidiendo feedback; EXEC-016 firmado |
 | +1 día (timebox 1 día) | Titular guards en README + landing + título/párrafo 1 del Show HN |
 | Día del mini PC (~19-08) | `HARDWARE-PASS.md` completa + demo/hero grabados en la misma sesión |
 | Día siguiente al hardware pass | **Flip silencioso**: `tools/publish.sh --tag` + visibility public. Sin anuncio |
 | Misma semana | Reclutar 3 betas por DM contra el repo ya público |
-| En paralelo (timebox 1-2 días) | FEAT-027 «try it in a VM»: preflight SSH + README + pasada real en VM. **No bloquea el flip**; ideal tenerla antes del HN (amendment EXEC-015, 2026-08-19 — dato Paco: la caja regalada nunca se configuró; barrera = tener entorno de servidor) |
+| En paralelo (timebox 1-2 días) | FEAT-027 «try it in a VM»: preflight SSH + README + pasada real en VM. **No bloquea el flip**; ideal tenerla antes del HN (amendment EXEC-016, 2026-08-19 — dato Paco: la caja regalada nunca se configuró; barrera = tener entorno de servidor) |
 | Al completar 2/3 betas (o +14 días del flip, lo que llegue antes) | **Show HN** (sábado 09:00 ET) + r/selfhosted a los 2-3 días + email Tailscale DevRel + 3 posts LinkedIn (EXEC-012) |
 | 6 semanas post-flip | Checkpoint contra gate §3 → seguir / mantenimiento pasivo |
 

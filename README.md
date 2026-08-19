@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Ubuntu 24.04 LTS](https://img.shields.io/badge/Ubuntu-24.04%20LTS-e95420?logo=ubuntu&logoColor=white)](https://ubuntu.com/download/server)
 
-> **Run Claude Code (or Antigravity) from your phone — one command turns any old PC into a secure, always-on home for your coding agent. ~15 minutes.**
+> **An AI agent that codes overnight on your own mini PC — and can't merge without you. One command turns any old PC into a secure, always-on home for Claude Code or Antigravity, reachable from your phone. ~15 minutes.**
 
 <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
      Drop the PNG here (under the tagline, above the curl one-liner) as:
@@ -30,6 +30,7 @@ About 15 minutes gets you to your first SSH session from your phone; the guided 
 - **Sessions that never die.** Your work persists across disconnects and closed laptops. Pick up exactly where you left off, from the couch, a coffee shop, or a flight.
 - **A scaffolded workspace** (`~/ai-platform/`) with sensible defaults and a guided `/tutorial` that walks you from "set up" to "building your first project" inside your agent itself.
 - **A senior workflow, baked in — spec-driven development.** The standout skill: instead of diving straight into code, the agent writes a short spec you approve *first* — the problem, the plan, the edge cases — so you catch a misunderstanding in a paragraph instead of a 400-line diff, which is what keeps a bigger feature on the rails when you're steering from your phone. It ships with a cast of review skills (code review, simplification, UX review, QA) that critique the work before you merge, GitHub wired up, and a real pull-request flow — a way of working teams take years to build, on your box from minute one (the `sdd-*` skills, `/sdd-coordinator` to start). A session-start reminder resurfaces any unfinished specs so long-running work doesn't rot, and an optional `incident` skill logs what broke and the rule you learned.
+- **Work happens while you sleep — a guard, not a promise.** The optional night shift picks a spec you already approved, implements it unattended, and stops dead at the pull request. That's enforced at the tool layer: a `PreToolUse` hook blocks every merge and push attempt outright, loaded from the command line so the agent can't edit it out of its own settings. See [Optional: the night shift](#optional-the-night-shift).
 - **A built-in usage coach.** Know what your agent burns before you hit a rate limit: the `quota` skill reconstructs your spend from your own session transcripts (by model, by project), a status-line segment shows the running weekly total, and a gentle nudge suggests dropping to a cheaper model for routine work. No new account — it reads what's already on your box.
 - **Optional capability packs.** Heavier add-ons stay off until you ask for them. `biab pack add browser` gives the agent a sandboxed headless browser it can read, click, fill and screenshot with — running as its own locked-down user, never with access to your keys or code. `biab pack list` shows what's available.
 

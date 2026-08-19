@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Builders in a Box — run Claude Code from your phone</title>
-<meta name="description" content="Run Claude Code (or Antigravity) from your phone. One command turns any old PC or mini PC into a persistent, secure, always-on home for your coding agent — tmux, Tailscale, SSH hardening, done for you.">
-<meta property="og:title" content="Builders in a Box — give your coding agent a home">
-<meta property="og:description" content="Your agent lives on your laptop. Move it to a persistent, secure box you drive from your phone. One command, ~15 minutes.">
+<title>Builders in a Box — an AI agent that can't merge without you</title>
+<meta name="description" content="An AI agent that codes overnight on your own mini PC — and can't merge without you. One command turns any old PC or mini PC into a persistent, secure, always-on home for Claude Code or Antigravity, reachable from your phone.">
+<meta property="og:title" content="Builders in a Box — an AI agent that can't merge without you">
+<meta property="og:description" content="Approve a spec, let it work overnight on hardware you own, and open a pull request instead of a merged commit — a mechanical guard blocks it, not a promise in a prompt.">
 <style>
   :root { color-scheme: light dark; --fg:#111; --dim:#666; --bg:#fafafa; --card:#fff; --accent:#1769ff; --code:#0b1020; }
   @media (prefers-color-scheme: dark){ :root{ --fg:#eee; --dim:#999; --bg:#0d0d10; --card:#16161c; --accent:#5b9bff; --code:#06080f; } }
@@ -40,10 +40,10 @@
 </head>
 <body>
 <main>
-  <h1>Give your coding agent a home.</h1>
-  <p class="tag">You already build with an agent — it just lives on your laptop. It dies when you close the lid, you can't reach it from your phone, and going remote the naive way is how 42,665 agent boxes ended up exposed on the open internet. This turns any Ubuntu 24.04 machine you own — even that old laptop gathering dust in a drawer — into a persistent, secure home for it. One command, ~15 minutes.</p>
+  <h1>An agent that can't merge without you.</h1>
+  <p class="tag">You already build with an agent — it just lives on your laptop, and it only ever works while you're watching it. This turns any Ubuntu 24.04 machine you own into a persistent home for it: approve a spec, let it work overnight on hardware you own, and wake up to a pull request instead of a merged commit — a mechanical guard blocks it from going further, not a promise in a prompt. One command, ~15 minutes.</p>
 
-  <p class="pitch">Everything those “I run Claude Code from my phone” blog posts walk you through — tmux, Tailscale, SSH hardening, a session that survives a dropped connection — in one command, not a weekend.</p>
+  <p class="pitch">Everything those “I run Claude Code from my phone” blog posts walk you through — tmux, Tailscale, SSH hardening, a session that survives a dropped connection — plus the part they skip: a guard the agent can't talk its way around.</p>
 
   <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
        Drop the PNG here (above the one-liner) as: <img class="hero" src="assets/hero.png" ...>. -->
@@ -76,6 +76,7 @@
     <li><strong>Your agent, wherever you are.</strong> Drive it from your phone or your laptop over your own private network — start a refactor on the train, check it at lunch, it's still running when you get home. Never chained to your desk.</li>
     <li><strong>Work that doesn't stop when you do.</strong> Sessions persist on the box, so long runs stay alive across dropped connections and closed laptops. Kick it off, walk away, come back to the result.</li>
     <li><strong>A senior workflow baked in — spec-driven development.</strong> The standout skill: instead of the agent diving straight into code, it writes a short spec you approve <em>first</em> — the problem, the plan, the edge cases — so you catch a misunderstanding in a paragraph instead of in a 400-line diff. That's how bigger features stay on the rails when you're steering from your phone. It comes with a full cast of review skills (code review, QA, UX, growth) that critique the work before you merge, plus GitHub wired up and a real pull-request flow — a way of working teams take years to build, on your box from minute one.</li>
+    <li><strong>It can propose, never merge.</strong> Approve a spec, and the optional night shift implements it unattended while you sleep — then stops dead at the pull request. A <code>PreToolUse</code> hook blocks every merge and push attempt at the tool layer, not an instruction in a prompt; it's loaded from the command line so the agent can't edit it out of its own settings.</li>
     <li><strong>A practice that keeps itself honest.</strong> Unfinished specs are resurfaced every time you open a session, so long-running work never rots in a folder you forgot about, and an optional incident log turns each thing that breaks into a rule you won't trip over twice.</li>
     <li><strong>Know exactly what your agent burns.</strong> A built-in usage coach reads your own session history and shows where your plan is going — by model and by project, on the status line and on demand (<em>“how much have I burned this week?”</em>). It nudges you off an expensive model for routine work, so an opaque bill turns into a decision instead of a surprise rate-limit at the worst moment.</li>
     <li><strong>Give it eyes on the web — when you want them.</strong> One command (<code>biab pack add browser</code>) lets the agent read, click, fill and screenshot live pages. Off by default; when it's on it runs sandboxed under its own locked-down user that can't touch your keys or your code.</li>
