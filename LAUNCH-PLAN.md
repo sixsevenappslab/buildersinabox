@@ -177,6 +177,7 @@ Fuera "paying betas" (imposible en OSS-only). Nuevo gate a 6 semanas del launch:
 | Día del mini PC (~19-08) | `HARDWARE-PASS.md` completa + demo/hero grabados en la misma sesión |
 | Día siguiente al hardware pass | **Flip silencioso**: `tools/publish.sh --tag` + visibility public. Sin anuncio |
 | Misma semana | Reclutar 3 betas por DM contra el repo ya público |
+| En paralelo (timebox 1-2 días) | FEAT-027 «try it in a VM»: preflight SSH + README + pasada real en VM. **No bloquea el flip**; ideal tenerla antes del HN (amendment EXEC-015, 2026-08-19 — dato Paco: la caja regalada nunca se configuró; barrera = tener entorno de servidor) |
 | Al completar 2/3 betas (o +14 días del flip, lo que llegue antes) | **Show HN** (sábado 09:00 ET) + r/selfhosted a los 2-3 días + email Tailscale DevRel + 3 posts LinkedIn (EXEC-012) |
 | 6 semanas post-flip | Checkpoint contra gate §3 → seguir / mantenimiento pasivo |
 
