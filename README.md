@@ -40,6 +40,24 @@ About 15 minutes gets you to your first SSH session from your phone; the guided 
 - **A network connection.** An already-running machine or VPS uses whatever it has; the USB/gift image needs wired Ethernet for its first boot (Wi-Fi provisioning is on the roadmap).
 - **The agent you already use:** a **paid Claude subscription** (Pro or above — Claude Code is included in paid plans, not the free tier) or a **Google account** for [Antigravity CLI](https://antigravity.google) (`agy`). The installer also sets you up on a private mesh network that's free for personal use. GitHub is optional but recommended.
 
+### No spare hardware? Try it in a VM first
+
+Same script, same wizard, same result — just disposable. Any hypervisor with
+a real console window works: **VirtualBox** (Windows/Linux/Intel Mac, free),
+**UTM** (Apple Silicon Mac, free, native virtualization), or
+**virt-manager/Proxmox** (Linux). Install Ubuntu Server 24.04 LTS as the
+guest (2 vCPU / 4 GB RAM / 20 GB disk is plenty), then run the one-liner
+inside it exactly as you would on real hardware. Expect ~15-20 minutes,
+console included.
+
+**Not supported: Multipass.** Its `shell` is itself an SSH session with no
+console behind it — partway through setup the installer restricts SSH to the
+private network, and a console-less VM gets locked out of its own shell.
+Use a hypervisor with a real console window instead.
+
+No VM software handy? **A €4-5/month VPS also works** — same install, real
+always-on hardware, no laptop fan spinning.
+
 ## Install
 
 **Hosted one-liner** (recommended once live):

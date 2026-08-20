@@ -70,6 +70,13 @@ jobs:
       - name: Install/uninstall ownership contract (FEAT-024)
         run: bash payload/test/uninstall-contract.sh
 
+      # FEAT-027 R2: the SSH-without-tailnet install preflight. Fail-closed
+      # contract — no tty and no ack must abort before touching anything.
+      # Mocks `tailscale` via PATH, needs no root. Does NOT cover the live
+      # VM/VPS lockout scenario — that's the manual pass in FEAT-027 R4.
+      - name: SSH install preflight unit tests (FEAT-027)
+        run: bash payload/test/ssh-install-preflight.sh
+
       # Same gap the browser pack had (see browser-pack-tests below): this suite
       # existed but nothing ran it, so it rotted unnoticed. It had been exiting
       # 2 partway through the scaffold-seed block for some time — the harness

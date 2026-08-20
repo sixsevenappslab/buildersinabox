@@ -7,8 +7,9 @@
 - **Complejidad:** baja — spec ligera
 - **E2E mode:** una pasada real en VM local (la mitad del punto de la FEAT)
 - **Depende de:** nada de código; EXEC-015 (amendment 2026-08-19)
-- **Fase:** requisitos
+- **Fase:** implementacion (R1-R3 hechos; R4 pendiente de pasada real en VM/hipervisor de Jesus)
 - **Creado:** 2026-08-19
+- **Actualizado:** 2026-08-20 (R1-R3 implementados)
 - **Validado por Jesus:** [ ] <!-- la decisión de alcance sí la tomó el 2026-08-18 -->
 
 ## Contexto y por qué ahora
@@ -34,20 +35,32 @@ Verificado contra `main` (2026-08-19):
 
 ## 1. Requisitos
 
-- [ ] R1 — WHEN un visitante sin hardware lee el README, THE SYSTEM SHALL
+- [x] R1 — WHEN un visitante sin hardware lee el README, THE SYSTEM SHALL
       ofrecerle un camino "Try it in a VM first" con hipervisores concretos
       (VirtualBox, UTM, virt-manager/Proxmox) y el tiempo esperado.
-- [ ] R2 — WHEN la instalación corre dentro de una sesión SSH sin tailnet
+      → `README.md` §"No spare hardware? Try it in a VM first" + línea en
+      `site/index.html`.
+- [x] R2 — WHEN la instalación corre dentro de una sesión SSH sin tailnet
       activo, THE SYSTEM SHALL avisar antes de tocar sshd de que esta
       instalación recorta el SSH de LAN, recomendar consola, y pedir
       confirmación explícita (`BIB_SSH_INSTALL_ACK=1` o prompt tty).
       Cubre multipass Y el instalador curioso en su servidor de LAN.
-- [ ] R3 — multipass se declara **no soportado** en README y en el aviso de
+      → `payload/lib/common.sh:check_ssh_install_preflight`, llamado desde
+      `payload/install.sh` justo tras `require_supported_os` (salvo
+      `--skip-wizard`, que nunca corre `35-ssh-finalize.sh` y no tiene nada
+      que proteger). Falla cerrado (sin tty y sin ack → aborta, cero
+      cambios). Detección de sesión SSH vía `ss -Htn state established` como
+      fallback — `SSH_CONNECTION`/`SSH_TTY` no sobreviven a `sudo` con
+      `env_reset` en el one-liner real `curl | sudo bash` (bug encontrado y
+      corregido en code-review antes de mergear).
+- [x] R3 — multipass se declara **no soportado** en README y en el aviso de
       R2 (no se arregla: mantener SSH de LAN abierto rompería el modelo de
       seguridad que es el titular).
 - [ ] R4 — el camino VM completo (curl → wizard → Claude desde el móvil vía
       tailnet → `--uninstall`) se ejecuta UNA vez de verdad y lo observado se
-      anota en esta spec antes de completarla.
+      anota en esta spec antes de completarla. **Pendiente — requiere que
+      Jesus la corra con un hipervisor real (VirtualBox/UTM/virt-manager);
+      no ejecutable desde este entorno.**
 
 ## 2. Spec técnica (esbozo — spec ligera)
 
@@ -75,15 +88,22 @@ de un fix, los extras van a issues post-flip, no a esta FEAT.
 
 ## 4. QA (mínimo)
 
-1. Preflight: sesión con `SSH_CONNECTION` sembrada, sin tailnet, sin ack →
+1. [x] Preflight: sesión con `SSH_CONNECTION` sembrada, sin tailnet, sin ack →
    aborta con el aviso, exit no-cero, cero cambios en disco.
-2. Preflight: mismo caso con `BIB_SSH_INSTALL_ACK=1` → continúa.
-3. Preflight: consola limpia (sin vars SSH) → ni aviso ni prompt.
-4. Pasada viva (R4): VM VirtualBox o virt-manager, Ubuntu Server 24.04 →
+   → `payload/test/ssh-install-preflight.sh` escenario 4 (+ escenario 5 para
+   `NON_INTERACTIVE=1`).
+2. [x] Preflight: mismo caso con `BIB_SSH_INSTALL_ACK=1` → continúa.
+   → escenario 3.
+3. [x] Preflight: consola limpia (sin vars SSH) → ni aviso ni prompt.
+   → escenario 1 (+ escenario 2: SSH con tailnet ya arriba → tampoco avisa).
+4. [ ] Pasada viva (R4): VM VirtualBox o virt-manager, Ubuntu Server 24.04 →
    curl → wizard parte A en consola → SSH por tailnet desde el móvil →
    `/tutorial` arranca → `--uninstall` deja la VM limpia. Cronometrar: el
-   número real sustituye al "~15 min" del README si difiere.
-5. Regresión: `wiring-smoke.sh` y `uninstall-contract.sh` en verde.
+   número real sustituye al "~15 min" del README si difiere. **Pendiente,
+   requiere hardware/hipervisor real.**
+5. [x] Regresión: `wiring-smoke.sh` (claude/antigravity/codex),
+   `uninstall-contract.sh`, `ssh-finalize-decision.sh`, personal-refs guard,
+   shellcheck — todos en verde localmente antes del PR.
 
 ## 5. Docs
 

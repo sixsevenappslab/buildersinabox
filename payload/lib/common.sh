@@ -114,6 +114,58 @@ require_supported_os() {
     fi
 }
 
+# FEAT-027 R2: warn before installing over an SSH session with no private
+# network yet. The wizard later restricts sshd to the tailnet-only address
+# (35-ssh-finalize.sh) — if this SSH session isn't reachable over that
+# network, it gets cut off. Hits two cases: a console-less VM (multipass,
+# whose `shell` is itself SSH) and a curious sysadmin installing over plain
+# LAN SSH. Fails closed: no tty and no ack means abort, not proceed.
+_biab_ssh_session_active() {
+    # Env vars survive when sudo doesn't strip them (sudo -E, or a shell
+    # that already exported them into root's environment) — but the
+    # documented `curl | sudo bash` one-liner hits plain sudo's env_reset,
+    # which wipes SSH_CONNECTION/SSH_TTY before this script even starts.
+    # `ss` is the fallback for that path: same reason 35-ssh-finalize.sh
+    # detects SSH peers via `ss` instead of trusting env vars.
+    [[ -n "${SSH_CONNECTION:-}${SSH_TTY:-}" ]] && return 0
+    command -v ss >/dev/null 2>&1 || return 1
+    [[ -n "$(ss -Htn state established '( sport = :22 )' 2>/dev/null)" ]]
+}
+
+check_ssh_install_preflight() {
+    _biab_ssh_session_active || return 0
+
+    # Already on the private network (or Tailscale reachable) — this
+    # session will very likely survive the later sshd restriction.
+    if command -v tailscale >/dev/null 2>&1 && tailscale status >/dev/null 2>&1; then
+        return 0
+    fi
+
+    if [[ "${BIB_SSH_INSTALL_ACK:-0}" == "1" ]]; then
+        warn "installing over SSH with no private network up yet (BIB_SSH_INSTALL_ACK=1 set, continuing)"
+        return 0
+    fi
+
+    printf '\n⚠ You are installing over an SSH connection and the private network\n'
+    printf '  (Tailscale) is not up yet. Later in setup, SSH gets restricted to that\n'
+    printf '  private network only — if this session is not reachable over it, you\n'
+    printf '  will be locked out.\n\n'
+    printf '  Expected and safe on a VPS: the wizard hardens to key-only first and\n'
+    printf '  never locks you out mid-session. NOT safe inside a console-less VM\n'
+    printf '  (e.g. multipass, whose shell is itself SSH) — that is not supported.\n'
+    printf '  Use a hypervisor with a real console instead (VirtualBox, UTM,\n'
+    printf '  virt-manager/Proxmox).\n\n'
+
+    if [[ "${NON_INTERACTIVE:-0}" == "1" || ! -r /dev/tty ]]; then
+        die "no tty to confirm from (or --non-interactive). Set BIB_SSH_INSTALL_ACK=1 if you understand the risk, or install from a console."
+    fi
+
+    printf 'Continue anyway? [y/N] '
+    local _ack=""
+    read -r _ack < /dev/tty || _ack=""
+    [[ "$_ack" =~ ^[Yy]$ ]] || die "aborted. Install from a console, or set BIB_SSH_INSTALL_ACK=1 if you understand the risk."
+}
+
 # ---------------------------------------------------------------------------
 # Operator identity (resolved at runtime, persisted into state file)
 # ---------------------------------------------------------------------------

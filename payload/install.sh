@@ -393,6 +393,11 @@ fi
 
 require_root
 require_supported_os
+# --skip-wizard never runs wizard/run.sh, so 35-ssh-finalize.sh (the only
+# step that actually restricts sshd) can't run either — nothing for this
+# preflight to protect against. Also skips CI/image-baking pipelines that
+# run over SSH with neither a tty nor an ack.
+[[ "$SKIP_WIZARD" -eq 1 ]] || check_ssh_install_preflight
 
 # ---------------------------------------------------------------------------
 # Root-only host (typical fresh VPS): offer to create the human user
