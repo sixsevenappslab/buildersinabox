@@ -9,12 +9,30 @@
 #
 # Set BIB_OAUTH_MOCK=1 to short-circuit every flow with a fake URL and a
 # trivial verification. Used by automated tests; not for production.
+#
+# When no console is attached (BIB_PROMPT_INPUT — default /dev/tty — can't
+# actually be opened), oauth_step doesn't wait on a keypress: it prints
+# "BIB_AGENT_PAUSE: step=<label> url=<url>" and exits 78 (the same clean
+# "resume elsewhere" signal wizard/run.sh uses for the phone-bridge step).
+# This is what lets an agent driving install.sh over a non-pty SSH session
+# relay the login URL to a human and rerun once it's done, instead of racing
+# into verify_cmd and dying with a generic error (FEAT-028).
 
 set -euo pipefail
 
 # Mock mode: returns true when BIB_OAUTH_MOCK is set.
 oauth_is_mocked() {
     [[ "${BIB_OAUTH_MOCK:-0}" == "1" ]]
+}
+
+# Is there an interactive console to wait on? `[[ -r /dev/tty ]]` is NOT
+# enough: /dev/tty is world-readable by permission bits even with no
+# controlling terminal attached (the exact no-pty-SSH case this exists for)
+# — the actual open() fails with ENXIO in that case, not a permission error.
+# Attempt the real open instead.
+_oauth_console_attached() {
+    [[ "$BIB_PROMPT_INPUT" == "/dev/stdin" || "$BIB_PROMPT_INPUT" == "/dev/fd/0" ]] && return 0
+    { : < "$BIB_PROMPT_INPUT"; } 2>/dev/null
 }
 
 # Run an OAuth step.
@@ -78,6 +96,22 @@ oauth_step() {
         prompt_url "Open this URL on your phone or laptop to complete $label login:" "$url"
     else
         warn "oauth_step($label): no URL captured automatically. Read the output above."
+    fi
+
+    # No interactive console attached — the case of an agent driving this
+    # over a non-pty SSH exec. Nobody will press Enter, and falling through
+    # to `wait "$cmd_pid"` below would block indefinitely on the OAuth flow
+    # finishing (or worse than the die() this replaces: it wouldn't even
+    # return). Pause cleanly instead: leave url_cmd running in the
+    # background (it's the process actually polling for the login to
+    # complete — killing it would cancel the flow) and exit 78, the same
+    # "resume elsewhere" signal wizard/run.sh already uses for the
+    # phone-bridge step.
+    if ! _oauth_console_attached; then
+        rm -f "$out_log"
+        echo "BIB_AGENT_PAUSE: step=${label} url=${url:-none}"
+        log "oauth_step($label): no console attached, pausing for external login — rerun the same command once $label login is complete"
+        exit 78
     fi
 
     prompt_confirm "Press Enter once you have completed the $label login."

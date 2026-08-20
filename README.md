@@ -83,6 +83,26 @@ The installer is interactive by default (it asks your name for the welcome scree
 
 Builders in a Box can also be flashed to a USB stick as a self-installing Ubuntu image — plug it into a mini PC and it provisions hands-free, ending at a personalised welcome wizard. See [`iso-builder/`](iso-builder/). This is how you'd hand a ready-to-go box to someone as a gift.
 
+### Install via an agent you already have
+
+If you already have Claude Code or Codex running somewhere, you can tell it to install Builders in a Box on a target box for you instead of running the one-liner yourself — as long as that agent already has SSH access to the target (a VPS you control, or a box on your LAN):
+
+```bash
+curl -fsSL https://buildersinabox.com/install.sh | \
+  sudo env BIB_USER=you BIB_FLAVOR=default BIB_AI_CLI=claude BIB_SSH_INSTALL_ACK=1 \
+  bash -s -- --non-interactive
+```
+
+- `BIB_AI_CLI=claude` or `BIB_AI_CLI=codex` — **not `antigravity`**. Its login is a full-screen TUI with no headless mode; the other two run a one-shot command that prints a URL and polls on its own, which is what makes this workable without a real terminal attached.
+- `BIB_SSH_INSTALL_ACK=1` acknowledges the SSH-lockout warning this installer already prints when it detects it's running over SSH with no private network up yet (see [Security model](#security-model)) — without it, the install aborts before touching anything.
+
+Two points in the run need a human, and the agent should surface both as plain messages, not swallow them:
+
+1. **Tailscale login.** The install pauses — prints a line like `BIB_AGENT_PAUSE: step=Tailscale url=https://login.tailscale.com/...` and stops (exit code 78) rather than hanging on a keypress nobody will send. Open that URL, sign in, then have the agent re-run the exact same command — the install is idempotent and picks up where it left off.
+2. **AI CLI login.** The command keeps running and prints its own URL + short code. Open it, approve, and the install continues by itself — no rerun needed here.
+
+This is still two clicks from a phone, not zero-touch — the agent is doing the typing, you're still doing the login.
+
 ## How it works
 
 ```

@@ -77,6 +77,14 @@ jobs:
       - name: SSH install preflight unit tests (FEAT-027)
         run: bash payload/test/ssh-install-preflight.sh
 
+      # FEAT-028 R1: oauth_step's agent-friendly pause. When no console is
+      # attached it must print a parseable "BIB_AGENT_PAUSE:" line and exit
+      # 78 instead of racing into verify_cmd and dying with a generic error.
+      # The interactive path (real console) must stay unaffected. Fakes
+      # url-cmd/verify-cmd, needs no root.
+      - name: OAuth agent-pause unit tests (FEAT-028)
+        run: bash payload/test/oauth-agent-pause.sh
+
       # Same gap the browser pack had (see browser-pack-tests below): this suite
       # existed but nothing ran it, so it rotted unnoticed. It had been exiting
       # 2 partway through the scaffold-seed block for some time — the harness
