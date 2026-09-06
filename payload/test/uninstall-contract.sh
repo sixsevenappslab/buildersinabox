@@ -38,7 +38,7 @@ set -euo pipefail
 # under an inherited `set -e` and nobody noticed, because a driver that stops
 # mid-file looks exactly like a driver that passed. The summary is printed from
 # a trap so it appears even then.
-EXPECTED_ASSERTIONS=89
+EXPECTED_ASSERTIONS=90
 
 PAYLOAD_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -1017,6 +1017,7 @@ _seed_night_shift() {
     printf '#!/usr/bin/env bash\n# Installed by Builders in a Box\n' > "$r/usr/local/bin/biab-night-shift"
     chmod +x "$r/usr/local/bin/biab-night-shift"
     printf 'real' > "$ns/mode"
+    printf 'real' > "$ns/unprotected-ok"
     printf '{"hooks":{}}\n' > "$ns/guard/settings.json"
     printf '2.00\n'            > "$ns/guard/budget-usd"
     : > "$ns/state/attempted/FEAT-001-demo.md.stamp"
@@ -1065,6 +1066,12 @@ _ns="$SC/var/lib/buildersinabox/night-shift"
 [[ ! -e "$_ns/mode" ]] \
     && ok "NS-4: the night-shift mode file is gone" \
     || bad "NS-4: the mode file survived — a reinstall would come back already armed"
+
+# NS-12 — the owner's acceptance of an unprotected branch lowers a fence; it
+# must not outlive the uninstall any more than the mode file does.
+[[ ! -e "$_ns/unprotected-ok" ]] \
+    && ok "NS-12: the night-shift unprotected-ok file is gone" \
+    || bad "NS-12: the unprotected-ok file survived — a reinstall would skip the branch-protection check"
 
 # NS-5 — attempt stamps and summaries are our state, and go with us.
 [[ ! -e "$_ns/state" ]] \

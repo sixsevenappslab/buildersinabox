@@ -36,6 +36,7 @@ night_paths=(
     "${NIGHT_PREFIX}/usr/local/bin/biab-night-shift"
     "$NIGHT_GUARD_DIR"
     "$NIGHT_MODE_FILE"
+    "$NIGHT_UNPROTECTED_OK_FILE"
     "$NIGHT_STATE_DIR"
 )
 

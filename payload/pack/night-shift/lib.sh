@@ -38,6 +38,15 @@ NIGHT_ROOT_DIR="${BIB_STATE_DIR:-/var/lib/buildersinabox}/night-shift"
 # shellcheck disable=SC2034  # consumed by bin/, install.sh and uninstall.sh after sourcing
 NIGHT_MODE_FILE="${NIGHT_ROOT_DIR}/mode"
 
+# The owner's explicit acceptance of running against a repository whose
+# default branch has NO protection on GitHub (2026-09-06). Same shape as the
+# mode file — root-owned, literal content, created only by `arm
+# --unprotected-ok` — because it lowers the same fence: without a required
+# review the client-side hook is the only thing between the pass and a merge,
+# and the hook is a brake, not a lock.
+# shellcheck disable=SC2034  # consumed by bin/ and uninstall.sh after sourcing
+NIGHT_UNPROTECTED_OK_FILE="${NIGHT_ROOT_DIR}/unprotected-ok"
+
 # Operator-writable state: attempt stamps, the last-run summary, the kill
 # switch sentinel, the run lock and the guard's audit log. The runner executes
 # as the operator, so this half has to be theirs.
@@ -395,4 +404,101 @@ night_classify_result() {
 night_clean_field() {
     local text="${1:-}" max="${2:-120}"
     printf '%s' "$text" | tr -d '[:cntrl:]' | cut -c "1-${max}" || true
+}
+
+# ---------------------------------------------------------------------------
+# Branch protection (2026-09-06). The PreToolUse hook is a client-side brake:
+# an agent that writes files and runs programs can always find one more
+# spelling of "push to main". What makes "it cannot merge without you" TRUE
+# is server-side — a required review on the default branch, which the agent,
+# acting as the owner, cannot give itself. So before a pass spends anything
+# the runner asks GitHub whether that lock exists.
+#
+# "Locked" means: at least one approving review is required AND (for classic
+# protection) administrators are included — a single-owner repo where admins
+# can bypass is not locked for the one account the agent runs as. Both the
+# classic protection API and rulesets are consulted; either suffices.
+#
+# Fail-closed: no gh, no network, no permission to read protection, an
+# unparseable answer — all read as "not locked". Never a retry loop.
+# ---------------------------------------------------------------------------
+night_repo_nwo() { # <repo> -> owner/name, or nothing
+    local repo="$1"
+    git -C "$repo" rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 1
+    ( cd "$repo" && gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null ) \
+        | head -c 200 | tr -d '[:cntrl:]' | grep -E '^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$' || true
+}
+
+night_default_branch() { # <repo> -> branch name, or nothing
+    local repo="$1" b
+    b="$( ( cd "$repo" && gh repo view --json defaultBranchRef -q .defaultBranchRef.name 2>/dev/null ) \
+        | head -c 200 | tr -d '[:cntrl:]' || true)"
+    if [[ -z "$b" ]]; then
+        b="$(git -C "$repo" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##' || true)"
+    fi
+    printf '%s' "$b" | grep -E '^[A-Za-z0-9._/-]+$' || true
+}
+
+night_branch_is_locked() { # <repo> -> 0 locked, 1 not (reason on stdout)
+    local repo="$1" nwo branch json
+    command -v gh >/dev/null 2>&1 || { printf 'gh-missing'; return 1; }
+    command -v jq >/dev/null 2>&1 || { printf 'jq-missing'; return 1; }
+    nwo="$(night_repo_nwo "$repo")"
+    [[ -n "$nwo" ]] || { printf 'repo-not-on-github'; return 1; }
+    branch="$(night_default_branch "$repo")"
+    [[ -n "$branch" ]] || { printf 'default-branch-unknown'; return 1; }
+
+    # Classic branch protection. 404 = none.
+    json="$( ( cd "$repo" && gh api "repos/${nwo}/branches/${branch}/protection" 2>/dev/null ) | head -c 65536 || true)"
+    if [[ -n "$json" ]] && printf '%s' "$json" | jq -e \
+        '((.required_pull_request_reviews.required_approving_review_count // 0) >= 1) and ((.enforce_admins.enabled // false) == true)' \
+        >/dev/null 2>&1; then
+        printf 'classic'
+        return 0
+    fi
+
+    # Rulesets: the rules that apply to this branch, from every active ruleset.
+    # A ruleset can exempt actors (typically "repository admin" — the very
+    # account the pass runs as), and the per-branch endpoint does not say so:
+    # the ruleset itself must be read and its bypass list must be empty.
+    json="$( ( cd "$repo" && gh api "repos/${nwo}/rules/branches/${branch}" 2>/dev/null ) | head -c 65536 || true)"
+    local rid rjson
+    rid="$(printf '%s' "$json" | jq -r 'if type == "array" then (map(select(.type == "pull_request" and ((.parameters.required_approving_review_count // 0) >= 1))) | .[0].ruleset_id // empty) else empty end' 2>/dev/null | tr -dc '0-9' || true)"
+    if [[ -n "$rid" ]]; then
+        rjson="$( ( cd "$repo" && gh api "repos/${nwo}/rulesets/${rid}" 2>/dev/null ) | head -c 65536 || true)"
+        if [[ -n "$rjson" ]] && printf '%s' "$rjson" | jq -e \
+            '(.enforcement == "active") and ((.bypass_actors // []) | length == 0)' >/dev/null 2>&1; then
+            printf 'ruleset'
+            return 0
+        fi
+        printf 'ruleset-has-bypass-actors'
+        return 1
+    fi
+
+    printf 'no-required-review'
+    return 1
+}
+
+# night_unprotected_ok_gate <file> — has the owner explicitly accepted running
+# without branch protection? Same discipline as night_mode_gate: the file must
+# exist, be a regular root-owned 0644 file (not a symlink) and hold the exact
+# literal. Anything else reads as "not accepted", loudly when the file exists.
+night_unprotected_ok_gate() {
+    local f="${1:-}" owner mode
+    [[ -n "$f" && -e "$f" ]] || return 1
+    if [[ -L "$f" ]]; then
+        echo "biab-night-shift: $f is a symlink — not treating it as the owner's acceptance." >&2
+        return 1
+    fi
+    if ! night_mode_is_real "$f"; then
+        echo "biab-night-shift: $f EXISTS but does not hold the exact literal '${NIGHT_REAL_LITERAL}' — ignoring it. Re-create it with: sudo biab-night-shift arm --unprotected-ok" >&2
+        return 1
+    fi
+    owner="$(stat -c '%U' "$f" 2>/dev/null || true)"
+    mode="$(stat -c '%a' "$f" 2>/dev/null || true)"
+    if [[ "$owner" != "root" || "$mode" != "644" ]]; then
+        echo "biab-night-shift: ignoring $f — not root-owned mode 0644 (found owner=${owner:-?} mode=${mode:-?}); a file the agent can write is not the owner's acceptance." >&2
+        return 1
+    fi
+    return 0
 }

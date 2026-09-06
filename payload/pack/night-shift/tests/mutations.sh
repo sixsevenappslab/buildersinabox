@@ -72,11 +72,34 @@ mutate M-03 "$PACK/lib.sh" 's/$owner" != "root"/$owner" == ""/'          "${DRIV
 mutate M-04 "$PACK/lib.sh" 's/^night_tree_is_clean() {/night_tree_is_clean() { return 0;/' "${DRIVER[@]}"
 
 # --- the mechanical guard --------------------------------------------------
-mutate M-05 "$PACK/hooks/no-merge-guard.sh" '/gh\s\+pr\s\+merge/d'       "${DRIVER[@]}"
+# M-05: the push whitelist loosened to "anything that starts with git push".
+mutate M-05 "$PACK/hooks/no-merge-guard.sh" 's/^ALLOW_PUSH=.*/ALLOW_PUSH="^git push"/' "${DRIVER[@]}"
 mutate M-06 "$PACK/hooks/no-merge-guard.sh" \
     's/CLAUDE_HOOK_PAYLOAD=\$(cat)/CLAUDE_HOOK_PAYLOAD="{\\"tool_input\\":{\\"command\\":\\"${CLAUDE_TOOL_BASH_COMMAND:-}\\"}}"/' \
     "${DRIVER[@]}"
 mutate M-07 "$PACK/hooks/no-merge-guard.sh" 's/exit 2/exit 1/'           "${DRIVER[@]}"
+# M-17: `main` drops out of the protected-branch list.
+mutate M-17 "$PACK/hooks/no-merge-guard.sh" 's/^PROTECTED=.*/PROTECTED="^(master)$"/' "${DRIVER[@]}"
+# M-18: the gh whitelist admits `pr close` (a merge is one verb away).
+mutate M-18 "$PACK/hooks/no-merge-guard.sh" 's/^GH_ALLOW="^gh (pr (create/GH_ALLOW="^gh (pr (close|create/' "${DRIVER[@]}"
+# M-19: the file-tool guard stops recognising CI workflows.
+mutate M-19 "$PACK/hooks/no-merge-guard.sh" 's#\\\.github/workflows(/|$)#NEVERMATCHXYZ#' "${DRIVER[@]}"
+# M-20: the adapter forgets to switch MCP off for the pass.
+mutate M-20 payload/lib/ai-cli.sh 's/ --strict-mcp-config//' "${DRIVER[@]}"
+
+# --- the lock ---------------------------------------------------------------
+# M-21: the runner stops asking GitHub (every branch reads as locked).
+mutate M-21 "$PACK/bin/biab-night-shift" 's/if lock_why="$(night_branch_is_locked "$repo")"; then/if lock_why="$(true)"; then/' "${DRIVER[@]}"
+# M-22: zero required reviews counts as a lock.
+mutate M-22 "$PACK/lib.sh" 's/required_approving_review_count \/\/ 0) >= 1) and ((.enforce_admins/required_approving_review_count \/\/ 0) >= 0) and ((.enforce_admins/' "${DRIVER[@]}"
+# M-23: the acceptance file is no longer checked for root ownership.
+mutate M-23 "$PACK/lib.sh" '/night_unprotected_ok_gate() {/,/^}/ s/"$owner" != "root" || "$mode" != "644"/"$owner" == "" \&\& "$mode" == ""/' "${DRIVER[@]}"
+# M-25: quoted verbs stop being verbs again (`git "push"`).
+mutate M-25 "$PACK/hooks/no-merge-guard.sh" 's/^PUSH="$(qv push)"/PUSH="push"/' "${DRIVER[@]}"
+# M-26: a ruleset with bypass actors counts as a lock.
+mutate M-26 "$PACK/lib.sh" 's/(.bypass_actors \/\/ \[\]) | length == 0/(.bypass_actors \/\/ []) | length >= 0/' "${DRIVER[@]}"
+# M-24: the uninstall forgets the acceptance file.
+mutate M-24 "$PACK/uninstall.sh" '/"\$NIGHT_UNPROTECTED_OK_FILE"/d' "${DRIVER[@]}"
 
 # --- the brake -------------------------------------------------------------
 mutate M-08 "$PACK/bin/biab-night-shift" '/touch .*attempted/d'          "${DRIVER[@]}"

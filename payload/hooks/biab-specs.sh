@@ -41,7 +41,7 @@ cwd="$(biab_json '.cwd')"
 _night_block() {
     local f="${BIB_STATE_DIR:-/var/lib/buildersinabox}/night-shift/state/last-run.json"
     [[ -r "$f" ]] || return 0
-    local json verdict spec reason ts url
+    local json verdict spec reason ts url lock
     # Bounded read: a corrupt or enormous summary must not be slurped.
     json="$(head -c 8192 -- "$f" 2>/dev/null || true)"
     [[ -n "$json" ]] || return 0
@@ -51,6 +51,7 @@ _night_block() {
     reason="$(printf '%s' "$json"  | jq -r '.reason  // empty' 2>/dev/null || true)"
     ts="$(printf '%s' "$json"      | jq -r '.ts      // empty' 2>/dev/null || true)"
     url="$(printf '%s' "$json"     | jq -r '.pr_url  // empty' 2>/dev/null || true)"
+    lock="$(printf '%s' "$json"    | jq -r '.branch_lock // empty' 2>/dev/null || true)"
     # Belt and braces over the runner's own sanitising: strip control
     # characters and truncate here too, so a summary written by anything else
     # still cannot smuggle escape sequences into the session.
@@ -61,6 +62,9 @@ _night_block() {
     [[ -n "$spec" ]]   && line+=" on $(_clean "$spec" 120)"
     [[ -n "$ts" ]]     && line+=" at $(_clean "$ts" 32)"
     [[ -n "$url" ]]    && line+=$'\n'"  PR: $(_clean "$url" 200)"
+    # The owner switched the server-side lock off for that pass: say so every
+    # morning, because a hook on its own is a brake and not a guarantee.
+    [[ "$lock" == "unlocked-accepted" ]] && line+=$'\n'"  WARNING: ran with no required review on the default branch (arm --unprotected-ok) — the hook was the only brake."
     printf '%s' "$line"
 }
 night_block="$(_night_block || true)"

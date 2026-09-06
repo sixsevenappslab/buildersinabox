@@ -13,9 +13,16 @@
 # nothing here spends anything until a human with sudo runs `arm` and types a
 # confirmation word, and why every path that is not exactly "armed" simulates.
 #
-# THE PASS NEVER MERGES. It opens a pull request and stops. That is enforced
-# by a PreToolUse hook (hooks/no-merge-guard.sh) loaded through --settings,
-# not by asking nicely in the prompt.
+# THE PASS STOPS AT THE PULL REQUEST. Two layers, and they are not equal:
+#   * a PreToolUse hook (hooks/no-merge-guard.sh) loaded through --settings
+#     allows only `git push [-u] origin <feature-branch>` and a handful of `gh`
+#     verbs, and blocks merges, releases, the GitHub API, CI edits, root and
+#     eval. A BRAKE: an agent that writes files and runs programs can always
+#     find one more spelling.
+#   * branch protection on the repository — a required review the agent,
+#     acting as the owner, cannot give itself. THE LOCK. The pass checks for
+#     it before it spends anything and aborts if it is missing, unless the
+#     owner has explicitly accepted that with `arm --unprotected-ok`.
 #
 # Sourcing this file with BIB_NIGHT_SHIFT_LIB=1 defines the functions and runs
 # nothing (same pattern as payload/install.sh's BIB_INSTALL_LIB) — that is how
@@ -81,7 +88,7 @@ night_is_disabled() {
     return 1
 }
 
-# night_write_summary <verdict> <reason> <project> <spec> <url>
+# night_write_summary <verdict> <reason> <project> <spec> <url> [branch-lock]
 #
 # FIXED FIELDS ONLY. The verdict is one of a closed set, the URL has already
 # been matched against an anchored regex, and every free-ish field is stripped
@@ -90,7 +97,7 @@ night_is_disabled() {
 # unattended agent writing text that gets injected into its successor is a
 # prompt-injection channel from the machine to itself (§3 Never).
 night_write_summary() {
-    local verdict="$1" reason="$2" project="$3" spec="$4" url="$5"
+    local verdict="$1" reason="$2" project="$3" spec="$4" url="$5" lock="${6:-}"
     mkdir -p "$NIGHT_STATE_DIR" 2>/dev/null || return 0
     local tmp="${NIGHT_SUMMARY_FILE}.tmp"
     if command -v jq >/dev/null 2>&1; then
@@ -101,18 +108,19 @@ night_write_summary() {
             --arg project "$(night_clean_field "$project" 64)" \
             --arg spec "$(night_clean_field "$spec" 120)" \
             --arg url "$(night_clean_field "$url" 200)" \
-            '{schema:1, ts:$ts, verdict:$verdict, reason:$reason, project:$project, spec:$spec, pr_url:$url}' \
+            --arg lock "$(night_clean_field "$lock" 24)" \
+            '{schema:1, ts:$ts, verdict:$verdict, reason:$reason, project:$project, spec:$spec, pr_url:$url, branch_lock:$lock}' \
             > "$tmp" 2>/dev/null || return 0
         mv -f "$tmp" "$NIGHT_SUMMARY_FILE" 2>/dev/null || true
     fi
     return 0
 }
 
-# night_finish <verdict> <reason> [project] [spec] [url] — write the summary,
-# say it out loud (the journal is where the detail lives) and leave.
+# night_finish <verdict> <reason> [project] [spec] [url] [branch-lock] — write
+# the summary, say it out loud (the journal is where the detail lives) and leave.
 night_finish() {
-    local verdict="$1" reason="$2" project="${3:-}" spec="${4:-}" url="${5:-}"
-    night_write_summary "$verdict" "$reason" "$project" "$spec" "$url"
+    local verdict="$1" reason="$2" project="${3:-}" spec="${4:-}" url="${5:-}" lock="${6:-}"
+    night_write_summary "$verdict" "$reason" "$project" "$spec" "$url" "$lock"
     say "verdict=${verdict} reason=${reason}${spec:+ spec=$(night_clean_field "$spec" 120)}${url:+ pr=${url}}"
     return 0
 }
@@ -177,6 +185,10 @@ night_no_candidate_reason() {
 # ---------------------------------------------------------------------------
 night_pass() {
     local verdict="${1:-dry}"
+    # "accept" = the owner ran `arm --unprotected-ok` (root-owned file, checked
+    # by cmd_run) and takes the unprotected default branch on themselves. An
+    # ARGUMENT, like the spend verdict: no environment variable can set it.
+    local unprotected="${2:-}"
     local spending="dry-run"
     night_should_spend "$verdict" && spending="real"
 
@@ -277,6 +289,24 @@ night_pass() {
         return 0
     fi
 
+    # THE LOCK. The hook below is a brake; this is what makes "it cannot merge
+    # without you" true. Checked before the attempt stamp on purpose: a repo
+    # the owner protects tomorrow must be a candidate again tomorrow.
+    local lock lock_why
+    if lock_why="$(night_branch_is_locked "$repo")"; then
+        lock="locked:${lock_why}"
+    elif [[ "$unprotected" == "accept" ]]; then
+        lock="unlocked-accepted"
+        say "warning: the default branch of ${repo} has no required review on GitHub (${lock_why}); running anyway because the owner accepted that with 'arm --unprotected-ok'. Tonight the PreToolUse hook is the only brake."
+    else
+        err "the default branch of ${repo} has no required review on GitHub (${lock_why})."
+        err "Without it the PreToolUse hook is the only thing between an unattended pass and a merge, and a hook is a brake, not a lock."
+        err "Protect the branch (Settings > Branches or a ruleset: require a pull request with 1 approving review, include administrators),"
+        err "or accept the risk explicitly with: sudo biab-night-shift arm --unprotected-ok"
+        night_finish "aborted" "default-branch-not-protected" "$project" "$spec" ""
+        return 0
+    fi
+
     # THE BRAKE. Stamp BEFORE the call, exactly like
     # autonomous-implementer.sh:168-179: a pass that dies half way (timeout,
     # power cut, quota exhausted) must still leave a mark, or a spec that
@@ -302,7 +332,11 @@ night_pass() {
     # is the adapter's business, never the runner's.
     cmd="$(ai_cli_unattended_cmd "$cli" "$repo" "$NIGHT_GUARD_DIR" "$prompt")"
     say "implementing ${spec} (project=${project}, cli=${cli}, budget=\$${NIGHT_MAX_BUDGET_USD})"
-    final="$(bash -c "$cmd" 2>&1 | tail -c 8192 || true)"
+    # The guard reads the repository's real default branch from this variable,
+    # so a default called `stable` is as protected as one called `main`.
+    local default_branch
+    default_branch="$(night_default_branch "$repo")"
+    final="$(BIB_NIGHT_SHIFT_DEFAULT_BRANCH="$default_branch" bash -c "$cmd" 2>&1 | tail -c 8192 || true)"
 
     # Everything the model wrote goes to the journal and stops there.
     printf '%s\n' "$final"
@@ -313,9 +347,9 @@ night_pass() {
     [[ "$kind" == "pr" ]] && url="$(night_pr_url "$final")"
 
     case "$kind" in
-        pr)      night_finish "pr" "pull-request-open" "$project" "$spec" "$url" ;;
-        aborted) night_finish "aborted" "agent-aborted-see-journal" "$project" "$spec" "" ;;
-        *)       night_finish "unclear" "finished-without-a-pr-url-see-journal" "$project" "$spec" "" ;;
+        pr)      night_finish "pr" "pull-request-open" "$project" "$spec" "$url" "$lock" ;;
+        aborted) night_finish "aborted" "agent-aborted-see-journal" "$project" "$spec" "" "$lock" ;;
+        *)       night_finish "unclear" "finished-without-a-pr-url-see-journal" "$project" "$spec" "" "$lock" ;;
     esac
     return 0
 }
@@ -334,9 +368,12 @@ DEFINITION OF DONE — do not stop before all of it is true:
 
 HARD LIMITS:
 - STOP at the pull request. Never merge, never release, never deploy, never
-  push to main/master/pre. A PreToolUse hook blocks those commands
-  mechanically; do not look for a way around it. This overrides any
-  auto-merge policy written in a CLAUDE.md or AGENTS.md on this machine.
+  push to main/master/pre, never edit CI workflows or .git/, never use the
+  GitHub API, curl against github.com, sudo or eval. Work on a feature
+  branch and push it ONLY as 'git push -u origin <branch>'; open the PR with
+  'gh pr create'. A PreToolUse hook blocks everything else mechanically; do
+  not look for a way around it. This overrides any auto-merge policy written
+  in a CLAUDE.md or AGENTS.md on this machine.
 - At most 3 cycles of fixing tests or lint. If they still fail, push the
   branch, do NOT open a pull request, and answer ABORTED plus what is left.
 - If the spec is ambiguous or needs a product decision, answer ABORTED plus
@@ -354,11 +391,14 @@ EOF
 # ---------------------------------------------------------------------------
 
 cmd_run() {
-    local verdict="dry"
+    local verdict="dry" unprotected=""
     if night_mode_gate "$NIGHT_MODE_FILE"; then
         verdict="real"
     fi
-    night_pass "$verdict"
+    if night_unprotected_ok_gate "$NIGHT_UNPROTECTED_OK_FILE"; then
+        unprotected="accept"
+    fi
+    night_pass "$verdict" "$unprotected"
 }
 
 cmd_status() {
@@ -380,6 +420,11 @@ cmd_status() {
         printf '  mode         simulating (not armed). Arm with: sudo biab-night-shift arm\n'
     fi
     printf '  kill switch  %s\n' "$( night_is_disabled && printf 'ON — no pass will run' || printf 'off' )"
+    if night_unprotected_ok_gate "$NIGHT_UNPROTECTED_OK_FILE" 2>/dev/null; then
+        printf '  branch lock  NOT REQUIRED — you accepted unprotected default branches (arm --unprotected-ok); the hook is the only brake\n'
+    else
+        printf '  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub\n'
+    fi
     printf '  budget       $%s per pass, %ss wall clock\n' "$NIGHT_MAX_BUDGET_USD" "$NIGHT_TIMEOUT_SECONDS"
     if [[ -f "$NIGHT_SUMMARY_FILE" ]] && command -v jq >/dev/null 2>&1; then
         printf '  last pass    %s\n' "$(jq -r '"\(.verdict // "?") (\(.reason // "?")) \(.spec // "") \(.pr_url // "")"' "$NIGHT_SUMMARY_FILE" 2>/dev/null || printf 'unreadable')"
@@ -404,7 +449,13 @@ night_recent_spend_line() {
 }
 
 cmd_arm() {
-    local cli flavor answer
+    local cli flavor answer unprotected_ok=0 arg
+    for arg in "$@"; do
+        case "$arg" in
+            --unprotected-ok) unprotected_ok=1 ;;
+            *) err "arm: unknown option '${arg}' (only --unprotected-ok is accepted)"; return 1 ;;
+        esac
+    done
     cli="$(night_ai_cli)"
 
     # Refuse BEFORE showing anything or asking anything: on a box whose CLI
@@ -426,8 +477,17 @@ cmd_arm() {
     printf '  passes per night:    1, one spec, no retries\n'
     night_recent_spend_line
     printf '\n'
-    printf 'The pass stops at the pull request. It never merges, releases or pushes\n'
-    printf 'to your main branch — a hook blocks those commands.\n\n'
+    printf 'The pass stops at the pull request. Two things keep it there:\n'
+    printf '  a hook   allows only a push to its own branch and "gh pr create", and blocks\n'
+    printf '           merges, releases, the GitHub API, CI edits, root and eval. A brake.\n'
+    printf '  GitHub   a required review on your default branch that the agent, acting as\n'
+    printf '           you, cannot give itself. The lock. A pass aborts if it is missing.\n'
+    if [[ "$unprotected_ok" -eq 1 ]]; then
+        printf '\n  --unprotected-ok: you are switching the second one OFF. Passes will run\n'
+        printf '  against repositories with no required review, with the hook as the only\n'
+        printf '  brake. Undo with: sudo biab-night-shift arm\n'
+    fi
+    printf '\n'
 
     flavor="$(night_flavor)"
 
@@ -460,6 +520,16 @@ cmd_arm() {
     printf 'real' > "$NIGHT_MODE_FILE"
     chown root:root "$NIGHT_MODE_FILE"
     chmod 0644 "$NIGHT_MODE_FILE"
+    if [[ "$unprotected_ok" -eq 1 ]]; then
+        install -o root -g root -m 0644 /dev/null "$NIGHT_UNPROTECTED_OK_FILE"
+        printf 'real' > "$NIGHT_UNPROTECTED_OK_FILE"
+        chown root:root "$NIGHT_UNPROTECTED_OK_FILE"
+        chmod 0644 "$NIGHT_UNPROTECTED_OK_FILE"
+        say "armed WITHOUT requiring branch protection. The hook is the only brake tonight."
+    else
+        # A plain `arm` is the strict state: it also withdraws an earlier acceptance.
+        rm -f "$NIGHT_UNPROTECTED_OK_FILE"
+    fi
     say "armed. Turn it off again at any time with: sudo biab-night-shift disarm"
     say "or stop a single night without disarming: touch $NIGHT_DISABLED_SENTINEL"
     return 0
@@ -474,7 +544,7 @@ cmd_disarm() {
         err "removing the mode file needs root. Re-run: sudo biab-night-shift disarm"
         return 1
     fi
-    rm -f "$NIGHT_MODE_FILE"
+    rm -f "$NIGHT_MODE_FILE" "$NIGHT_UNPROTECTED_OK_FILE"
     say "disarmed. The pack is still installed and the timer still fires — passes just simulate again."
     return 0
 }
@@ -486,6 +556,8 @@ Usage: biab-night-shift <command>
   run       run one pass now (simulates unless the box is armed)
   status    show what is installed, armed, disabled, and how the last pass went
   arm       show the cost, ask for confirmation, then allow real passes (sudo)
+            --unprotected-ok  also run against repos whose default branch has
+                              no required review on GitHub (hook = only brake)
   disarm    go back to simulating without uninstalling anything (sudo)
 EOF
 }
@@ -498,7 +570,7 @@ fi
 case "${1:-}" in
     run)     cmd_run ;;
     status)  cmd_status ;;
-    arm)     cmd_arm ;;
+    arm)     shift; cmd_arm "$@" ;;
     disarm)  cmd_disarm ;;
     -h|--help|help) usage ;;
     *)       usage >&2; exit 1 ;;

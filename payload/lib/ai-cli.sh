@@ -69,7 +69,8 @@ _ai_cli_props__claude() {
 #
 # -p is the headless mode. --settings LOADS ADDITIONAL settings, so the guard
 # rides in on the command line and the agent cannot shake it off by rewriting
-# its own ~/.claude/settings.json. Every interpolated value is %q-escaped: a
+# its own ~/.claude/settings.json. The guard only sees Bash and the file
+# tools, so the MCP layer is switched off for the pass (see below). Every interpolated value is %q-escaped: a
 # spec path can contain spaces, quotes or a $(…), and this string is handed
 # to a shell.
 _ai_cli_unattended_cmd__claude() {
@@ -83,8 +84,12 @@ _ai_cli_unattended_cmd__claude() {
         raw="$(head -c 16 -- "${guard_dir}/budget-usd" 2>/dev/null | tr -dc '0-9.')"
         [[ -n "$raw" ]] && budget="$raw"
     fi
-    printf 'cd %q && claude -p %q --settings %q --max-budget-usd %q --permission-mode bypassPermissions' \
-        "$cwd" "$prompt" "$settings" "$budget"
+    # --strict-mcp-config: only MCP servers named on the command line, and none
+    # are, so none load. Without it a GitHub MCP server the owner configured in
+    # ~/.claude.json would give the agent a merge tool that never passes through
+    # the Bash guard. --disallowedTools mcp__* is the belt to that brace.
+    printf 'cd %q && claude -p %q --settings %q --max-budget-usd %q --permission-mode bypassPermissions --strict-mcp-config --disallowedTools %q' \
+        "$cwd" "$prompt" "$settings" "$budget" 'mcp__*'
 }
 
 # Build the tmux launch command. Claude has a first-class

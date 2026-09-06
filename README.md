@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Ubuntu 24.04 LTS](https://img.shields.io/badge/Ubuntu-24.04%20LTS-e95420?logo=ubuntu&logoColor=white)](https://ubuntu.com/download/server)
 
-> **An AI agent that codes overnight on your own mini PC — and can't merge without you. One command turns any old PC into a secure, always-on home for Claude Code or Antigravity, reachable from your phone. ~15 minutes.**
+> **An AI agent that codes overnight on your own mini PC — and stops at the pull request. One command turns any old PC into a secure, always-on home for Claude Code or Antigravity, reachable from your phone. ~15 minutes.**
 
 <!-- HERO: phone screenshot — pending hardware capture (Jesús), FEAT-012 §1.1.
      Drop the PNG here (under the tagline, above the curl one-liner) as:
@@ -30,7 +30,7 @@ About 15 minutes gets you to your first SSH session from your phone; the guided 
 - **Sessions that never die.** Your work persists across disconnects and closed laptops. Pick up exactly where you left off, from the couch, a coffee shop, or a flight.
 - **A scaffolded workspace** (`~/ai-platform/`) with sensible defaults and a guided `/tutorial` that walks you from "set up" to "building your first project" inside your agent itself.
 - **A senior workflow, baked in — spec-driven development.** The standout skill: instead of diving straight into code, the agent writes a short spec you approve *first* — the problem, the plan, the edge cases — so you catch a misunderstanding in a paragraph instead of a 400-line diff, which is what keeps a bigger feature on the rails when you're steering from your phone. It ships with a cast of review skills (code review, simplification, UX review, QA) that critique the work before you merge, GitHub wired up, and a real pull-request flow — a way of working teams take years to build, on your box from minute one (the `sdd-*` skills, `/sdd-coordinator` to start). A session-start reminder resurfaces any unfinished specs so long-running work doesn't rot, and an optional `incident` skill logs what broke and the rule you learned.
-- **Work happens while you sleep — a guard, not a promise.** The optional night shift picks a spec you already approved, implements it unattended, and stops dead at the pull request. That's enforced at the tool layer: a `PreToolUse` hook blocks every merge and push attempt outright, loaded from the command line so the agent can't edit it out of its own settings. See [Optional: the night shift](#optional-the-night-shift).
+- **Work happens while you sleep — a brake and a lock, not a promise.** The optional night shift picks a spec you already approved, implements it unattended, and stops at the pull request. A `PreToolUse` hook, loaded from the command line so the agent can't edit it out of its own settings, allows only a push to its own branch and `gh pr create` and blocks the rest; branch protection on your repo — checked before a pass spends anything — is what makes that a lock. See [Optional: the night shift](#optional-the-night-shift).
 - **A built-in usage coach.** Know what your agent burns before you hit a rate limit: the `quota` skill reconstructs your spend from your own session transcripts (by model, by project), a status-line segment shows the running weekly total, and a gentle nudge suggests dropping to a cheaper model for routine work. No new account — it reads what's already on your box.
 - **Optional capability packs.** Heavier add-ons stay off until you ask for them. `biab pack add browser` gives the agent a sandboxed headless browser it can read, click, fill and screenshot with — running as its own locked-down user, never with access to your keys or code. `biab pack list` shows what's available.
 
@@ -152,13 +152,33 @@ one-spec-per-night rule, not the dollar figure. And a spec that turns out to be
 ambiguous can still burn a pass — which is why a spec that has been attempted
 is not retried for 14 days.
 
-**What it will not do.** It never merges, never releases, never pushes to your
-main branch. That is not a request in a prompt: a `PreToolUse` hook inspects
-every shell command the agent tries to run and blocks those outright, and the
-hook is loaded from the command line, so the agent cannot remove it by editing
-its own settings. It also refuses to start at all if your working tree is
-dirty, and it only ever picks specs whose frontmatter carries a
-`validated_by` — your approval is what authorises the spending.
+**What keeps it at the pull request.** Two things, and they are not equal.
+
+The first is a `PreToolUse` hook, loaded from the command line so the agent
+cannot edit it out of its own settings. It is a whitelist, not a list of
+forbidden spellings: the only push it allows is `git push [-u] origin
+<feature-branch>`, the only `gh` verbs are `pr create` and a few read-only
+ones, and it blocks merges, releases, pushes to `main`, the GitHub API, `curl`
+against GitHub, credential reads, edits to `.git/` and `.github/workflows/`,
+`sudo` and `eval` — from the shell and from the file-editing tools alike. MCP
+servers are switched off for the pass. It writes its own audit line every
+time it blocks something. Call it a brake: an agent that writes files and
+runs programs can always find one more spelling (a script written to disk and
+then executed is the obvious one), and we would rather say that than promise
+otherwise.
+
+The second is the lock: **branch protection on your repository**, requiring
+at least one approving review with administrators included. The agent runs as
+you, and you cannot approve your own pull request, so with that in place it
+cannot merge no matter what it types. A real pass checks GitHub for it before
+spending anything and aborts if it is missing; if you knowingly want to run
+without it — say, a private repo on a plan without branch protection — `sudo
+biab-night-shift arm --unprotected-ok` says so explicitly, and every morning's
+summary will remind you the hook was the only brake.
+
+It also refuses to start at all if your working tree is dirty, and it only
+ever picks specs whose frontmatter carries a `validated_by` — your approval
+is what authorises the spending.
 
 **Switching it off.** `sudo biab-night-shift disarm` (keeps the pack, stops the
 spending), `touch /var/lib/buildersinabox/night-shift/state/night-shift-disabled`

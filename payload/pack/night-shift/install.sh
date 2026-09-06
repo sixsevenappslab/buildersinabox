@@ -120,7 +120,9 @@ cat <<EOF
 
   What it does once you turn it on: at 03:00 it picks ONE spec you have
   validated, implements it with your AI CLI, and stops at the pull request.
-  It never merges, never releases and never pushes to your main branch.
+  A hook blocks merges, releases, pushes to main, the GitHub API and CI
+  edits — a brake. The lock is a required review on your default branch,
+  which a pass checks for and refuses to run without.
 
   WHAT IT COSTS: a real pass spends YOUR subscription, unattended, while you
   are asleep. Capped at \$${NIGHT_MAX_BUDGET_USD} and ${NIGHT_TIMEOUT_SECONDS}s per pass, one spec per night,

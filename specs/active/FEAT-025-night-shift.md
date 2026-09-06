@@ -14,7 +14,7 @@
 - **Reconciliation owner:** sdd-coordinator
 - **Fase:** implementacion
 - **Creado:** 2026-08-16
-- **Actualizado:** 2026-08-16 (§2 + §4 + reconciliacion de §1)
+- **Actualizado:** 2026-09-06 (guard a lista blanca + branch protection como cerradura; corrección del claim, ver §1 Decisiones y §6)
 - **Validado por Jesus:** [x] 2026-08-16
 
 ---
@@ -186,6 +186,38 @@ pendientes.
       llevar una llave dentro de la jaula.
 
 ### Decisiones de §1 pedidas por §2 y §4 (resueltas)
+
+**Claim de seguridad — el hook es freno, la cerradura es branch protection
+(2026-09-06).** Revisión previa a las betas: el copy (README, landing,
+CHANGELOG, instalador del pack, `arm`) decía "can't merge without you" y
+"blocks every merge and push attempt at the tool layer". El guard era una
+lista negra de 7 deletreos sobre el tool Bash. Una batería de 27 formas de
+mergear, pushear a main o desplegar, pasada por el hook en local, dejó pasar
+22 (`git push` sin refspec estando en main, `git push origin "main"`,
+`--all`/`--mirror`/`--tags`, `gh api -X PUT …/merge`, auto-merge por GraphQL,
+`gh workflow run deploy.yml`, `curl` con `gh auth token`, script escrito y
+ejecutado, workflow editado con Write y empujado en la rama). Decisión de
+Jesus: endurecer **y** reescribir el claim, no solo una de las dos.
+
+- El hook pasa a **lista blanca**: solo `git push [-u] origin <rama>` (rama no
+  protegida, sin `refs/`, sin comillas ni `+`), `gh pr create` y verbos de
+  solo lectura de `gh`. Bloquea API de GitHub, clientes HTTP contra
+  github.com, credenciales, `git remote`/`git config`/`git tag`, edición de
+  `.git/` y `.github/workflows/` (desde Bash y desde Write/Edit/NotebookEdit),
+  `sudo` y `eval`. La pasada corre con `--strict-mcp-config --disallowedTools
+  mcp__*`. **Residuo conocido y no cubrible por hook:** un script escrito a
+  disco y ejecutado después. Por eso el hook se llama freno.
+- La **cerradura** es server-side: revisión obligatoria (≥1 aprobación,
+  administradores incluidos) en la rama por defecto, que el agente, actuando
+  como el dueño, no puede darse. `night_branch_is_locked` consulta protección
+  clásica y rulesets antes de gastar; sin ella la pasada aborta con
+  `default-branch-not-protected` **sin sellar la spec**. `arm --unprotected-ok`
+  acepta correr sin cerradura (fichero root-owned con la misma disciplina que
+  `mode`), y el resumen matutino lo avisa cada día. Motivo del opt-out: en
+  GitHub Free los repos privados no tienen branch protection; sin opt-out la
+  feature no existiría para ese usuario.
+- El copy dice "stops at the pull request" y explica las dos capas. Nunca
+  vuelve a apoyar "can't merge without you" solo en el hook.
 
 **Modo `starter` — se elige la opción (a): `FEAT-STARTER.md` gana el campo de
 validación.** §4 tenía razón en que esto era bloqueante: de fábrica una caja
@@ -745,8 +777,10 @@ E2E `none`.
   autorizar gasto desatendido de la suscripción del usuario.
 - Fail-closed en todo lo que decida entre "simular" y "ejecutar de verdad".
 - Solo-PR. El turno de noche jamás mergea, despliega ni empuja a la rama
-  principal, y eso se impide con un guard mecánico, no con una instrucción en
-  el prompt.
+  principal. Dos capas (2026-09-06): un guard mecánico de lista blanca en el
+  cliente —freno— y branch protection con revisión obligatoria en el repo
+  —cerradura—, comprobada antes de gastar. El copy nunca promete más de lo
+  que la capa server-side garantiza.
 - Enseñar el coste antes de pedir permiso, no después.
 - Todo lo que el pack cree debe quedar cubierto por el contrato de propiedad de
   FEAT-024.
@@ -1420,4 +1454,19 @@ listener real de sshd.
 
 ## 6. Feedback
 
-> Vacío hasta después del deploy.
+- **2026-09-06 — desajuste copy/guard (pre-betas).** Detalle y decisión en
+  §1 "Claim de seguridad". Implementado en la PR `fix/feat-025-guard-claim`:
+  guard a lista blanca + guard de ficheros, adaptador sin MCP, sondeo de
+  branch protection en el runner, `arm --unprotected-ok`, aviso en
+  `biab-specs.sh`, copy corregido. Tests: `test-pack.sh` 226 (F-09 con 54
+  evasiones, S-01/S-02, S-10…S-17), contrato NS-12, mutaciones M-17…M-24.
+  Security review (subagente `security-auditor`) sobre el diff: 4 críticos y
+  3 altos, todos cerrados en la misma PR (verbos entre comillas, `GIT_CONFIG_*`
+  y `GH_REPO=`, funciones/alias shell, `~/.gitconfig`, lectura de credenciales
+  con Read/Grep, ventana de opciones sin tope, `bypass_actors` en rulesets,
+  rama por defecto real vía `BIB_NIGHT_SHIFT_DEFAULT_BRANCH`). Residuo asumido:
+  script escrito y ejecutado, variable con la palabra `git`, y que la
+  cerradura cubre el merge en tu repo pero no el push a otro remoto.
+  **Queda para la pasada de hardware:** F-13 (guard vivo bajo
+  `bypassPermissions`) y una prueba viva del sondeo contra un repo real con y
+  sin branch protection.
