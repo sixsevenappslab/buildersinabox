@@ -56,6 +56,14 @@ fi
 
 # Home dir: driver, caches, profiles, out dir — everything owned by
 # biab-browser lives under here.
+# The workflow staging dir lives on tmpfs outside $BROWSER_HOME (see
+# BROWSER_RUNTIME_DIR in lib.sh), so a reboot clears it anyway — but "uninstall
+# leaves nothing of ours behind" should not depend on rebooting.
+if [[ -d "$BROWSER_RUNTIME_DIR" && ! -L "$BROWSER_RUNTIME_DIR" ]]; then
+    rm -rf -- "$BROWSER_RUNTIME_DIR"
+    echo "browser pack uninstall: removed $BROWSER_RUNTIME_DIR"
+fi
+
 if [[ -e "$BROWSER_HOME" ]]; then
     rm -rf -- "$BROWSER_HOME"
     echo "browser pack uninstall: removed $BROWSER_HOME"

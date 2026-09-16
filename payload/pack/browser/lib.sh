@@ -35,6 +35,31 @@ BROWSER_SUDOERS_FILE="/etc/sudoers.d/biab-browser-pack"
 # browser` cleans it up along with everything else.
 # shellcheck disable=SC2034
 BROWSER_UNSAFE_SANDBOX_SENTINEL="${BROWSER_HOME}/.allow-unsafe-sandbox"
+# Ceiling for a `run` workflow read from stdin (FEAT-030 R6). Kept in step with
+# MAX_WORKFLOW_BYTES in driver/lib.mjs; the wrapper rejects an oversize payload
+# before the driver ever parses it.
+# shellcheck disable=SC2034
+BROWSER_MAX_WORKFLOW_BYTES=65536
+# Where a `run` workflow is staged. Deliberately NOT under $BROWSER_HOME.
+#
+# $BROWSER_HOME and everything install.sh creates under it is owned by
+# biab-browser (0750) — correct for the profiles and the screenshot handoff,
+# where the browser user writes and root only ever reads back with an explicit
+# recheck. A workflow inverts that direction: ROOT writes into it. Owning the
+# parent directory is enough to rename or unlink any entry in it, whoever owns
+# the entry, so staging the file anywhere under $BROWSER_HOME would let
+# biab-browser swap the path for a symlink between root's mktemp and root's
+# chmod/write. chmod, a `>` redirect and chown all follow symlinks, which turns
+# that into "root truncates a file of the attacker's choosing" and, with the
+# chown, "biab-browser is handed ownership of it" — a clean path from a
+# Chromium sandbox escape to root-owned files, straight through the dedicated
+# user that exists to prevent exactly that.
+#
+# /run is root-owned, so biab-browser cannot create, rename or unlink anything
+# there, and the race has nowhere to happen. It is tmpfs, so nothing survives a
+# reboot either.
+# shellcheck disable=SC2034
+BROWSER_RUNTIME_DIR="${BIAB_BROWSER_RUNTIME_DIR:-/run/biab-browser}"
 
 # pack_is_installed — true if the browser pack looks installed on this box.
 # Used by `biab pack list` and by install.sh/uninstall.sh idempotency checks.
@@ -208,4 +233,64 @@ validate_profile_name() {
         return 1
     fi
     return 0
+}
+
+# Create the root-owned staging directory a `run` workflow is written into.
+#
+# Mode 0711: biab-browser can traverse to a path it was handed, and can read a
+# file whose group lets it, but cannot list the directory and — the point —
+# cannot create, rename or unlink anything in it. Refuses outright if the path
+# is already a symlink rather than following it.
+ensure_runtime_dir() {
+    local dir="$1"
+    if [[ -L "$dir" ]]; then
+        echo "biab-browse: refusing to use ${dir} — it is a symlink, not a directory" >&2
+        return 1
+    fi
+    install -d -m 0711 "$dir" || return 1
+    if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+        chown root:root "$dir" || return 1
+    fi
+    if [[ -L "$dir" || ! -d "$dir" ]]; then
+        echo "biab-browse: ${dir} is not a plain directory after creation" >&2
+        return 1
+    fi
+    return 0
+}
+
+# Copy stdin into $1, refusing anything larger than $2 bytes.
+#
+# `head -c` and not `dd bs=N count=1`: dd issues a single read(2), and a read
+# from a pipe returns only what happens to be buffered at that instant.
+# Measured on this repo: a workflow written in two chunks 300ms apart came back
+# truncated (10512 of 10548 bytes) with no error at all — the caller only ever
+# saw "invalid workflow JSON", and a workflow that happened to stay valid after
+# the cut would have RUN, short. head -c keeps reading until the limit or EOF.
+#
+# One byte over the limit is read on purpose, so the caller can tell "exactly
+# at the limit" from "over the limit" instead of silently accepting a cut.
+read_bounded_stdin() {
+    local dest="$1" limit="$2" size
+    head -c "$((limit + 1))" >"$dest"
+    size="$(stat -c '%s' "$dest")"
+    if (( size > limit )); then
+        echo "biab-browse: input exceeds the ${limit}-byte limit" >&2
+        return 2
+    fi
+    return 0
+}
+
+# Print the internal attempt sequence for a public --mode value. Auto may
+# retry only the initial navigation; an explicit mode always has one attempt.
+browser_mode_attempts() {
+    case "$1" in
+        auto) printf '%s\n' desktop-headless iphone-headless desktop-headful ;;
+        desktop) printf '%s\n' desktop-headless ;;
+        iphone) printf '%s\n' iphone-headless ;;
+        headful) printf '%s\n' desktop-headful ;;
+        *)
+            echo "biab-browse: invalid mode '$1' (expected auto|desktop|iphone|headful)" >&2
+            return 2
+            ;;
+    esac
 }

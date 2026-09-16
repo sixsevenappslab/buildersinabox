@@ -76,6 +76,7 @@ code_files=(
     "$PACK_DIR/lib.sh"
     "$PACK_DIR/bin/biab-browse"
     "$PACK_DIR/driver/browse.mjs"
+    "$PACK_DIR/driver/lib.mjs"
 )
 unexpected=""
 for fpath in "${code_files[@]}"; do
@@ -249,6 +250,280 @@ fi
 rm -rf -- "$gate_dir"
 
 echo
+echo "== Section A (cont.): mode ladder (FEAT-030 QA-1) =="
+
+# browser_mode_attempts() is the whole fallback policy in one function: auto
+# gets the three-rung ladder, every explicit mode gets exactly one attempt, and
+# an unknown mode is a usage error. Tested directly, in a subshell, for the
+# same reason as the validators above (lib.sh does `set -euo pipefail`).
+mode_attempts() {
+    (
+        # shellcheck disable=SC1091
+        source "$PACK_DIR/lib.sh"
+        browser_mode_attempts "$1"
+    )
+}
+
+got="$(mode_attempts auto 2>/dev/null | tr '\n' ' ')"
+if [[ "$got" == "desktop-headless iphone-headless desktop-headful " ]]; then
+    ok "QA-1: auto ladder is desktop-headless -> iphone-headless -> desktop-headful"
+else
+    bad "QA-1: auto ladder is '$got'"
+fi
+
+for pair in "desktop:desktop-headless" "iphone:iphone-headless" "headful:desktop-headful"; do
+    mode="${pair%%:*}"; expected="${pair##*:}"
+    got="$(mode_attempts "$mode" 2>/dev/null | tr '\n' ' ')"
+    if [[ "$got" == "${expected} " ]]; then
+        ok "QA-1: --mode ${mode} is a single attempt (${expected}) — never falls back"
+    else
+        bad "QA-1: --mode ${mode} produced '$got' (expected '${expected}')"
+    fi
+done
+
+if mode_attempts bogus >/dev/null 2>&1; then
+    bad "QA-1: an unknown mode was accepted"
+else
+    rc=$?
+    # The exit code matters, not just the failure: biab-browse turns this into
+    # its own exit 2. Before the fix it ran `mapfile -t attempts < <(...)`,
+    # which reports mapfile's status and not the function's, so an unknown mode
+    # left `attempts` empty and the run ended up exiting 6 (the reserved
+    # "blocked" code) instead of 2 (usage).
+    [[ $rc -eq 2 ]] && ok "QA-1: unknown mode rejected with the usage exit code (2)" \
+                    || bad "QA-1: unknown mode rejected with exit $rc (expected 2)"
+fi
+
+if grep -q 'browser_mode_attempts "\$mode" >/dev/null || exit 2' "$PACK_DIR/bin/biab-browse"; then
+    ok "QA-1: biab-browse validates the mode before mapfile (no swallowed exit status)"
+else
+    bad "QA-1: biab-browse no longer validates the mode before mapfile — an unknown mode can exit 6 instead of 2"
+fi
+
+echo
+echo "== Section A (cont.): bounded stdin slurp (FEAT-030 QA-5) =="
+
+# read_bounded_stdin() is what copies a `run` workflow off stdin. The contract
+# has two halves and both have teeth:
+#   - it must not truncate, however the bytes arrive; and
+#   - it must refuse anything over the limit rather than cut it to size.
+bounded() {
+    (
+        # shellcheck disable=SC1091
+        source "$PACK_DIR/lib.sh"
+        read_bounded_stdin "$1" "$2"
+    )
+}
+
+slurp_dir="$(mktemp -d)"
+
+# Regression for the measured truncation bug: a payload delivered in two pipe
+# writes with a pause between them. `dd bs=N count=1` returned only the first
+# chunk and closed the pipe, silently. Nothing reported an error — the workflow
+# just arrived short.
+chunked_out="${slurp_dir}/chunked.json"
+"${PYTHON_BIN:-python3}" -c '
+import sys, time
+head = b"{\"actions\":[" + b"{\"action\":\"click\",\"selector\":\"#a\"}," * 300
+sys.stdout.buffer.write(head); sys.stdout.buffer.flush()
+time.sleep(0.3)
+sys.stdout.buffer.write(b"{\"action\":\"click\",\"selector\":\"#z\"}]}"); sys.stdout.buffer.flush()
+' > "${slurp_dir}/chunked.src" 2>/dev/null
+bounded "$chunked_out" 65536 < <("${PYTHON_BIN:-python3}" -c '
+import sys, time
+head = b"{\"actions\":[" + b"{\"action\":\"click\",\"selector\":\"#a\"}," * 300
+sys.stdout.buffer.write(head); sys.stdout.buffer.flush()
+time.sleep(0.3)
+sys.stdout.buffer.write(b"{\"action\":\"click\",\"selector\":\"#z\"}]}"); sys.stdout.buffer.flush()
+') 2>/dev/null
+expected_size="$(stat -c '%s' "${slurp_dir}/chunked.src" 2>/dev/null || echo 0)"
+got_size="$(stat -c '%s' "$chunked_out" 2>/dev/null || echo 0)"
+if [[ "$got_size" -gt 0 && "$got_size" -eq "$expected_size" ]] && tail -c 2 "$chunked_out" | grep -q ']}'; then
+    ok "QA-5: stdin arriving in two chunks is read whole (${got_size} bytes, not truncated)"
+else
+    bad "QA-5: chunked stdin was truncated (${got_size} of ${expected_size} bytes)"
+fi
+
+at_limit="${slurp_dir}/at-limit.bin"
+if head -c 64 /dev/zero | tr '\0' 'a' | bounded "$at_limit" 64 2>/dev/null; then
+    [[ "$(stat -c '%s' "$at_limit")" -eq 64 ]] && ok "QA-5: a payload exactly at the limit is accepted whole" \
+        || bad "QA-5: payload at the limit came back the wrong size"
+else
+    bad "QA-5: a payload exactly at the limit was rejected"
+fi
+
+over_limit="${slurp_dir}/over-limit.bin"
+if head -c 65 /dev/zero | tr '\0' 'a' | bounded "$over_limit" 64 2>/dev/null; then
+    bad "QA-5: a payload one byte over the limit was accepted (silent truncation risk)"
+else
+    ok "QA-5: a payload one byte over the limit is rejected, not cut to size"
+fi
+
+rm -rf -- "$slurp_dir"
+
+echo
+echo "== Section A (cont.): block detection + workflow schema (FEAT-030 QA-3/QA-5) =="
+
+# driver/lib.mjs holds the two decisions that have to be right whether or not a
+# browser is available on the runner: what counts as a block worth retrying in
+# another mode, and what counts as a valid workflow. Both are pure, so they are
+# unit-tested with plain node — no playwright, no Chromium, no network.
+if [[ -z "${NODE_BIN_A:=$(command -v node || true)}" ]]; then
+    skip "QA-3/QA-5: node not on PATH — driver/lib.mjs unit tests need it"
+else
+    lib_out="$("$NODE_BIN_A" --input-type=module -e '
+import { initialBlockReason, parseWorkflow } from "'"$PACK_DIR"'/driver/lib.mjs";
+
+const results = [];
+const check = (name, fn) => {
+    try { results.push([name, fn() ? "PASS" : "FAIL"]); }
+    catch (e) { results.push([name, `FAIL (${e.message})`]); }
+};
+const rejects = (input) => {
+    try { parseWorkflow(input); return false; } catch { return true; }
+};
+
+// QA-3: the false positive that matters. An article that merely uses the
+// words is a page that loaded fine; retrying it in another mode would be a
+// lie about what the site said.
+check("editorial text containing the phrase is not a block",
+    () => initialBlockReason(200, "How Access Denied Errors Work", "An article about access denied pages. Access denied is a common message.") === null);
+check("403 with an anchored refusal title is a block",
+    () => initialBlockReason(403, "Access Denied", "Access Denied") !== null);
+check("403 on a normal page title is not a block",
+    () => initialBlockReason(403, "Sephora | Beauty", "Sign in to continue") === null);
+check("a known interstitial in the body is a block",
+    () => initialBlockReason(200, "Just a moment", "Pardon our interruption while we verify your request") !== null);
+// A CAPTCHA is never a fallback trigger: no other mode solves a challenge.
+check("a CAPTCHA challenge is never a fallback trigger",
+    () => initialBlockReason(403, "Access Denied", "Please complete the CAPTCHA to verify you are human") === null);
+check("HTTP 429 is reported as itself, not retried",
+    () => initialBlockReason(429, "Too Many Requests", "Too Many Requests") === null);
+check("HTTP 500 is reported as itself, not retried",
+    () => initialBlockReason(500, "Internal Server Error", "error") === null);
+
+// QA-5: the schema gate. Everything here must be refused before a browser
+// starts, so a workflow is never half-executed.
+check("a valid workflow parses",
+    () => parseWorkflow(JSON.stringify({actions:[{action:"fill",selector:"#q",value:"x"},{action:"click",selector:"b"},{action:"wait_for",selector:"#r"},{action:"read_text",selector:"#r"}]})).length === 4);
+check("invalid JSON is rejected", () => rejects("{not json"));
+check("a bare array is rejected", () => rejects("[]"));
+check("an empty actions list is rejected", () => rejects(JSON.stringify({actions:[]})));
+check("more than 20 actions is rejected",
+    () => rejects(JSON.stringify({actions: Array.from({length: 21}, () => ({action:"click",selector:"#a"}))})));
+check("exactly 20 actions is accepted",
+    () => parseWorkflow(JSON.stringify({actions: Array.from({length: 20}, () => ({action:"click",selector:"#a"}))})).length === 20);
+check("an unknown action is rejected", () => rejects(JSON.stringify({actions:[{action:"evaluate",selector:"#a"}]})));
+check("an unknown field on an action is rejected", () => rejects(JSON.stringify({actions:[{action:"click",selector:"#a",script:"alert(1)"}]})));
+check("an unknown field at the root is rejected", () => rejects(JSON.stringify({actions:[{action:"click",selector:"#a"}], cookies:"..."})));
+check("a missing selector is rejected", () => rejects(JSON.stringify({actions:[{action:"click"}]})));
+check("a non-string fill value is rejected", () => rejects(JSON.stringify({actions:[{action:"fill",selector:"#q",value:42}]})));
+check("read_text without a selector is accepted (whole page)",
+    () => parseWorkflow(JSON.stringify({actions:[{action:"read_text"}]})).length === 1);
+
+for (const [name, verdict] of results) process.stdout.write(`${verdict}\t${name}\n`);
+' 2>&1)"
+    if [[ -z "$lib_out" ]]; then
+        bad "QA-3/QA-5: driver/lib.mjs unit tests produced no output"
+    else
+        while IFS=$'\t' read -r verdict name; do
+            [[ -z "$name" ]] && continue
+            [[ "$verdict" == "PASS" ]] && ok "QA-3/QA-5: $name" || bad "QA-3/QA-5: $name ($verdict)"
+        done <<< "$lib_out"
+    fi
+fi
+
+echo
+echo "== Section A (cont.): workflow staging is not attacker-swappable (FEAT-030 QA-6) =="
+
+# The `run` workflow is the one place where ROOT writes into a path the pack
+# created, which is the opposite direction from the profiles and the screenshot
+# handoff (browser user writes, root reads back with a recheck). Owning a
+# directory is enough to rename or unlink any entry in it, so staging the file
+# under $BROWSER_HOME — every inch of which belongs to biab-browser — would let
+# the browser user swap the path for a symlink between root's mktemp and root's
+# chmod/write/chown. chmod, `>` and chown all follow symlinks; that is a
+# Chromium sandbox escape turning into root-owned files.
+#
+# These assertions are structural on purpose: the real exploit needs two users
+# and a race, which no CI runner will reproduce, but the invariants that make it
+# impossible are cheap to pin and would have caught the original code.
+
+if grep -qE 'mktemp "\$\{BROWSER_HOME\}/workflows' "$PACK_DIR/bin/biab-browse"; then
+    bad "QA-6: the workflow file is staged under \$BROWSER_HOME, which biab-browser owns (symlink swap -> root write)"
+else
+    ok "QA-6: the workflow file is not staged under \$BROWSER_HOME"
+fi
+
+if grep -qE 'mktemp "\$\{BROWSER_RUNTIME_DIR\}' "$PACK_DIR/bin/biab-browse"; then
+    ok "QA-6: the workflow file is staged in the root-owned runtime dir"
+else
+    bad "QA-6: the workflow file is no longer staged in BROWSER_RUNTIME_DIR"
+fi
+
+if grep -qE 'chown "\$BROWSER_USER:\$BROWSER_USER" "\$workflow_file"' "$PACK_DIR/bin/biab-browse"; then
+    bad "QA-6: the workflow file is chown'd to biab-browser — a symlink swap would hand it ownership of the target"
+else
+    ok "QA-6: the workflow file stays root-owned (group-readable only), never chown'd to the browser user"
+fi
+
+runtime_default="$(
+    # shellcheck disable=SC1091
+    unset BIAB_BROWSER_RUNTIME_DIR
+    source "$PACK_DIR/lib.sh"
+    printf '%s' "$BROWSER_RUNTIME_DIR"
+)"
+case "$runtime_default" in
+    "${BROWSER_HOME_EXPECTED:-/var/lib/biab-browser}"/*)
+        bad "QA-6: BROWSER_RUNTIME_DIR defaults inside the browser user's home ($runtime_default)" ;;
+    /run/*)
+        ok "QA-6: BROWSER_RUNTIME_DIR defaults to a root-owned tmpfs path ($runtime_default)" ;;
+    *)
+        bad "QA-6: BROWSER_RUNTIME_DIR defaults to an unexpected path ($runtime_default)" ;;
+esac
+
+# ensure_runtime_dir() is the guard itself: 0711 so the browser user can
+# traverse to a path it was handed but cannot list, create, rename or unlink;
+# and a flat refusal if the path is already a symlink instead of following it.
+runtime_tmp="$(mktemp -d)"
+ensure_dir() {
+    (
+        # shellcheck disable=SC1091
+        source "$PACK_DIR/lib.sh"
+        ensure_runtime_dir "$1"
+    )
+}
+
+if ensure_dir "${runtime_tmp}/rt" 2>/dev/null; then
+    mode="$(stat -c '%a' "${runtime_tmp}/rt")"
+    [[ "$mode" == "711" ]] && ok "QA-6: ensure_runtime_dir creates the staging dir mode 0711 (traverse, not list or write)" \
+                           || bad "QA-6: staging dir came out mode $mode (expected 711)"
+    if ensure_dir "${runtime_tmp}/rt" 2>/dev/null; then
+        ok "QA-6: ensure_runtime_dir is idempotent (re-running repairs rather than fails)"
+    else
+        bad "QA-6: ensure_runtime_dir failed on an existing directory"
+    fi
+else
+    bad "QA-6: ensure_runtime_dir could not create the staging dir"
+fi
+
+ln -s "${runtime_tmp}/elsewhere" "${runtime_tmp}/hostile"
+if ensure_dir "${runtime_tmp}/hostile" 2>/dev/null; then
+    bad "QA-6: ensure_runtime_dir followed a symlink instead of refusing it"
+else
+    ok "QA-6: ensure_runtime_dir refuses a symlinked staging path rather than following it"
+fi
+
+rm -rf -- "$runtime_tmp"
+
+# Uninstall must not depend on a reboot to clear the staging dir.
+if grep -q 'BROWSER_RUNTIME_DIR' "$PACK_DIR/uninstall.sh"; then
+    ok "QA-6: uninstall removes the workflow staging dir"
+else
+    bad "QA-6: uninstall leaves the workflow staging dir behind"
+fi
+
+echo
 echo "== Section B: CLI contract (local fixture, best-effort) =="
 
 NODE_BIN="$(command -v node || true)"
@@ -315,6 +590,186 @@ HTML
                 bad "unexpected exit code without override: $rc"
             fi
         fi
+
+            echo
+            echo "  -- FEAT-030 QA-2/QA-4: fallback trigger and multi-step workflows --"
+
+            # A second fixture server, because these two cases need something
+            # `python3 -m http.server` cannot do: answer differently per user
+            # agent, and serve a page with real client-side state.
+            cat > "${fixture_dir}/ua-server.py" <<'PY'
+import sys
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+# /guard    - 403 "Access Denied" interstitial to anything that is not an
+#             iPhone; the real page to an iPhone. This is the shape the pilot
+#             actually measured on Sephora and Reddit, reproduced locally so
+#             the assertion never depends on a third party's mood.
+# /article  - a 200 page whose text is ABOUT access denial. The detector must
+#             not treat it as a block.
+# /form     - client-side state across several actions.
+BLOCK = b"<!doctype html><html><head><title>Access Denied</title></head><body>Access Denied</body></html>"
+ALLOW = (b"<!doctype html><html><head><title>Guarded Page</title></head><body>"
+         b"<h1>Guarded Content</h1><p id='ua'></p>"
+         b"<script>document.getElementById('ua').textContent=navigator.userAgent;</script>"
+         b"</body></html>")
+ARTICLE = (b"<!doctype html><html><head><title>How Access Denied Errors Work</title></head>"
+           b"<body><h1>Access denied, explained</h1>"
+           b"<p>An access denied message usually means the server refused the request.</p>"
+           b"</body></html>")
+FORM = (b"<!doctype html><html><head><title>Workflow fixture</title></head><body>"
+        b"<input id='q' type='text'>"
+        b"<select id='s'><option value='a'>a</option><option value='b'>b</option></select>"
+        b"<button id='go'>Go</button>"
+        b"<div id='result' style='display:none'></div>"
+        b"<script>"
+        b"document.getElementById('go').addEventListener('click', function () {"
+        b"  var r = document.getElementById('result');"
+        b"  r.textContent = 'got:' + document.getElementById('q').value + ':'"
+        b"                + document.getElementById('s').value;"
+        b"  r.style.display = 'block';"
+        b"});"
+        b"</script></body></html>")
+
+
+class H(BaseHTTPRequestHandler):
+    def do_GET(self):
+        ua = self.headers.get("User-Agent", "")
+        if self.path.startswith("/guard"):
+            if "iPhone" in ua:
+                self.send_response(200)
+                body = ALLOW
+            else:
+                self.send_response(403)
+                body = BLOCK
+        elif self.path.startswith("/article"):
+            self.send_response(200)
+            body = ARTICLE
+        else:
+            self.send_response(200)
+            body = FORM
+        self.send_header("Content-Type", "text/html")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *a):
+        pass
+
+
+srv = HTTPServer(("127.0.0.1", 0), H)
+print("port %d" % srv.server_address[1], flush=True)
+srv.serve_forever()
+PY
+            "${PYTHON_BIN:-python3}" -u "${fixture_dir}/ua-server.py" > "${fixture_dir}/ua.log" 2>&1 &
+            echo $! > "${fixture_dir}/ua.pid"
+            sleep 1
+            ua_port="$(grep -oE 'port [0-9]+' "${fixture_dir}/ua.log" 2>/dev/null | grep -oE '[0-9]+' | head -1)"
+
+            if [[ -z "$ua_port" ]]; then
+                skip "QA-2/QA-4: could not start the user-agent fixture server"
+            else
+                ua_base="http://127.0.0.1:${ua_port}"
+
+                run_mode() {
+                    # $1 = extra env assignments ("" for plain desktop), rest = driver args
+                    local extra="$1"; shift
+                    local profile rc; profile="$(mktemp -d)"
+                    # shellcheck disable=SC2086
+                    env $extra BIAB_DETECT_INITIAL_BLOCK=1 BIAB_UNSAFE_NO_SANDBOX=1 \
+                        BIAB_PROFILE_DIR="$profile" BIAB_CHROME_EXE="$chrome_exe" \
+                        "$NODE_BIN" "$PACK_DIR/driver/browse.mjs" "$@"
+                    rc=$?
+                    rm -rf "$profile"
+                    return $rc
+                }
+
+                # QA-2, first half: the desktop attempt must report the block
+                # with the reserved code, and must NOT have run any action.
+                out="$(run_mode "" "${ua_base}/guard" read_text 2>"${fixture_dir}/guard-desktop.err")"; rc=$?
+                if [[ $rc -eq 6 ]]; then
+                    ok "QA-2: desktop headless on a blocked page exits 6 (fallback-eligible), no action run"
+                elif [[ $rc -eq 0 ]]; then
+                    bad "QA-2: desktop headless treated the 403 interstitial as a normal page (out=${out:0:80})"
+                else
+                    bad "QA-2: desktop headless on a blocked page exited $rc (expected 6)"
+                fi
+
+                # QA-2, second half: the next rung up the ladder gets through,
+                # and the page really is being told it is a phone.
+                out="$(run_mode "BIAB_DEVICE=iphone" "${ua_base}/guard" read_text 2>/dev/null)"; rc=$?
+                if [[ $rc -eq 0 && "$out" == *"Guarded Content"* ]]; then
+                    ok "QA-2: iPhone emulation loads the same page the desktop mode was blocked from"
+                else
+                    bad "QA-2: iPhone emulation failed (rc=$rc, out=${out:0:80})"
+                fi
+                if [[ "$out" == *"iPhone"* ]]; then
+                    ok "QA-2/QA-7: the emulated navigator.userAgent really is an iPhone UA (CDP override applied before navigating)"
+                else
+                    bad "QA-2/QA-7: iPhone mode did not change navigator.userAgent"
+                fi
+
+                # QA-3 against a live page, not just the unit test: an article
+                # about access denial must load normally in the default mode.
+                out="$(run_mode "" "${ua_base}/article" read_text 2>/dev/null)"; rc=$?
+                if [[ $rc -eq 0 && "$out" == *"access denied message"* ]]; then
+                    ok "QA-3: a 200 article containing the words 'access denied' is not a false positive"
+                else
+                    bad "QA-3: false positive on editorial text (rc=$rc)"
+                fi
+
+                # QA-4: several actions, one page, one browser. If state were
+                # lost between actions (the pre-FEAT-030 behaviour, one process
+                # per verb) #result would never be written at all.
+                wf_ok="${fixture_dir}/wf-ok.json"
+                cat > "$wf_ok" <<'JSON'
+{"actions":[
+  {"action":"fill","selector":"#q","value":"hello"},
+  {"action":"select","selector":"#s","value":"b"},
+  {"action":"click","selector":"#go"},
+  {"action":"wait_for","selector":"#result"},
+  {"action":"read_text","selector":"#result"}
+]}
+JSON
+                out="$(run_mode "" "${ua_base}/form" run "$wf_ok" 2>"${fixture_dir}/wf-ok.err")"; rc=$?
+                if [[ $rc -eq 0 && "$out" == *"got:hello:b"* ]]; then
+                    ok "QA-4: fill -> select -> click -> wait_for -> read_text keeps page state across actions"
+                else
+                    bad "QA-4: workflow did not preserve state (rc=$rc, out=${out:0:120})"
+                fi
+                # R6: a mutating action must confirm itself without echoing the
+                # value it carried, so a filled password never reaches stdout.
+                if grep -q '"action":"fill"' <<< "$out" && ! grep -q '"value"' <<< "$out"; then
+                    ok "QA-4/R6: mutating actions confirm themselves without echoing their value"
+                else
+                    bad "QA-4/R6: a workflow action echoed its value to stdout"
+                fi
+
+                # QA-4, second half: a failure stops everything after it. The
+                # whole point of refusing to fall back mid-workflow is that a
+                # half-run sequence must stay half-run and say so.
+                cat > "${fixture_dir}/wf-bad.json" <<'JSON'
+{"actions":[
+  {"action":"fill","selector":"#q","value":"hello"},
+  {"action":"click","selector":"#does-not-exist"},
+  {"action":"read_text","selector":"#result"}
+]}
+JSON
+                out="$(BIAB_NAV_TIMEOUT_MS=3000 run_mode "" "${ua_base}/form" run "${fixture_dir}/wf-bad.json" 2>/dev/null)"; rc=$?
+                if [[ $rc -eq 5 ]] && grep -q '"action":"fill"' <<< "$out" && ! grep -q '"action":"read_text"' <<< "$out"; then
+                    ok "QA-4: a failing action stops the workflow - later actions do not run"
+                else
+                    bad "QA-4: workflow did not stop at the first failure (rc=$rc, out=${out:0:120})"
+                fi
+
+                # QA-5 at the driver boundary: a rejected workflow must be
+                # refused before a browser is ever launched.
+                echo '{"actions":[{"action":"evaluate","selector":"#a"}]}' > "${fixture_dir}/wf-invalid.json"
+                run_mode "" "${ua_base}/form" run "${fixture_dir}/wf-invalid.json" >/dev/null 2>&1; rc=$?
+                [[ $rc -eq 2 ]] && ok "QA-5: an unknown action is rejected with exit 2, before navigating" \
+                                || bad "QA-5: unknown action gave exit $rc (expected 2)"
+            fi
+            kill "$(cat "${fixture_dir}/ua.pid" 2>/dev/null)" 2>/dev/null || true
         kill "$(cat "${fixture_dir}/server.pid" 2>/dev/null)" 2>/dev/null || true
         rm -rf "$fixture_dir"
     fi
@@ -353,6 +808,37 @@ else
         fi
     else
         skip "AC-FP1: engine cache dir not found"
+    fi
+
+
+    # FEAT-030 QA-6: the only place in the suite that drives bin/biab-browse
+    # itself (re-exec to root, flock, workflow staging, sudo -u) rather than
+    # calling the driver directly. Root-only because that is what it takes.
+    echo
+    echo "  -- FEAT-030 QA-6: real `biab-browse run` staging --"
+    if command -v biab-browse >/dev/null 2>&1 && getent passwd "$BROWSER_USER" >/dev/null 2>&1; then
+        # A workflow that fails to navigate is fine: the assertion is about the
+        # staged file, which is created before the browser ever starts.
+        echo '{"actions":[{"action":"read_text"}]}' \
+            | timeout 60 biab-browse run http://127.0.0.1:9/nothing >/dev/null 2>&1 || true
+
+        if [[ -d "$BROWSER_RUNTIME_DIR" && ! -L "$BROWSER_RUNTIME_DIR" ]]; then
+            owner="$(stat -c '%U' "$BROWSER_RUNTIME_DIR")"
+            mode="$(stat -c '%a' "$BROWSER_RUNTIME_DIR")"
+            [[ "$owner" == "root" ]] && ok "QA-6: staging dir is root-owned after a real run" \
+                                     || bad "QA-6: staging dir is owned by $owner (expected root) — the browser user could swap entries in it"
+            [[ "$mode" == "711" ]] && ok "QA-6: staging dir is mode 0711 after a real run" \
+                                   || bad "QA-6: staging dir is mode $mode (expected 711)"
+            if [[ -z "$(find "$BROWSER_RUNTIME_DIR" -maxdepth 1 -name 'workflow-*.json' -print -quit)" ]]; then
+                ok "QA-6: the staged workflow file is deleted when the command exits"
+            else
+                bad "QA-6: a workflow file was left behind in $BROWSER_RUNTIME_DIR"
+            fi
+        else
+            bad "QA-6: $BROWSER_RUNTIME_DIR is missing or is a symlink after a real run"
+        fi
+    else
+        skip "QA-6: biab-browse or the $BROWSER_USER user is not installed on this box"
     fi
 
     "${PACK_DIR}/uninstall.sh" >/dev/null 2>&1

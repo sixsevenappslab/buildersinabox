@@ -1,0 +1,14 @@
+{
+  "feature": "FEAT-030",
+  "phase": "implementation",
+  "status": "in_progress",
+  "updated_at": "2026-09-16",
+  "tasks": {
+    "spec": "done",
+    "cli_fallback": "done",
+    "driver_workflows": "done",
+    "tests_docs": "done",
+    "review_pr": "in_progress"
+  },
+  "blockers": []
+}

@@ -1,24 +1,30 @@
 #!/usr/bin/env bash
 # biab-browse — agent-facing CLI for the Builders in a Box browser pack.
 # Opt-in (FEAT-017): only present on PATH after `biab pack add browser`.
+# Multi-step workflows and the auto mode ladder are FEAT-030.
 #
 #   biab-browse open <url> read_text
 #   biab-browse open <url> click <selector>
 #   biab-browse open <url> fill <selector> <value>
 #   biab-browse open <url> screenshot <path>
-#   biab-browse --headful-xvfb open <url> ...      (fallback for sites that block headless)
+#   biab-browse run <url> < workflow.json
+#   biab-browse --mode headful open <url> ...      (sites that block headless)
 #
-# Security model (FEAT-017 §1 Boundaries):
+# Security model (FEAT-017 §1 Boundaries — unchanged by FEAT-030):
 #   - The browser engine runs as the dedicated, unprivileged system user
 #     `biab-browser` (nologin, no sudo) — never as the operator, never as root.
 #   - Every run gets a fresh ephemeral profile (mktemp'd, deleted on exit) —
 #     no inherited logins/cookies — unless the operator explicitly opts into a
-#     named persisted profile with --profile <name>.
+#     named persisted profile with --profile <name>. In auto mode each retry
+#     gets its own fresh ephemeral profile; a named profile is deliberately
+#     reused across retries so an explicit login survives the ladder.
 #   - Runs are serialized (flock): v1 does not run browsers in parallel, to
 #     avoid OOM pressure on small boxes.
 #   - The sandbox is never disabled by default. If the browser engine can't
 #     start sandboxed, the run aborts with a clear error instead of silently
 #     retrying unsandboxed (see driver/browse.mjs).
+#   - Automatic fallback happens ONLY before any action has run (FEAT-030 R2).
+#     A click or a form submission is never replayed against another mode.
 #
 # Why this script re-execs itself as root: an agent invokes this many times
 # per session and cannot type a sudo password. install.sh installs a
@@ -38,21 +44,30 @@ source "${PACK_ROOT}/lib.sh"
 
 usage() {
     cat <<'EOF'
-Usage: biab-browse [--headful-xvfb] [--profile <name>] open <url> <verb> [args...]
+Usage:
+  biab-browse [--mode auto|desktop|iphone|headful] [--profile NAME] open URL VERB [ARGS...]
+  biab-browse [--mode auto|desktop|iphone|headful] [--profile NAME] run URL < workflow.json
 
 Verbs:
   read_text                 print the page's visible text
-  click <selector>          click a CSS selector
-  fill <selector> <value>   fill a form field
-  screenshot <path>         save a PNG screenshot to <path>
+  click SELECTOR            click a CSS selector
+  fill SELECTOR VALUE       fill a form field
+  screenshot PATH           save a PNG under the operator's home
+
+Workflow actions: fill, click, select, wait_for, read_text (maximum 20).
+
+Modes:
+  auto      desktop headless, then iPhone headless, then headful/Xvfb (default)
+  desktop   desktop headless only
+  iphone    Chromium with iPhone emulation only (not Safari)
+  headful   Chromium under a temporary local Xvfb display only
 
 Flags:
-  --headful-xvfb   fall back to a real (headful) browser under Xvfb, for
-                   sites that block headless user agents. No desktop
-                   required. Lazily installs xvfb + full Chromium on first use.
-  --profile NAME   reuse a named, persisted profile instead of the default
-                   ephemeral one (opt-in login persistence). Omit for a
-                   fresh, logged-out profile every run (the default).
+  --headful-xvfb             backwards-compatible alias for --mode headful
+  --profile NAME             opt into a persisted profile; default is ephemeral
+
+Automatic fallback happens only when the initial page is clearly blocked and
+always before any action. BIAB never replays clicks or form submissions.
 EOF
 }
 
@@ -62,90 +77,129 @@ EOF
 # one command, scoped with `Defaults!/usr/local/bin/biab-browse` — sudo's
 # default env_reset would otherwise silently strip them on every other
 # elevation, which is the behaviour we want everywhere except here.
+#
+# `exec sudo` preserves stdin, which is what lets `run` take its workflow on
+# stdin instead of argv: workflow values (passwords, search terms, anything a
+# `fill` carries) must never be visible in a process listing.
 # ---------------------------------------------------------------------------
 if [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
     exec sudo -n "$0" "$@"
 fi
 
-# ---------------------------------------------------------------------------
-# Arg parsing
-# ---------------------------------------------------------------------------
-headful=0
+mode="auto"
+mode_set=0
 profile_name=""
+command_name=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --headful-xvfb) headful=1; shift ;;
-        --profile)      profile_name="${2:-}"; shift 2 ;;
-        --profile=*)    profile_name="${1#--profile=}"; shift ;;
-        -h|--help)      usage; exit 0 ;;
-        open)           shift; break ;;
-        *)              echo "biab-browse: unknown argument: $1" >&2; usage >&2; exit 2 ;;
+        --mode)
+            [[ $# -ge 2 ]] || { echo "biab-browse: --mode requires a value" >&2; exit 2; }
+            mode="$2"; mode_set=1; shift 2
+            ;;
+        --mode=*) mode="${1#--mode=}"; mode_set=1; shift ;;
+        --headful-xvfb)
+            if [[ "$mode_set" -eq 1 && "$mode" != "headful" ]]; then
+                echo "biab-browse: --headful-xvfb conflicts with --mode $mode" >&2
+                exit 2
+            fi
+            mode="headful"; mode_set=1; shift
+            ;;
+        --profile)
+            [[ $# -ge 2 ]] || { echo "biab-browse: --profile requires a value" >&2; exit 2; }
+            profile_name="$2"; shift 2
+            ;;
+        --profile=*) profile_name="${1#--profile=}"; shift ;;
+        -h|--help) usage; exit 0 ;;
+        open|run) command_name="$1"; shift; break ;;
+        *) echo "biab-browse: unknown argument: $1" >&2; usage >&2; exit 2 ;;
     esac
 done
 
+# Validate the mode BEFORE mapfile. `mapfile < <(cmd)` reports mapfile's own
+# status, never the process substitution's, so a `|| exit $?` here would be
+# dead code: an invalid mode would leave `attempts` empty and the run would
+# end up exiting with the block code (6) instead of the usage code (2).
+browser_mode_attempts "$mode" >/dev/null || exit 2
+mapfile -t attempts < <(browser_mode_attempts "$mode")
+[[ -n "$command_name" ]] || { usage >&2; exit 2; }
 url="${1:-}"
-verb="${2:-}"
-[[ -n "$url" && -n "$verb" ]] || { usage >&2; exit 2; }
-shift 2 || true
-verb_args=("$@")
+[[ -n "$url" ]] || { usage >&2; exit 2; }
+shift
 
-case "$verb" in
-    read_text|click|fill|screenshot) ;;
-    *) echo "biab-browse: unknown verb '$verb' (expected read_text|click|fill|screenshot)" >&2; exit 2 ;;
-esac
+verb=""
+verb_args=()
+workflow_file=""
+if [[ "$command_name" == "open" ]]; then
+    verb="${1:-}"
+    [[ -n "$verb" ]] || { usage >&2; exit 2; }
+    shift
+    verb_args=("$@")
+    case "$verb" in
+        read_text) [[ ${#verb_args[@]} -eq 0 ]] || { usage >&2; exit 2; } ;;
+        click) [[ ${#verb_args[@]} -eq 1 ]] || { usage >&2; exit 2; } ;;
+        fill) [[ ${#verb_args[@]} -eq 2 ]] || { usage >&2; exit 2; } ;;
+        screenshot) [[ ${#verb_args[@]} -eq 1 ]] || { usage >&2; exit 2; } ;;
+        *) echo "biab-browse: unknown verb '$verb'" >&2; exit 2 ;;
+    esac
+else
+    [[ $# -eq 0 ]] || { echo "biab-browse: run accepts the URL only; pass the workflow on stdin" >&2; exit 2; }
+    verb="run"
+fi
 
-pack_is_installed || { echo "biab-browse: browser pack not fully installed (missing user or binary)" >&2; exit 1; }
-
+pack_is_installed || { echo "biab-browse: browser pack not fully installed" >&2; exit 1; }
 operator_user="$(resolve_operator_user || true)"
 
-# ---------------------------------------------------------------------------
-# Serialize (FEAT-017 §2.9 point 3): v1 = one browser run at a time.
-# ---------------------------------------------------------------------------
 mkdir -p "$BROWSER_HOME"
 exec 9>"$BROWSER_LOCK_FILE"
 flock 9
 
-# ---------------------------------------------------------------------------
-# Profile dir: ephemeral by default, cleaned up on exit. --profile <name>
-# is the explicit, opt-in, non-default persisted-login path.
-# ---------------------------------------------------------------------------
-mkdir -p "$BROWSER_PROFILES_DIR"
-cleanup_profile=1
-if [[ -n "$profile_name" ]]; then
-    validate_profile_name "$profile_name" || exit 2
-    mkdir -p "${BROWSER_PROFILES_DIR}/named"
-    profile_dir="${BROWSER_PROFILES_DIR}/named/${profile_name}"
-    cleanup_profile=0
-else
-    profile_dir="$(mktemp -d "${BROWSER_PROFILES_DIR}/ephemeral-XXXXXX")"
-fi
-mkdir -p "$profile_dir"
-chown -R "${BROWSER_USER}:${BROWSER_USER}" "$profile_dir"
+mkdir -p "$BROWSER_PROFILES_DIR" "$BROWSER_OUT_DIR"
+chown "$BROWSER_USER:$BROWSER_USER" "$BROWSER_PROFILES_DIR" "$BROWSER_OUT_DIR"
 
+cleanup_dirs=()
 internal_shot=""
 cleanup() {
-    if [[ "$cleanup_profile" -eq 1 && -n "${profile_dir:-}" && -d "$profile_dir" ]]; then
-        rm -rf -- "$profile_dir"
-    fi
-    if [[ -n "$internal_shot" && -e "$internal_shot" ]]; then
-        rm -f -- "$internal_shot"
-    fi
+    local path
+    for path in "${cleanup_dirs[@]}"; do
+        [[ -d "$path" ]] && rm -rf -- "$path"
+    done
+    [[ -n "$internal_shot" && -e "$internal_shot" ]] && rm -f -- "$internal_shot"
+    [[ -n "$workflow_file" && -e "$workflow_file" ]] && rm -f -- "$workflow_file"
+    # Never let the trap's last test decide the exit status under `set -e`.
+    return 0
 }
 trap cleanup EXIT
 
-# ---------------------------------------------------------------------------
-# Screenshot handoff (FEAT-017 §2.9 point 4): the engine runs as
-# biab-browser and cannot write into the operator's paths. Redirect the
-# capture to an internal, biab-browser-owned dir, then hand the finished
-# file back to the operator's ownership as root.
-# ---------------------------------------------------------------------------
-mkdir -p "$BROWSER_OUT_DIR"
-chown "${BROWSER_USER}:${BROWSER_USER}" "$BROWSER_OUT_DIR"
-requested_dest=""
-if [[ "$verb" == "screenshot" ]]; then
-    requested_dest="${verb_args[0]:-}"
-    [[ -n "$requested_dest" ]] || { echo "biab-browse: usage: biab-browse open <url> screenshot <path>" >&2; exit 2; }
+if [[ -n "$profile_name" ]]; then
+    validate_profile_name "$profile_name" || exit 2
+    mkdir -p "${BROWSER_PROFILES_DIR}/named"
+    named_profile="${BROWSER_PROFILES_DIR}/named/${profile_name}"
+    mkdir -p "$named_profile"
+    chown -R "$BROWSER_USER:$BROWSER_USER" "$named_profile"
+else
+    named_profile=""
+fi
 
+# Workflows are bounded before parsing and staged in a root-owned directory the
+# browser user can read from but not write to. Values never reach argv or a
+# success message.
+#
+# The file stays owned by ROOT and is only group-readable by biab-browser: the
+# driver needs to read it, nothing needs to write it. See BROWSER_RUNTIME_DIR
+# in lib.sh for why this does not live under $BROWSER_HOME like everything else
+# the pack creates.
+if [[ "$verb" == "run" ]]; then
+    ensure_runtime_dir "$BROWSER_RUNTIME_DIR" || exit 1
+    workflow_file="$(mktemp "${BROWSER_RUNTIME_DIR}/workflow-XXXXXX.json")"
+    chmod 0640 "$workflow_file"
+    chgrp "$BROWSER_USER" "$workflow_file"
+    read_bounded_stdin "$workflow_file" "$BROWSER_MAX_WORKFLOW_BYTES" || exit 2
+    verb_args=("$workflow_file")
+fi
+
+requested_dest=""
+operator_home=""
+if [[ "$verb" == "screenshot" ]]; then
     # Security-critical (FEAT-017 code review, screenshot arbitrary-write
     # finding): this script runs as root at this point. Without validation,
     # $requested_dest would be handed straight to a root-owned `install`
@@ -153,99 +207,108 @@ if [[ "$verb" == "screenshot" ]]; then
     # write to any absolute path — ~/.ssh/authorized_keys, /etc/sudoers.d/*,
     # anywhere. Resolve to a canonical path and reject unless it's safely
     # under the operator's home. See validate_screenshot_dest() in lib.sh.
-    [[ -n "$operator_user" ]] || { echo "biab-browse: could not resolve operator user for screenshot destination validation" >&2; exit 1; }
+    requested_dest="${verb_args[0]}"
+    [[ -n "$operator_user" ]] || { echo "biab-browse: could not resolve operator user for screenshot" >&2; exit 1; }
     operator_home="$(getent passwd "$operator_user" | cut -d: -f6)"
     requested_dest="$(validate_screenshot_dest "$requested_dest" "$operator_home")" || exit 1
-
     internal_shot="${BROWSER_OUT_DIR}/shot-$$-$(date +%s%N).png"
     verb_args=("$internal_shot")
 fi
 
-env_vars=(
-    "BIAB_PROFILE_DIR=${profile_dir}"
+common_env=(
     "BIAB_NAV_TIMEOUT_MS=${BIAB_NAV_TIMEOUT_MS:-20000}"
+    "BIAB_DETECT_INITIAL_BLOCK=1"
 )
 if [[ "${BIAB_UNSAFE_NO_SANDBOX:-0}" == "1" ]]; then
     # An env var alone is not a real "Ask First" gate (FEAT-017 §1
     # Boundaries): it's env_keep-listed in the sudoers rule, so any process
     # invoking biab-browse — including an unattended agent session — could
     # set it and reach --no-sandbox with no human involved. Require a
-    # human-created sentinel file in addition; see validate_unsafe_sandbox_gate()
-    # in lib.sh.
+    # human-created sentinel file in addition; see
+    # validate_unsafe_sandbox_gate() in lib.sh.
     validate_unsafe_sandbox_gate "$BROWSER_UNSAFE_SANDBOX_SENTINEL" || exit 1
-    echo "biab-browse: WARNING — BIAB_UNSAFE_NO_SANDBOX=1 set and confirmed via ${BROWSER_UNSAFE_SANDBOX_SENTINEL}. Launching WITHOUT a sandbox." >&2
-    env_vars+=("BIAB_UNSAFE_NO_SANDBOX=1")
+    echo "biab-browse: WARNING — confirmed unsandboxed override enabled" >&2
+    common_env+=("BIAB_UNSAFE_NO_SANDBOX=1")
 fi
 
-status=0
-# For screenshot, the driver's own stdout (the internal handoff path) is
-# noise — we print our own confirmation with the real destination path
-# below, once the handoff has actually happened. Every other verb's stdout
-# is the deterministic output the caller wants and passes straight through.
-if [[ "$headful" -eq 1 ]]; then
-    "${PACK_ROOT}/install.sh" --ensure-xvfb-fallback
-    # Same engine as the default (non-headful) path below — full Chromium,
-    # shared cache — --headful-xvfb only adds the xvfb display server on top.
-    chrome_exe="$(find "${BROWSER_CACHE_DIR}" -maxdepth 3 -type f -name chrome 2>/dev/null | head -1)"
-    sandbox_helper="$(find "${BROWSER_CACHE_DIR}" -maxdepth 3 -type f -name chrome_sandbox 2>/dev/null | head -1)"
-    [[ -n "$chrome_exe" ]] || { echo "biab-browse: --headful-xvfb engine not found after install" >&2; exit 1; }
-    env_vars+=("BIAB_HEADFUL=1" "BIAB_CHROME_EXE=${chrome_exe}")
-    [[ -n "$sandbox_helper" ]] && env_vars+=("BIAB_SANDBOX_HELPER=${sandbox_helper}")
-    if [[ "$verb" == "screenshot" ]]; then
-        sudo -u "$BROWSER_USER" xvfb-run --auto-servernum --server-args='-screen 0 1280x800x24' \
-            env "${env_vars[@]}" node "${BROWSER_DRIVER_DIR}/browse.mjs" "$url" "$verb" "${verb_args[@]}" \
-            >/dev/null || status=$?
+find_chrome() {
+    find "$BROWSER_CACHE_DIR" -maxdepth 3 -type f -name chrome 2>/dev/null | head -1
+}
+
+status=6
+selected_mode=""
+for attempt_index in "${!attempts[@]}"; do
+    attempt="${attempts[$attempt_index]}"
+    if [[ -n "$named_profile" ]]; then
+        profile_dir="$named_profile"
     else
-        sudo -u "$BROWSER_USER" xvfb-run --auto-servernum --server-args='-screen 0 1280x800x24' \
-            env "${env_vars[@]}" node "${BROWSER_DRIVER_DIR}/browse.mjs" "$url" "$verb" "${verb_args[@]}" \
-            || status=$?
+        profile_dir="$(mktemp -d "${BROWSER_PROFILES_DIR}/ephemeral-XXXXXX")"
+        cleanup_dirs+=("$profile_dir")
+        chown -R "$BROWSER_USER:$BROWSER_USER" "$profile_dir"
     fi
-else
-    chrome_exe="$(find "${BROWSER_CACHE_DIR}" -maxdepth 3 -type f -name chrome 2>/dev/null | head -1)"
-    sandbox_helper="$(find "${BROWSER_CACHE_DIR}" -maxdepth 3 -type f -name chrome_sandbox 2>/dev/null | head -1)"
+
+    attempt_env=("${common_env[@]}" "BIAB_PROFILE_DIR=${profile_dir}")
+    runner=(sudo -u "$BROWSER_USER")
+    case "$attempt" in
+        iphone-headless) attempt_env+=("BIAB_DEVICE=iphone") ;;
+        desktop-headful)
+            "${PACK_ROOT}/install.sh" --ensure-xvfb-fallback
+            attempt_env+=("BIAB_HEADFUL=1")
+            runner+=(xvfb-run --auto-servernum --server-args=-screen\ 0\ 1280x800x24)
+            ;;
+    esac
+
+    chrome_exe="$(find_chrome)"
+    sandbox_helper="$(find "$BROWSER_CACHE_DIR" -maxdepth 3 -type f -name chrome_sandbox 2>/dev/null | head -1)"
     [[ -n "$chrome_exe" ]] || { echo "biab-browse: chrome not found — reinstall the pack" >&2; exit 1; }
-    env_vars+=("BIAB_CHROME_EXE=${chrome_exe}")
-    [[ -n "$sandbox_helper" ]] && env_vars+=("BIAB_SANDBOX_HELPER=${sandbox_helper}")
+    attempt_env+=("BIAB_CHROME_EXE=${chrome_exe}")
+    [[ -n "$sandbox_helper" ]] && attempt_env+=("BIAB_SANDBOX_HELPER=${sandbox_helper}")
+
+    status=0
     if [[ "$verb" == "screenshot" ]]; then
-        sudo -u "$BROWSER_USER" env "${env_vars[@]}" \
-            node "${BROWSER_DRIVER_DIR}/browse.mjs" "$url" "$verb" "${verb_args[@]}" \
-            >/dev/null || status=$?
+        "${runner[@]}" env "${attempt_env[@]}" node "${BROWSER_DRIVER_DIR}/browse.mjs" \
+            "$url" "$verb" "${verb_args[@]}" >/dev/null || status=$?
     else
-        sudo -u "$BROWSER_USER" env "${env_vars[@]}" \
-            node "${BROWSER_DRIVER_DIR}/browse.mjs" "$url" "$verb" "${verb_args[@]}" \
-            || status=$?
+        "${runner[@]}" env "${attempt_env[@]}" node "${BROWSER_DRIVER_DIR}/browse.mjs" \
+            "$url" "$verb" "${verb_args[@]}" || status=$?
     fi
+
+    if [[ "$status" -eq 0 ]]; then
+        selected_mode="$attempt"
+        break
+    fi
+    if [[ "$status" -ne 6 || "$mode" != "auto" ]]; then
+        exit "$status"
+    fi
+    if (( attempt_index + 1 < ${#attempts[@]} )); then
+        echo "biab-browse: retrying initial navigation with ${attempts[$((attempt_index + 1))]}" >&2
+    fi
+done
+
+[[ "$status" -eq 0 ]] || exit "$status"
+if [[ "$mode" == "auto" ]]; then
+    echo "biab-browse: navigation mode: $selected_mode" >&2
 fi
 
-if [[ "$status" -eq 0 && "$verb" == "screenshot" ]]; then
-    if [[ -n "$operator_user" && -e "$internal_shot" ]]; then
-        # Recheck-then-use, immediately before the privileged copy, to close
-        # the TOCTOU window between validation (above) and use (here): the
-        # browser navigation in between can take up to BIAB_NAV_TIMEOUT_MS
-        # (default 20s), which is ample time for an attacker with local
-        # access to swap a path component for a symlink after the earlier
-        # check ran. Re-resolving now catches that.
-        final_dest="$(validate_screenshot_dest "$requested_dest" "$operator_home")" || { status=1; final_dest=""; }
-
-        # Second TOCTOU: $internal_shot's directory is world-writable-ish
-        # territory owned by the low-trust biab-browser user (the browser
-        # engine we just ran as that user wrote the actual PNG there).
-        # Verify it's still a regular file (not a symlink) owned by
-        # biab-browser immediately before the root-privileged copy reads it.
-        if [[ -n "$final_dest" ]]; then
-            if [[ -f "$internal_shot" && ! -L "$internal_shot" ]] \
-               && [[ "$(stat -c '%U' "$internal_shot" 2>/dev/null || true)" == "$BROWSER_USER" ]]; then
-                install -D -o "$operator_user" -g "$operator_user" -m 0644 "$internal_shot" "$final_dest"
-                printf '{"ok":true,"action":"screenshot","path":%s}\n' "\"$final_dest\""
-            else
-                echo "biab-browse: refusing screenshot handoff — internal capture is not a regular file owned by $BROWSER_USER (possible tamper)" >&2
-                status=1
-            fi
-        fi
+if [[ "$verb" == "screenshot" ]]; then
+    # Recheck-then-use, immediately before the privileged copy, to close the
+    # TOCTOU window between validation (above) and use (here): the browser
+    # navigation in between can take up to BIAB_NAV_TIMEOUT_MS per attempt
+    # (default 20s, and auto mode may make three attempts), which is ample
+    # time for an attacker with local access to swap a path component for a
+    # symlink after the earlier check ran. Re-resolving now catches that.
+    final_dest="$(validate_screenshot_dest "$requested_dest" "$operator_home")" || exit 1
+    # Second TOCTOU: $internal_shot lives in a directory owned by the
+    # low-trust biab-browser user (the browser engine we just ran as that
+    # user wrote the PNG there). Verify it is still a regular file (not a
+    # symlink) owned by biab-browser immediately before the root-privileged
+    # copy reads it.
+    if [[ -f "$internal_shot" && ! -L "$internal_shot" ]] \
+       && [[ "$(stat -c '%U' "$internal_shot" 2>/dev/null || true)" == "$BROWSER_USER" ]]; then
+        install -D -o "$operator_user" -g "$operator_user" -m 0644 "$internal_shot" "$final_dest"
+        printf '{"ok":true,"action":"screenshot","path":"%s"}\n' "$final_dest"
     else
-        echo "biab-browse: could not resolve operator user for screenshot handoff" >&2
-        status=1
+        echo "biab-browse: refusing screenshot handoff — invalid internal capture" >&2
+        exit 1
     fi
 fi
-
-exit "$status"

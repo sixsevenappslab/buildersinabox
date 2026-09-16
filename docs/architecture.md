@@ -32,7 +32,7 @@ The installer tracks progress in `/var/lib/buildersinabox/state.json` (schema v2
 - **`curl | bash` on existing Ubuntu** — the primary path. An interactive operator runs one command; the bootstrap clones the repo and runs `install.sh` inline.
 - **USB autoinstall** — for the gift/USB edition. cloud-init installs Ubuntu unattended, drops the payload, and the first-boot trigger runs the wizard. No interactive operator at install time, which is why this path uses autologin + `firstboot.pending`.
 
-## Browser pack (opt-in, FEAT-017)
+## Browser pack (opt-in, FEAT-017 + FEAT-030)
 
 `biab pack add browser` installs a headless-Chromium capability the agent can
 use to read/click/fill/screenshot live web pages, without requiring a
@@ -69,6 +69,63 @@ driver spawns Chromium itself with a fully self-authored, audited argument
 list and **aborts (fail-closed, exit 3)** if the sandbox can't start for any
 reason, rather than degrading silently. See the FEAT-017 implementation
 notes and `payload/pack/browser/skill/browser/SKILL.md` for the full story.
+
+**Mode ladder (FEAT-030).** A desktop headless Chromium is refused outright by
+some sites. A pilot on this stack measured Reddit and Sephora serving a 403
+interstitial to desktop headless while the same Chromium, emulating an iPhone,
+got a 200 — repeated in both orders, with fresh profiles each time. So the
+default is now `--mode auto`, which tries desktop headless, then iPhone
+emulation, then headful under a lazily-installed Xvfb, and reports on stderr
+which rung worked. `--mode desktop|iphone|headful` pins one rung and disables
+the ladder; `--headful-xvfb` remains an alias for `--mode headful`.
+
+Two constraints make this a fallback and not a retry loop:
+
+- **The ladder only moves before the first action.** The driver returns the
+  reserved exit code 6 exclusively for a block detected on the initial
+  navigation; the wrapper is the only thing that decides to try the next rung,
+  and by then nothing has been clicked or submitted. A failed action is never
+  replayed against another mode — re-running "fill, click, submit" against a
+  page that may have already ordered something is not a safe default.
+- **The block detector is deliberately narrow.** A CAPTCHA does not trigger it
+  (no other rung solves a challenge, and re-requesting it is exactly the
+  hammer-until-it-works behaviour this pack must not have), and neither do DNS
+  failures, TLS errors, timeouts, 401/404/429/5xx or login walls — those are
+  real answers from the site and are reported as themselves. The title test is
+  anchored precisely so an article *about* access denial is not mistaken for
+  being denied access. `driver/lib.mjs` holds that decision as a pure function
+  so the test suite can pin every one of those cases without a browser.
+
+None of this is evasion: no stealth patches, no proxy rotation, no CAPTCHA
+solving. iPhone mode is Chromium emulation applied over CDP before the first
+navigation — viewport, touch, user agent — and is documented as such, not as
+Safari or iOS.
+
+**Workflows (FEAT-030).** `biab-browse run <url> < workflow.json` runs up to 20
+`fill`/`click`/`select`/`wait_for`/`read_text` actions in one browser, on one
+page, in order, stopping at the first failure. Before this, a multi-step task
+meant one `biab-browse open` per step, and each call closed the browser — so
+filling a field and then submitting it submitted an empty form. The workflow
+arrives on **stdin, never argv**, so its values stay out of process listings;
+the wrapper stages it in a root-owned file and deletes it on exit.
+
+That staging directory is deliberately **not** under `$BROWSER_HOME`, which is
+where everything else the pack creates lives. The difference is direction. For
+the profiles and the screenshot handoff, the browser user writes and root only
+ever reads back, with an explicit recheck immediately before the privileged
+copy — so biab-browser owning those paths is fine. A workflow inverts it: root
+writes. Write permission on a *directory* is what governs rename and unlink,
+whoever owns the entry, so a workflow staged under `$BROWSER_HOME` could be
+swapped for a symlink by biab-browser between root's `mktemp` and root's
+`chmod`/write. `chmod`, a `>` redirect and `chown` all follow symlinks, which
+would turn a Chromium sandbox escape into "root truncates a file of the
+attacker's choosing" and, via the `chown`, into ownership of it — straight
+through the dedicated user that exists to contain exactly that escape.
+`BROWSER_RUNTIME_DIR` (`/run/biab-browser`, root-owned, mode 0711) leaves the
+race nowhere to happen: the file stays owned by root and is only
+group-readable by biab-browser, which is all the driver needs. The full schema is validated before the browser
+starts, and mutating actions confirm themselves without echoing the value they
+carried.
 
 ## Conventions
 
