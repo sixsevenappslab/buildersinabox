@@ -40,7 +40,7 @@ RUNNER="${PACK_DIR}/bin/biab-night-shift"
 
 # Declared assertion count. Update this BY HAND when you add or remove a case;
 # never "raise it until the driver stops complaining".
-EXPECTED_ASSERTIONS=268
+EXPECTED_ASSERTIONS=274
 
 PASS=0
 FAIL=0
@@ -505,6 +505,68 @@ else
 fi
 
 # ===========================================================================
+echo
+echo "== Section A (cont.): the mutation battery cleans up after itself =="
+
+# mutations.sh rewrites files in the working tree and restores them, so a
+# mutation is live on disk between the `cp -p` and the restoring `mv`. Measured
+# 2026-09-18: a low-memory kill landed in exactly that window and left
+# hooks/no-merge-guard.sh mutated, with the gh whitelist widened to allow
+# `gh pr close`. Nothing reported it — the battery is not run by CI, so there
+# was no signal at all. A careless `git commit -a` would have shipped a hole in
+# the guard this suite exists to defend.
+MUT_SH="$PACK_DIR/tests/mutations.sh"
+
+# The SIGKILL half of the contract, tested for real: an out-of-memory kill runs
+# no handler, so recovery can only happen on the NEXT run. Plant the exact
+# wreckage such a kill leaves — a modified file plus its .mutorig — and check
+# the sweep puts it back.
+# In a temp dir, NOT in the repo: the sweep restores every .mutorig it finds,
+# and an in-flight mutation looks exactly like one. test-pack.sh is itself a
+# driver the battery runs, so sweeping $REPO from here would hand the
+# guarantee back mid-test. Measured: doing that turned 13 caught mutations
+# into 13 false survivors.
+recover_dir="$(mktemp -d)"
+recover_fixture="${recover_dir}/subdir/guard.sh"
+mkdir -p "$(dirname "$recover_fixture")"
+printf 'original\n' > "${recover_fixture}.mutorig"
+printf 'MUTATED\n'  > "$recover_fixture"
+if bash "$MUT_SH" --recover-only "$recover_dir" >/dev/null 2>&1; then
+    if [[ ! -e "${recover_fixture}.mutorig" ]] && [[ "$(cat "$recover_fixture" 2>/dev/null)" == "original" ]]; then
+        ok "mutations.sh --recover-only restores a file left mutated by an interrupted run"
+    else
+        bad "mutations.sh --recover-only did not restore the leftover mutation"
+    fi
+else
+    bad "mutations.sh --recover-only exited non-zero"
+fi
+rm -rf -- "$recover_dir"
+
+# The INT/TERM half is wired with traps. Asserted structurally on purpose:
+# driving it for real means starting the full battery and racing a signal
+# against it, which is slow and timing-dependent — exactly the kind of flaky
+# test that gets ignored. The signal paths were exercised by hand when this
+# landed; what this assertion defends is nobody quietly deleting them.
+for sig in INT TERM EXIT; do
+    if grep -qE "^trap '.*mut_on_interrupt.*' .*\b${sig}\b" "$MUT_SH"; then
+        ok "mutations.sh traps ${sig} to restore the in-flight file"
+    else
+        bad "mutations.sh no longer traps ${sig} — an interrupted run would leave the tree mutated"
+    fi
+done
+
+if grep -q 'MUT_INFLIGHT="\$path"' "$MUT_SH"; then
+    ok "mutations.sh records which file is mutated, so the trap knows what to put back"
+else
+    bad "mutations.sh no longer records the in-flight file — the trap has nothing to restore"
+fi
+
+if grep -qE '^\s*mut_recover\s*$' "$MUT_SH"; then
+    ok "mutations.sh sweeps for leftovers before starting a run"
+else
+    bad "mutations.sh no longer sweeps for leftovers at startup"
+fi
+
 echo
 echo "== Section B: pure functions and real passes (fixtures, no root) =="
 # ===========================================================================
