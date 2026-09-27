@@ -1,0 +1,8 @@
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
