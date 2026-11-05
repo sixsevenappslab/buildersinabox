@@ -1,0 +1,37 @@
+# Project matrix for spec-implementer
+#
+# Copy this file to ~/.claude/projects.yaml and add one entry per project
+# you want spec-implementer to handle automatically.
+#
+# Only required field is `path`. The rest tunes how spec-implementer reads
+# specs and pushes implementations.
+
+projects:
+
+  # Minimal example: a Next.js web app
+  example-web:
+    path: ~/ai-platform/projects/example-web
+    type: nextjs
+    base_branch: main
+    deploy_cmd: "npm run deploy"
+    specs_root: specs        # optional; defaults to "specs"
+    quality_gates:
+      - "npm test"
+      - "npm run lint"
+
+  # Python API with Docker
+  example-api:
+    path: ~/ai-platform/projects/example-api
+    type: python
+    base_branch: main
+    deploy_cmd: "./scripts/deploy.sh"
+    quality_gates:
+      - "pytest"
+      - "ruff check ."
+
+  # A project where spec-implementer should NOT deploy, only commit + PR
+  example-experimental:
+    path: ~/ai-platform/projects/example-experimental
+    type: generic
+    base_branch: main
+    deploy_cmd: null         # null = skip deploy phase

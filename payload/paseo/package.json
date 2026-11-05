@@ -1,0 +1,10 @@
+{
+  "name": "biab-paseo",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned Paseo daemon for Builders in a Box. To bump: edit this file, regenerate package-lock.json, and change PASEO_PIN in payload/lib/paseo.sh.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@getpaseo/cli": "0.12.0"
+  }
+}

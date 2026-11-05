@@ -1,0 +1,363 @@
+#!/usr/bin/env bash
+# Builders in a Box — Paseo daemon launcher (FEAT-035).
+#
+# Installed root-owned to /opt/buildersinabox/paseo/bin/ and run by the system
+# unit biab-paseo.service. Two modes:
+#
+#   biab-paseo-run           ExecStart, as the box user. Waits for the tailnet
+#                            address, then execs `paseo daemon run` bound to
+#                            that address ONLY (never 0.0.0.0, never the LAN),
+#                            with the relay off. Bind, relay and password are
+#                            set through the environment on purpose: Paseo
+#                            documents that deployment environment variables
+#                            beat ~/.paseo/config.json, which the agents the
+#                            daemon launches can edit.
+#   biab-paseo-run prestart  ExecStartPre=+ (root). Makes sure the per-box
+#                            credential exists; if it was deleted while a phone
+#                            was paired, regenerates it and flags that
+#                            re-pairing is needed (R15). Never prints it.
+#   biab-paseo-run providers sync|verify
+#                            FEAT-041. Run as the box user, never as root.
+#                            `sync` makes the provider block of Paseo's
+#                            config.json equal the one defined below; `verify`
+#                            is its read-only check (exit 0 = equal, 1 = not),
+#                            which the health timer runs only to REPORT.
+#                            The default mode runs `sync` right before it execs
+#                            the daemon, so a drifted or unwritable config
+#                            aborts the start instead of serving a provider
+#                            that skips permission prompts.
+#
+# No lib sourcing on purpose: this file is copied out of the repo checkout and
+# must stay self-contained.
+
+set -euo pipefail
+
+# Test mode (BIB_PASEO_TEST=1) is honoured only for a sandbox prefix under /tmp
+# or /var/tmp (owned by the caller if it exists), or for a non-root caller on
+# the real tree. In root's environment on a real install the flag is ignored:
+# it must never skip require_root, the TTY check or the exec seams.
+if [[ "${BIB_PASEO_TEST:-0}" == "1" ]]; then
+    _bib_tp="${BIB_PASEO_ROOT_TEST:-}"
+    if [[ -z "$_bib_tp" ]]; then
+        [[ "$(id -u)" -ne 0 ]] || BIB_PASEO_TEST=0
+    else
+        case "$_bib_tp" in
+            *..*) BIB_PASEO_TEST=0 ;;
+            /tmp/*|/var/tmp/*) [[ ! -e "$_bib_tp" || -O "$_bib_tp" ]] || BIB_PASEO_TEST=0 ;;
+            *) BIB_PASEO_TEST=0 ;;
+        esac
+    fi
+    unset _bib_tp
+fi
+PREFIX=""
+if [[ "${BIB_PASEO_TEST:-0}" == "1" ]]; then
+    PREFIX="${BIB_PASEO_ROOT_TEST:-}"
+fi
+PORT=6767
+ENV_FILE="${PREFIX}/etc/buildersinabox/paseo.env"
+HEALTH_DIR="${PREFIX}/var/lib/buildersinabox/paseo"
+CLI="${PREFIX}/opt/buildersinabox/paseo/current/node_modules/.bin/paseo"
+STATE_FILE="${PREFIX}/var/lib/buildersinabox/state.json"
+
+say() { printf 'biab-paseo-run: %s\n' "$*" >&2; }
+
+# Everything that parses the user's config runs in an empty environment. jq reads
+# ~/.jq (and node reads NODE_OPTIONS and friends) from the box user's home, which
+# the box user and so its agents control: a poisoned ~/.jq that redefines
+# `from_entries` or `test` would make `verify` say "fine" about anything. With
+# HOME=/nonexistent there is no ~/.jq to find. Test mode adds the sandbox's PATH
+# so a hermetic test can find node.
+CLEAN_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+[[ "${BIB_PASEO_TEST:-0}" == "1" ]] && CLEAN_PATH="${CLEAN_PATH}:${PATH}"
+CLEAN_ENV=(env -i "PATH=${CLEAN_PATH}" HOME=/nonexistent LC_ALL=C)
+jq() { "${CLEAN_ENV[@]}" jq "$@"; }
+
+# The credential file is trusted only when it is a regular file owned by root
+# (the test seam: the current user), mode 600, holding a password of at least 20
+# characters. Anything else (empty, world-readable, a symlink, a stub like
+# "PASEO_PASSWORD=x") is replaced by a fresh credential, as if it were missing.
+env_file_ok() {
+    [[ -f "$ENV_FILE" && ! -L "$ENV_FILE" ]] || return 1
+    local want_uid=0 owner mode
+    [[ "${BIB_PASEO_TEST:-0}" == "1" ]] && want_uid="$(id -u)"
+    read -r owner mode < <(stat -c '%u %a' "$ENV_FILE") || return 1
+    [[ "$owner" == "$want_uid" && "$mode" == "600" ]] || return 1
+    grep -Eq '^PASEO_PASSWORD=.{20,}$' "$ENV_FILE"
+}
+
+if [[ "${1:-}" == "prestart" ]]; then
+    env_file_ok && exit 0
+    rm -f -- "$ENV_FILE"
+    command -v openssl >/dev/null 2>&1 || { say "openssl missing, cannot create the daemon credential"; exit 1; }
+    install -m 0755 -d "$(dirname "$ENV_FILE")"
+    tmp="$(umask 077 && mktemp "${ENV_FILE}.XXXXXX")"
+    printf 'PASEO_PASSWORD=%s\n' "$(openssl rand -base64 24)" > "$tmp"
+    chmod 0600 "$tmp"
+    mv -f "$tmp" "$ENV_FILE"
+    if [[ -e "${HEALTH_DIR}/paired" ]]; then
+        install -d -m 0755 "$HEALTH_DIR"
+        install -m 0644 /dev/null "${HEALTH_DIR}/repair-needed"
+        say "credential file was missing or invalid and a phone was paired: generated a new one. Re-pair with: sudo biab paseo pair"
+    else
+        say "credential file was missing or invalid: generated a new one"
+    fi
+    exit 0
+fi
+
+# --- providers (FEAT-041) ---------------------------------------------------
+# Paseo reads its provider list from $PASEO_HOME/config.json, a file the box
+# user (and so the agents) can write, and no environment variable overrides it.
+# What "correct" means is therefore defined HERE, in a root-owned file:
+#   * Paseo's built-in `antigravity` provider starts agy with
+#     --dangerously-skip-permissions and cannot be changed, so it is disabled
+#     on every box.
+#   * On an Antigravity box, `antigravity-acp` runs the pinned agy as an ACP
+#     server, which asks the app before it acts. The command is the absolute
+#     path plus exactly two flags: `--disable-telemetry`, and `--add-dir
+#     <home>/.agents/skills` so that reading a skill (which lives behind a
+#     symlink outside the project) does not ask while any other read outside
+#     the project does. <home> is the box user's passwd entry, resolved here in
+#     an empty environment, never taken from the user's $HOME. Nothing here
+#     pre-sets auto-accept, and the permission-skipping flag and --mode are
+#     never passed.
+# Only these two ids are managed, plus one rule: a provider of the user's that
+# runs Antigravity (an `extends` starting with "antigravity", or a command that
+# mentions agy or antigravity or --dangerously-skip-permissions) would sidestep
+# the guard, so `sync` removes it and `verify` counts it as drift. Every other
+# provider and key in the file is the user's and survives.
+#
+# Decision (maintainer, 2026-10-31): parity with Claude Code and Codex, whose
+# permissions also live in files the user owns with nobody watching them. BIAB
+# leaves the provider settings safe at every daemon start and the health timer
+# REPORTS a later change in `biab status`; it does not watch, undo or stop
+# anything. An agent the user lets edit their settings can change them, as it
+# can switch Claude to Bypass.
+PROVIDER_CANON="$(cat <<'EOF'
+{
+  "antigravity": {"enabled": false},
+  "antigravity-acp": {
+    "extends": "acp",
+    "label": "Antigravity",
+    "command": ["/usr/local/bin/agy", "acp", "--disable-telemetry", "--add-dir", "@SKILLS_DIR@"],
+    "env": {"AGY_CLI_DISABLE_AUTO_UPDATE": "1"}
+  }
+}
+EOF
+)"
+PROVIDER_CFG=""
+# `daemon config set` takes the providers as ONE argv string and Linux caps a
+# single argument at 128 KiB (MAX_ARG_STRLEN): past that the exec fails with
+# E2BIG. The cap on what we read and on what we write is half of that, counted
+# in BYTES (never in characters).
+PROVIDER_MAX_BYTES=65536
+PROVIDER_RUNS_AGY='def runs_agy: type == "object" and (((.extends // "") | tostring | ascii_downcase | startswith("antigravity")) or ([(.command // empty) | .. | strings] | join(" ") | test("(^|[^A-Za-z0-9])(agy|antigravity)([^A-Za-z0-9]|$)|dangerously-skip-permissions"; "i")));'
+
+# The skills folder agy may read without asking: <passwd home of the user this
+# process runs as>/.agents/skills. The home comes from the passwd entry in an
+# empty environment, not from $HOME (which the box user controls).
+provider_skills_dir() {
+    local u h
+    u="$("${CLEAN_ENV[@]}" id -un 2>/dev/null)" || return 1
+    h="$("${CLEAN_ENV[@]}" getent passwd "$u" 2>/dev/null | cut -d: -f6)" || return 1
+    [[ "$h" == /* && "$h" != "/" ]] || return 1
+    printf '%s/.agents/skills' "${h%/}"
+}
+
+# The canonical block for this box: the antigravity-acp entry only when the
+# box's AI CLI is Antigravity (a stale one is removed by `sync`). Fails when the
+# box user's home cannot be resolved: no skills folder, no canonical command.
+provider_want() {
+    local cli="" dir=""
+    [[ -r "$STATE_FILE" ]] && cli="$(jq -r '.ai_cli // empty' "$STATE_FILE" 2>/dev/null || true)"
+    if [[ "$cli" == "antigravity" ]]; then
+        dir="$(provider_skills_dir)" || { say "cannot resolve the home folder of the box user"; return 1; }
+    fi
+    jq -c --arg cli "$cli" --arg dir "$dir" 'if $cli == "antigravity" then (."antigravity-acp".command |= map(if . == "@SKILLS_DIR@" then $dir else . end)) else del(."antigravity-acp") end' <<<"$PROVIDER_CANON"
+}
+
+# Checks the path before anything reads or writes it: PASEO_HOME set, no
+# symlink in it or in the folder above, and a config.json (if any) that is a
+# regular file. Sets PROVIDER_CFG.
+provider_prepare() {
+    # The tools are looked up where the empty environment will look (type -P, not
+    # command -v: the jq() wrapper above would make that always succeed).
+    local tool
+    for tool in jq node; do
+        PATH="$CLEAN_PATH" type -P "$tool" >/dev/null 2>&1 || { say "provider config unreadable: ${tool} is missing"; return 1; }
+    done
+    if [[ -z "${PASEO_HOME:-}" ]]; then say "PASEO_HOME must be set by the unit"; return 1; fi
+    PROVIDER_CFG="${PASEO_HOME}/config.json"
+    local p
+    for p in "$PASEO_HOME" "$(dirname "$PASEO_HOME")" "$PROVIDER_CFG"; do
+        if [[ -L "$p" ]]; then
+            say "provider config unreadable: ${p} is a symbolic link (BIAB never reads or writes through links in your home folder)"
+            return 1
+        fi
+    done
+    if [[ -e "$PROVIDER_CFG" && ! -f "$PROVIDER_CFG" ]]; then
+        say "provider config unreadable: ${PROVIDER_CFG} is not a regular file"
+        return 1
+    fi
+    return 0
+}
+
+# Print config.json as compact JSON. A missing file reads as {} (sync fills it
+# in); anything that is not a JSON object Paseo accepts is refused and left
+# untouched: a corrupt file is never replaced by defaults, that would erase the
+# user's other settings. The read is bounded (64 KiB, 5 s) in case the file is
+# swapped for a FIFO between the check above and the open. The text must also
+# parse the way Paseo parses it (Node's JSON.parse after dropping a UTF-8 BOM):
+# jq accepts things Paseo rejects, such as `nan`.
+provider_read() {
+    if [[ ! -e "$PROVIDER_CFG" ]]; then printf '{}\n'; return 0; fi
+    local raw
+    if [[ "$(stat -c %s -- "$PROVIDER_CFG" 2>/dev/null || echo 0)" -gt "$PROVIDER_MAX_BYTES" ]]; then
+        say "provider config unreadable: ${PROVIDER_CFG} is larger than 64 KiB; it was left untouched"
+        return 1
+    fi
+    raw="$(timeout 5 head -c "$PROVIDER_MAX_BYTES" -- "$PROVIDER_CFG" 2>/dev/null)" || raw=""
+    raw="${raw#$'\xEF\xBB\xBF'}"
+    if ! printf '%s' "$raw" | timeout 10 "${CLEAN_ENV[@]}" node -e 'JSON.parse(require("fs").readFileSync(0, "utf8"))' >/dev/null 2>&1; then
+        say "provider config unreadable: ${PROVIDER_CFG} is not valid JSON; it was left untouched. Fix or move it, then run: sudo biab paseo restart"
+        return 1
+    fi
+    if ! jq -ec 'select(type == "object"
+                        and (if has("agents") then (.agents | type == "object") else true end)
+                        and (if (.agents // {}) | has("providers") then (.agents.providers | type == "object") else true end))' <<<"$raw" 2>/dev/null; then
+        say "provider config unreadable: ${PROVIDER_CFG} is not a JSON object Paseo accepts; it was left untouched. Fix or move it, then run: sudo biab paseo restart"
+        return 1
+    fi
+}
+
+providers_verify() {
+    local want have
+    provider_prepare || return 1
+    have="$(provider_read)" || return 1
+    want="$(provider_want)" || return 1
+    if ! jq -e --argjson want "$want" "${PROVIDER_RUNS_AGY}"'
+        (.agents.providers // {}) as $p
+        | ([$p | to_entries[] | select(.key == "antigravity" or .key == "antigravity-acp")] | from_entries == $want)
+          and ([$p | to_entries[] | select(.key != "antigravity" and .key != "antigravity-acp" and (.value | runs_agy))] | length == 0)' \
+        <<<"$have" >/dev/null 2>&1; then
+        say "provider settings differ from what BIAB sets"
+        return 1
+    fi
+}
+
+
+providers_sync() {
+    local have want merged dropped err rc=0
+    [[ -x "$CLI" ]] || { say "pinned paseo CLI not found at $CLI"; return 1; }
+    provider_prepare || return 1
+    have="$(provider_read)" || return 1
+    if providers_verify >/dev/null 2>&1; then
+        # Already right: no rewrite. Only tighten a loose mode.
+        [[ ! -f "$PROVIDER_CFG" || "$(stat -c %a "$PROVIDER_CFG")" == "600" ]] || chmod 0600 "$PROVIDER_CFG"
+        return 0
+    fi
+    want="$(provider_want)" || return 1
+    merged="$(jq -c --argjson want "$want" "${PROVIDER_RUNS_AGY}"'
+        (.agents.providers // {}) | with_entries(select(.key != "antigravity" and .key != "antigravity-acp" and ((.value | runs_agy) | not))) + $want' <<<"$have")"
+    dropped="$(jq -r "${PROVIDER_RUNS_AGY}"'
+        [(.agents.providers // {}) | to_entries[] | select(.key != "antigravity" and .key != "antigravity-acp" and (.value | runs_agy)) | .key] | join(", ")' <<<"$have")"
+    [[ -z "$dropped" ]] || say "removed provider(s) ${dropped}: they run Antigravity outside the permission guard"
+    if [[ "$(printf '%s' "$merged" | wc -c)" -gt "$PROVIDER_MAX_BYTES" ]]; then
+        say "provider config unreadable: the provider settings are larger than 64 KiB, too big for Paseo's config command; the daemon was not started"
+        return 1
+    fi
+    # Paseo's own CLI does the write: its strict schema validates the result and
+    # its writer is atomic and 0600. Its exit status is not trusted (it also
+    # fails when only the live reload of a running daemon fails): the re-read
+    # below is the verdict.
+    err="$(env -u PASEO_PASSWORD "$CLI" daemon config set agents.providers "$merged" --home "$PASEO_HOME" 2>&1 >/dev/null)" || rc=$?
+    if ! providers_verify >/dev/null 2>&1 \
+        || ! jq -e --argjson m "$merged" '(.agents.providers | keys) == ($m | keys)' <<<"$(provider_read)" >/dev/null 2>&1; then
+        say "could not write the provider settings to ${PROVIDER_CFG} (paseo exit ${rc}); the daemon was not started"
+        [[ -z "$err" ]] || printf '%s\n' "$err" | head -n 3 | sed 's/^/  /' >&2
+        return 1
+    fi
+    [[ "$(stat -c %a "$PROVIDER_CFG")" == "600" ]] || chmod 0600 "$PROVIDER_CFG"
+    say "provider settings restored"
+}
+
+if [[ "${1:-}" == "providers" ]]; then
+    # The config lives in a folder the box user owns: root never reads or writes it.
+    if [[ "$(id -u)" -eq 0 && "${BIB_PASEO_TEST:-0}" != "1" ]]; then
+        say "providers runs as the box user, never as root"
+        exit 1
+    fi
+    case "${2:-}" in
+        sync)   providers_sync ;;
+        verify) providers_verify ;;
+        *)      say "usage: biab-paseo-run providers sync|verify"; exit 2 ;;
+    esac
+    exit $?
+fi
+
+# On an Antigravity box the provider launches /usr/local/bin/agy, so that file
+# must be one root controls: a regular file (no symlink), owned by root (the test
+# seam: the caller), and not writable by group or others.
+agy_binary_ok() {
+    local cli="" bin="${PREFIX}/usr/local/bin/agy" want_uid=0 owner mode
+    [[ -r "$STATE_FILE" ]] && cli="$(jq -r '.ai_cli // empty' "$STATE_FILE" 2>/dev/null || true)"
+    [[ "$cli" == "antigravity" ]] || return 0
+    [[ "${BIB_PASEO_TEST:-0}" == "1" ]] && want_uid="$(id -u)"
+    if [[ -L "$bin" ]]; then
+        say "refusing to start: ${bin} is a symbolic link; it must be the regular file BIAB installed"
+        return 1
+    fi
+    if [[ ! -f "$bin" ]]; then
+        say "refusing to start: ${bin} is missing or is not a regular file"
+        return 1
+    fi
+    read -r owner mode < <(stat -c '%u %a' "$bin") || return 1
+    if [[ "$owner" != "$want_uid" ]] || (( (8#$mode & 8#022) != 0 )); then
+        say "refusing to start: ${bin} must be owned by root and not writable by group or others (owner ${owner}, mode ${mode})"
+        return 1
+    fi
+}
+
+# Bounded checks first, so a broken install fails with a clear line instead of
+# a daemon on the wrong address.
+[[ -x "$CLI" ]] || { say "pinned paseo CLI not found at $CLI"; exit 1; }
+[[ -n "${PASEO_PASSWORD:-}" ]] || { say "PASEO_PASSWORD is not set (is /etc/buildersinabox/paseo.env present?)"; exit 1; }
+
+# Wait for the tailnet address. On a cloud-profile box Tailscale may not be up
+# yet (R12): waiting here, rather than exiting, means the wait does not burn the
+# unit's restart budget.
+addr=""
+waited=0
+while :; do
+    if command -v tailscale >/dev/null 2>&1; then
+        addr="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+    fi
+    if [[ "$addr" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ && "$addr" != "0.0.0.0" ]]; then
+        break
+    fi
+    addr=""
+    if (( waited % 60 == 0 )); then
+        say "waiting for the tailnet address (Tailscale not up yet)"
+    fi
+    sleep 5
+    waited=$((waited + 5))
+done
+
+# MagicDNS name, so Paseo's Host-header check lets the phone connect by name.
+# IP addresses are always allowed by Paseo; a missing name just means IP only.
+host=""
+if type -P jq >/dev/null 2>&1; then
+    host="$(tailscale status --json 2>/dev/null | jq -r '.Self.DNSName // empty' 2>/dev/null | sed 's/\.$//' || true)"
+fi
+
+export PASEO_HOME="${PASEO_HOME:?PASEO_HOME must be set by the unit}"
+export PASEO_LISTEN="${addr}:${PORT}"
+export PASEO_RELAY_ENABLED=false
+[[ -n "$host" ]] && export PASEO_HOSTNAMES="$host"
+
+# Last step before the daemon: its provider settings must be BIAB's. A failure
+# aborts the start (the unit's burst limit then records FAILED).
+agy_binary_ok || exit 1
+providers_sync || exit 1
+
+say "starting daemon on ${PASEO_LISTEN} (relay off)"
+exec "$CLI" daemon run

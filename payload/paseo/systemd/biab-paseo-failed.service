@@ -1,0 +1,9 @@
+# Builders in a Box — records that systemd gave up on the Paseo daemon (FEAT-035).
+# Started by OnFailure= in biab-paseo.service, which is what makes a dead
+# daemon visible in `biab status` instead of silent. Static file, no template.
+[Unit]
+Description=Builders in a Box: record that the Paseo daemon failed
+
+[Service]
+Type=oneshot
+ExecStart=/opt/buildersinabox/paseo/bin/biab-paseo-health failed

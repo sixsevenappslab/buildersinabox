@@ -1,0 +1,11 @@
+# Builders in a Box - project template catalogue (FEAT-036).
+# One row per template, TAB separated, 7 columns, no blank column:
+#   name  kind  stack  time  licences  source  description
+#   kind=spec      source is a ready-written FEAT, relative to payload/ (copied to specs/draft/)
+#   kind=skeleton  source is a directory holding BRIEF.md and skeleton/ (copied to the project root)
+#   stack=cloud    needs a cloud account or a domain: left out of the first-day list
+#                  (`biab-project list`), reached through /second-project by name
+#   licences       SPDX list of what the template ships, or none
+# "Describe your own idea" is not a row: it is fixed in the walk (IDEA-BRIEF.md).
+personal-coach	spec	box	2 evenings	none	examples/FEAT-002-personal-slack-coach.md	Personal Slack coach: an empathic AI in your Slack that knows what is running on this box.
+finance-dashboard	spec	cloud	4-8 evenings	none	examples/FEAT-003-personal-finance-app.md	Personal finance dashboard: bank CSV, AI categorisation and fund prices, shipped to a domain you own.

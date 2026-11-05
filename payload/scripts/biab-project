@@ -1,0 +1,685 @@
+#!/usr/bin/env bash
+# biab-project - the deterministic half of /first-project and /second-project (FEAT-036).
+#
+# The skills hold the conversation; this script holds everything that has to be
+# exactly right: reading the template catalogue, scaffolding a project without
+# ever overwriting the user's files, and reporting which step of the walk the
+# disk says a project is at. It lives under /opt/buildersinabox and is called by
+# absolute path, so `biab update` refreshes it and `--uninstall` removes it.
+#
+#   biab-project list [--all]
+#   biab-project scaffold <template|idea> <project>
+#   biab-project status <project>
+#   biab-project progress get
+#   biab-project progress set <template|idea> <project>
+#
+# Exit codes (every error is one line on stderr, "biab-project: <cause>: <what>",
+# nothing on stdout, nothing written):
+#   0 ok   1 no progress yet   2 would overwrite a file   3 invalid name,
+#   unknown template or corrupt progress file   4 bad catalogue or template
+#   source missing   5 cannot write   6 name already in use   64 usage
+#
+# Test hooks: BIB_PROJECTS_ROOT, BIB_PROJECTS_MANIFEST, BIB_PAYLOAD_DIR,
+# BIB_STATE_FILE. This script never uses the network (status asks `gh` one
+# read-only question, and only when gh is installed), never runs anything that
+# comes from a template, and never calls sudo.
+
+# The name validator below depends on the locale (a non-ASCII letter is valid
+# under en_US.UTF-8 and not under C): pin it before anything else runs.
+export LC_ALL=C
+set -euo pipefail
+
+PAYLOAD_DIR="${BIB_PAYLOAD_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+MANIFEST="${BIB_PROJECTS_MANIFEST:-$PAYLOAD_DIR/templates/projects/manifest.tsv}"
+STATE_FILE="${BIB_STATE_FILE:-/var/lib/buildersinabox/state.json}"
+
+die() {
+    local code="$1"
+    shift
+    printf 'biab-project: %s\n' "$*" >&2
+    exit "$code"
+}
+
+usage() {
+    die 64 "usage: biab-project list [--all] | scaffold <template|idea> <project> | status <project> | progress get | progress set <template|idea> <project>"
+}
+
+q() { printf '%q' "$1"; }
+
+# --- the name validator ------------------------------------------------------
+# Reuse the wizard's validator instead of duplicating its rule. A subshell keeps
+# prompt.sh's own `set` and variables out of this script.
+valid_name() (
+    # shellcheck source=/dev/null
+    source "$PAYLOAD_DIR/lib/prompt.sh"
+    project_name_is_valid "$1"
+)
+
+need_name_validator() {
+    [[ -r "$PAYLOAD_DIR/lib/prompt.sh" ]] || die 4 "template source missing: $PAYLOAD_DIR/lib/prompt.sh"
+}
+
+# --- the catalogue -------------------------------------------------------------
+M_NAME=()
+M_KIND=()
+M_STACK=()
+M_TIME=()
+M_LIC=()
+M_SRC=()
+M_DESC=()
+
+# Parse the whole manifest or die: a half-read catalogue never reaches a path.
+load_manifest() {
+    local line n=0 tabs rest i f p
+    M_NAME=(); M_KIND=(); M_STACK=(); M_TIME=(); M_LIC=(); M_SRC=(); M_DESC=()
+    if [[ ! -f "$MANIFEST" || ! -r "$MANIFEST" ]]; then
+        die 4 "bad catalogue: $MANIFEST"
+    fi
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        n=$((n + 1))
+        if [[ -z "$line" || "$line" == \#* ]]; then
+            continue
+        fi
+        if [[ "$line" == *$'\r'* ]]; then
+            die 4 "bad catalogue: $MANIFEST:$n"
+        fi
+        tabs="${line//[^$'\t']/}"
+        if [[ "${#tabs}" -ne 6 ]]; then
+            die 4 "bad catalogue: $MANIFEST:$n"
+        fi
+        rest="$line"
+        f=()
+        for i in 1 2 3 4 5 6; do
+            f+=("${rest%%$'\t'*}")
+            rest="${rest#*$'\t'}"
+        done
+        f+=("$rest")
+        for i in 0 1 2 3 4 5 6; do
+            if [[ -z "${f[$i]}" ]]; then
+                die 4 "bad catalogue: $MANIFEST:$n"
+            fi
+        done
+        if ! [[ "${f[0]}" =~ ^[a-z][a-z0-9-]{1,30}$ ]] || [[ "${f[0]}" == "idea" ]]; then
+            die 4 "bad catalogue: $MANIFEST:$n"
+        fi
+        if [[ "${f[1]}" != "spec" && "${f[1]}" != "skeleton" ]]; then
+            die 4 "bad catalogue: $MANIFEST:$n"
+        fi
+        if [[ "${f[5]}" == /* || "${f[5]}" == *..* ]]; then
+            die 4 "bad catalogue: $MANIFEST:$n"
+        fi
+        for p in "${M_NAME[@]}"; do
+            if [[ "$p" == "${f[0]}" ]]; then
+                die 4 "bad catalogue: $MANIFEST:$n"
+            fi
+        done
+        M_NAME+=("${f[0]}"); M_KIND+=("${f[1]}"); M_STACK+=("${f[2]}"); M_TIME+=("${f[3]}")
+        M_LIC+=("${f[4]}"); M_SRC+=("${f[5]}"); M_DESC+=("${f[6]}")
+    done < "$MANIFEST"
+    if [[ "${#M_NAME[@]}" -eq 0 ]]; then
+        die 4 "bad catalogue: $MANIFEST"
+    fi
+}
+
+# Exact, whole-string match against the catalogue. Sets T_IDX.
+T_IDX=-1
+find_template() {
+    local i
+    for i in "${!M_NAME[@]}"; do
+        if [[ "${M_NAME[$i]}" == "$1" ]]; then
+            T_IDX="$i"
+            return 0
+        fi
+    done
+    return 1
+}
+
+# --- projects root -------------------------------------------------------------
+ROOT=""
+resolve_root() {
+    if [[ -n "${BIB_PROJECTS_ROOT:-}" ]]; then
+        ROOT="$BIB_PROJECTS_ROOT"
+    else
+        [[ -n "${HOME:-}" ]] || die 5 "cannot write to: \$HOME is not set"
+        ROOT="$HOME/ai-platform/projects"
+    fi
+}
+
+# --- progress ------------------------------------------------------------------
+PROGRESS_FILE=""
+P_TEMPLATE=""
+P_PROJECT=""
+
+need_home() {
+    [[ -n "${HOME:-}" ]] || die 5 "cannot write to: \$HOME is not set"
+    PROGRESS_FILE="$HOME/.config/biab-first-project/progress.json"
+}
+
+# progress_read: 0 valid (P_TEMPLATE, P_PROJECT set), 1 absent, 3 corrupt.
+# The file is data: read with jq, re-validated, never sourced or interpolated.
+# Needs the catalogue loaded.
+progress_read() {
+    local out size rest
+    P_TEMPLATE=""
+    P_PROJECT=""
+    [[ -n "${HOME:-}" ]] || return 1
+    PROGRESS_FILE="$HOME/.config/biab-first-project/progress.json"
+    if [[ ! -e "$PROGRESS_FILE" && ! -L "$PROGRESS_FILE" ]]; then
+        return 1
+    fi
+    if [[ -L "$PROGRESS_FILE" || ! -f "$PROGRESS_FILE" || ! -r "$PROGRESS_FILE" ]]; then
+        return 3
+    fi
+    size="$(stat -c %s -- "$PROGRESS_FILE")" || return 3
+    [[ "$size" -le 4096 ]] || return 3
+    out="$(jq -er 'select(.version == 1 and (.template | type) == "string" and (.project | type) == "string") | [.template, .project] | @tsv' "$PROGRESS_FILE" 2>/dev/null)" || return 3
+    rest="${out#*$'\t'}"
+    if [[ "$out" != *$'\t'* || "$rest" == *$'\t'* ]]; then
+        return 3
+    fi
+    local t="${out%%$'\t'*}"
+    valid_name "$rest" || return 3
+    if [[ "$t" != "idea" ]]; then
+        find_template "$t" || return 3
+    fi
+    P_TEMPLATE="$t"
+    P_PROJECT="$rest"
+    return 0
+}
+
+# --- list ------------------------------------------------------------------------
+cmd_list() {
+    local all=0 i
+    case "${1:-}" in
+        "") ;;
+        --all) all=1; shift ;;
+        *) usage ;;
+    esac
+    [[ "$#" -eq 0 ]] || usage
+    load_manifest
+    for i in "${!M_NAME[@]}"; do
+        # Templates that need a cloud account or a domain are not offered on the
+        # first day: /second-project reaches them by name (R8).
+        if [[ "$all" -eq 0 && "${M_STACK[$i]}" == "cloud" ]]; then
+            continue
+        fi
+        printf '%s\t%s\t%s\n' "${M_NAME[$i]}" "${M_TIME[$i]}" "${M_DESC[$i]}"
+    done
+}
+
+# --- scaffold --------------------------------------------------------------------
+STAGE=""
+PD=""
+PLAN_REL=()
+PLAN_MODE=()
+NEW_REL=()
+SAME_REL=()
+CONFLICTS=()
+TYPE_ERRS=()
+
+cleanup_stage() {
+    if [[ -n "$STAGE" && -d "$STAGE" ]]; then
+        rm -rf -- "$STAGE"
+    fi
+}
+
+plan_has() {
+    local r
+    for r in "${PLAN_REL[@]}"; do
+        if [[ "$r" == "$1" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# plan_add <relative path> <mode>: the content is already staged at $STAGE/<rel>.
+plan_add() {
+    PLAN_REL+=("$1")
+    PLAN_MODE+=("$2")
+}
+
+stage_dir_of() {
+    if [[ "$1" == */* ]]; then
+        mkdir -p -- "${STAGE}/${1%/*}"
+    fi
+}
+
+in_list() { # in_list <needle> <items...>
+    local needle="$1" x
+    shift
+    for x in "$@"; do
+        if [[ "$x" == "$needle" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+write_placeholder() {
+    cat > "$1" <<'DEVCHECK_EOF'
+#!/usr/bin/env bash
+# How do you run this project to see that a change works? Replace this body
+# with that, ending in exit 0 when it works and exit 1 when it does not. The
+# last line it prints is the one-line summary you read in the morning.
+# Runs from the repo root, with no arguments, in under 300 seconds.
+echo "dev check not configured yet"
+exit 3
+DEVCHECK_EOF
+}
+
+# Does the FEAT's frontmatter carry a project: line?
+feat_has_project() {
+    awk 'NR == 1 { if ($0 != "---") exit; next } $0 == "---" { exit } /^project:/ { f = 1; exit } END { exit (f ? 0 : 1) }' "$1"
+}
+
+# check_path <relative file>: sort one planned file into NEW / SAME / CONFLICTS,
+# or record a type problem (symlink, wrong type, unwritable). Never touches disk.
+check_path() {
+    local rel="$1" cur="$PD" rest="$1" part missing=0
+    if [[ ! -e "$PD" ]]; then
+        cur="$ROOT"
+        missing=1
+    fi
+    while [[ "$missing" -eq 0 && "$rest" == */* ]]; do
+        part="${rest%%/*}"
+        rest="${rest#*/}"
+        cur="$cur/$part"
+        if [[ -L "$cur" ]]; then
+            TYPE_ERRS+=("$cur")
+            return 0
+        fi
+        if [[ ! -e "$cur" ]]; then
+            # Nothing below exists either: the nearest existing ancestor must take the write.
+            cur="${cur%/*}"
+            missing=1
+            break
+        fi
+        if [[ ! -d "$cur" ]]; then
+            TYPE_ERRS+=("$cur")
+            return 0
+        fi
+    done
+    if [[ "$missing" -eq 0 ]] && [[ -e "$cur/$rest" || -L "$cur/$rest" ]]; then
+        cur="$cur/$rest"
+        if [[ -L "$cur" || ! -f "$cur" ]]; then
+            TYPE_ERRS+=("$cur")
+            return 0
+        fi
+        if cmp -s -- "$cur" "$STAGE/$rel"; then
+            SAME_REL+=("$rel")
+        else
+            CONFLICTS+=("$rel")
+        fi
+        return 0
+    fi
+    # A new file: the directory that will receive it has to be writable.
+    if [[ ! -w "$cur" || ! -x "$cur" ]]; then
+        TYPE_ERRS+=("$cur")
+        return 0
+    fi
+    NEW_REL+=("$rel")
+}
+
+# check_dir <relative dir>: every existing component must be a real directory.
+check_dir() {
+    local cur="$PD" part rest="$1"
+    while [[ -n "$rest" ]]; do
+        part="${rest%%/*}"
+        if [[ "$rest" == */* ]]; then rest="${rest#*/}"; else rest=""; fi
+        cur="$cur/$part"
+        if [[ -L "$cur" ]] || [[ -e "$cur" && ! -d "$cur" ]]; then
+            TYPE_ERRS+=("$cur")
+            return 0
+        fi
+    done
+}
+
+write_atomic() {
+    local rel="$1" mode="$2" dest tmp
+    dest="$PD/$rel"
+    tmp="$(mktemp "${dest}.biab-tmp.XXXXXX")" || die 5 "cannot write to: ${dest%/*}"
+    cat -- "$STAGE/$rel" > "$tmp" || die 5 "cannot write to: $(q "$dest")"
+    chmod "$mode" "$tmp" || die 5 "cannot write to: $(q "$dest")"
+    # No clobber: a file that appeared since the check phase is a conflict, not an overwrite.
+    # GNU mv -n exits 1 when it skips; the file left at $tmp is what tells the two cases apart.
+    mv -n -- "$tmp" "$dest" || [[ -e "$tmp" ]] || die 5 "cannot write to: $(q "$dest")"
+    if [[ -e "$tmp" ]]; then
+        rm -f -- "$tmp"
+        die 2 "would overwrite: $(q "$dest")"
+    fi
+}
+
+cmd_scaffold() {
+    [[ "$#" -eq 2 ]] || usage
+    local template="$1" project="$2" i src kind f rel m mode d
+    need_name_validator
+    if ! valid_name "$project"; then
+        die 3 "invalid project name: $(q "$project")"
+    fi
+    load_manifest
+    kind="idea"
+    src=""
+    if [[ "$template" != "idea" ]]; then
+        if ! find_template "$template"; then
+            die 3 "unknown template: $(q "$template")"
+        fi
+        kind="${M_KIND[$T_IDX]}"
+        src="$PAYLOAD_DIR/${M_SRC[$T_IDX]}"
+    fi
+
+    # --- check phase: nothing below writes to the user's tree ---
+    local claude_tpl="$PAYLOAD_DIR/templates/PROJECT-CLAUDE.md"
+    [[ -f "$claude_tpl" ]] || die 4 "template source missing: $claude_tpl"
+    case "$kind" in
+        idea)
+            [[ -f "$PAYLOAD_DIR/templates/projects/IDEA-BRIEF.md" ]] || die 4 "template source missing: $PAYLOAD_DIR/templates/projects/IDEA-BRIEF.md"
+            ;;
+        spec)
+            if [[ ! -f "$src" || -L "$src" ]]; then
+                die 4 "template source missing: $src"
+            fi
+            ;;
+        skeleton)
+            [[ -f "$src/BRIEF.md" ]] || die 4 "template source missing: $src/BRIEF.md"
+            [[ -d "$src/skeleton" ]] || die 4 "template source missing: $src/skeleton"
+            if [[ -n "$(find "$src" -type l -print -quit)" ]]; then
+                die 4 "bad catalogue: symlink in template source: $src"
+            fi
+            ;;
+    esac
+
+    resolve_root
+    if [[ ! -d "$ROOT" || ! -w "$ROOT" || ! -x "$ROOT" ]]; then
+        die 5 "cannot write to: $ROOT"
+    fi
+    PD="$ROOT/$project"
+    if [[ -L "$PD" ]]; then
+        die 5 "cannot write to: $PD"
+    fi
+    if [[ -e "$PD" ]]; then
+        [[ -d "$PD" ]] || die 5 "cannot write to: $PD"
+        if [[ -n "$(find "$PD" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+            # A folder with content is only ours to complete if it is the project
+            # the walk recorded; anything else is somebody's existing work.
+            if progress_read && [[ "$P_PROJECT" == "$project" ]]; then
+                :
+            else
+                die 6 "name already in use: $project"
+            fi
+        fi
+    fi
+
+    STAGE="$(mktemp -d "${TMPDIR:-/tmp}/biab-project.XXXXXX")" || die 5 "cannot write to: ${TMPDIR:-/tmp}"
+    trap cleanup_stage EXIT
+
+    # Skeleton files first: a skeleton may bring its own CLAUDE.md, AGENTS.md or dev check.
+    if [[ "$kind" == "skeleton" ]]; then
+        while IFS= read -r -d '' f; do
+            rel="${f#"$src/skeleton/"}"
+            stage_dir_of "$rel"
+            cp -- "$f" "$STAGE/$rel"
+            m="$(stat -c %a -- "$f")"
+            mode=644
+            if (( (8#$m & 8#100) != 0 )); then mode=755; fi
+            plan_add "$rel" "$mode"
+        done < <(find "$src/skeleton" -type f -print0 | sort -z)
+    fi
+    for f in CLAUDE.md AGENTS.md; do
+        if ! plan_has "$f"; then
+            sed "s|{{PROJECT_NAME}}|$project|g" "$claude_tpl" > "$STAGE/$f"
+            plan_add "$f" 644
+        fi
+    done
+    if [[ "$kind" == "spec" ]]; then
+        rel="specs/draft/${src##*/}"
+        stage_dir_of "$rel"
+        if feat_has_project "$src"; then
+            awk -v p="$project" 'NR == 1 && $0 == "---" { fm = 1; print; next } fm == 1 && $0 == "---" { fm = 2 } fm == 1 && /^project:/ { print "project: " p; next } { print }' "$src" > "$STAGE/$rel"
+        else
+            cp -- "$src" "$STAGE/$rel"
+        fi
+        plan_add "$rel" 644
+    fi
+    if ! plan_has ".biab/dev-check.sh"; then
+        stage_dir_of ".biab/dev-check.sh"
+        write_placeholder "$STAGE/.biab/dev-check.sh"
+        plan_add ".biab/dev-check.sh" 755
+    fi
+
+    for d in specs/draft specs/active specs/completed; do
+        check_dir "$d"
+    done
+    for rel in "${PLAN_REL[@]}"; do
+        check_path "$rel"
+    done
+    if [[ "${#TYPE_ERRS[@]}" -gt 0 ]]; then
+        for f in "${TYPE_ERRS[@]}"; do
+            printf 'biab-project: cannot write to: %s\n' "$(q "$f")" >&2
+        done
+        exit 5
+    fi
+    if [[ "${#CONFLICTS[@]}" -gt 0 ]]; then
+        for f in "${CONFLICTS[@]}"; do
+            printf 'biab-project: would overwrite: %s\n' "$(q "$project/$f")" >&2
+        done
+        exit 2
+    fi
+
+    # --- write phase: every file is written beside its destination and moved in ---
+    for d in specs/draft specs/active specs/completed; do
+        mkdir -p -- "$PD/$d"
+    done
+    mkdir -p -- "$PD"
+    for rel in "${PLAN_REL[@]}"; do
+        if [[ "$rel" == */* ]]; then
+            mkdir -p -- "$PD/${rel%/*}"
+        fi
+    done
+    # A pass that was cut short can leave its own temporary files behind: remove
+    # only that pattern, only in the folders this plan writes to.
+    for rel in "${PLAN_REL[@]}"; do
+        d="$PD"
+        if [[ "$rel" == */* ]]; then
+            d="$PD/${rel%/*}"
+        fi
+        if [[ -d "$d" ]]; then
+            find "$d" -maxdepth 1 -type f -name '*.biab-tmp.??????' -delete
+        fi
+    done
+    for i in "${!PLAN_REL[@]}"; do
+        rel="${PLAN_REL[$i]}"
+        if in_list "$rel" "${NEW_REL[@]}"; then
+            write_atomic "$rel" "${PLAN_MODE[$i]}"
+            printf 'created %s\n' "$(q "$rel")"
+        else
+            printf 'unchanged %s\n' "$(q "$rel")"
+        fi
+    done
+}
+
+# --- status ----------------------------------------------------------------------
+has_feat() {
+    local f
+    for f in "$1"/FEAT-*.md; do
+        if [[ -f "$f" && ! -L "$f" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# One read-only question to GitHub, only when gh is installed: is there a merged
+# pull request from a feat/* branch? Asked by name, so it still works after
+# GitHub (or the user) deleted the branch. Any failure means "unknown", never "yes".
+gh_merged() {
+    local n
+    command -v gh >/dev/null 2>&1 || return 1
+    n="$(cd "$PD" && GH_PROMPT_DISABLED=1 timeout 15 gh pr list --state merged --json headRefName --jq '[.[] | select(.headRefName | startswith("feat/"))] | length' 2>/dev/null)" || return 1
+    [[ "$n" =~ ^[0-9]+$ && "$n" -gt 0 ]]
+}
+
+# Was this branch merged with a merge commit? Then the base holds a merge whose
+# second parent is the branch tip. (A fast-forward leaves no trace: unknown.)
+merged_into_base() { # merged_into_base <base> <tip>
+    git -C "$PD" rev-list --merges --parents "$1" 2>/dev/null | awk -v t="$2" '$3 == t { f = 1 } END { exit (f ? 0 : 1) }'
+}
+
+cmd_status() {
+    [[ "$#" -eq 1 ]] || usage
+    local project="$1" f c base="" sp b tip basetip ahead
+    local any_commits=0 any_unpushed=0 any_merged=0 has_origin=0
+    need_name_validator
+    if ! valid_name "$project"; then
+        die 3 "invalid project name: $(q "$project")"
+    fi
+    resolve_root
+    PD="$ROOT/$project"
+    export GIT_OPTIONAL_LOCKS=0
+
+    if [[ ! -d "$PD" || -L "$PD" || ! -d "$PD/specs" ]]; then
+        echo scaffold
+        return 0
+    fi
+    for f in CLAUDE.md AGENTS.md .biab/dev-check.sh; do
+        if [[ ! -f "$PD/$f" ]]; then
+            echo scaffold
+            return 0
+        fi
+    done
+    if [[ ! -e "$PD/.git" ]] || ! git -C "$PD" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+        echo init
+        return 0
+    fi
+    sp="$(jq -r '.project_name // empty' "$STATE_FILE" 2>/dev/null || true)"
+    if [[ -z "$sp" ]]; then
+        echo register
+        return 0
+    fi
+
+    for c in main master; do
+        if git -C "$PD" show-ref --verify -q "refs/heads/$c" 2>/dev/null; then
+            base="$c"
+            break
+        fi
+    done
+    if [[ -z "$base" ]]; then
+        base="$(git -C "$PD" symbolic-ref --short -q HEAD 2>/dev/null || true)"
+    fi
+    if git -C "$PD" remote get-url origin >/dev/null 2>&1; then
+        has_origin=1
+    fi
+    basetip="$(git -C "$PD" rev-parse -q --verify "refs/heads/$base" 2>/dev/null || true)"
+    while IFS= read -r b; do
+        [[ -n "$b" ]] || continue
+        tip="$(git -C "$PD" rev-parse -q --verify "refs/heads/$b" 2>/dev/null || true)"
+        ahead="$(git -C "$PD" rev-list --count "$base..$b" 2>/dev/null || echo 0)"
+        if [[ "$ahead" -eq 0 ]]; then
+            if [[ -n "$tip" && "$tip" != "$basetip" ]] && merged_into_base "$base" "$tip"; then
+                any_merged=1
+            fi
+            continue
+        fi
+        any_commits=1
+        if ! { [[ "$has_origin" -eq 1 ]] \
+            && git -C "$PD" show-ref --verify -q "refs/remotes/origin/$b" 2>/dev/null \
+            && [[ "$(git -C "$PD" rev-list --count "origin/$b..$b" 2>/dev/null || echo 1)" -eq 0 ]]; }; then
+            any_unpushed=1
+        fi
+    done < <(git -C "$PD" for-each-ref --format='%(refname:short)' refs/heads/feat/ 2>/dev/null)
+
+    if [[ "$any_merged" -eq 0 && "$has_origin" -eq 1 ]] && gh_merged; then
+        any_merged=1
+    fi
+    if [[ "$any_merged" -eq 1 ]]; then
+        echo complete
+        return 0
+    fi
+    if has_feat "$PD/specs/active"; then
+        if [[ "$any_commits" -eq 0 ]]; then
+            echo build
+        elif [[ "$any_unpushed" -eq 1 ]]; then
+            echo publish
+        else
+            echo review
+        fi
+        return 0
+    fi
+    if has_feat "$PD/specs/draft"; then
+        echo confirm
+        return 0
+    fi
+    if has_feat "$PD/specs/completed"; then
+        echo complete
+        return 0
+    fi
+    echo spec
+}
+
+# --- progress commands -----------------------------------------------------------
+cmd_progress() {
+    local sub="${1:-}" rc=0 tmp dir tgt
+    case "$sub" in
+        get)
+            [[ "$#" -eq 1 ]] || usage
+            need_home
+            need_name_validator
+            load_manifest
+            progress_read || rc=$?
+            case "$rc" in
+                0) printf '%s\t%s\n' "$P_TEMPLATE" "$P_PROJECT" ;;
+                1) die 1 "no progress yet" ;;
+                *) die 3 "corrupt progress file: $PROGRESS_FILE" ;;
+            esac
+            ;;
+        set)
+            [[ "$#" -eq 3 ]] || usage
+            need_home
+            need_name_validator
+            if ! valid_name "$3"; then
+                die 3 "invalid project name: $(q "$3")"
+            fi
+            load_manifest
+            if [[ "$2" != "idea" ]] && ! find_template "$2"; then
+                die 3 "unknown template: $(q "$2")"
+            fi
+            # The walk's progress must never adopt a project the user already has:
+            # a folder with content is only acceptable if progress already names it.
+            resolve_root
+            tgt="$ROOT/$3"
+            if [[ -L "$tgt" ]] || [[ -e "$tgt" && ! -d "$tgt" ]] \
+                || [[ -d "$tgt" && -n "$(find "$tgt" -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+                if progress_read && [[ "$P_PROJECT" == "$3" ]]; then
+                    :
+                else
+                    die 6 "name already in use: $3"
+                fi
+            fi
+            dir="${PROGRESS_FILE%/*}"
+            if [[ ! -d "$dir" ]]; then
+                mkdir -p -- "${dir%/*}" || die 5 "cannot write to: ${dir%/*}"
+                mkdir -m 0700 -- "$dir" || die 5 "cannot write to: $dir"
+            fi
+            tmp="$(mktemp "$dir/progress.json.XXXXXX")" || die 5 "cannot write to: $dir"
+            jq -n --arg t "$2" --arg p "$3" '{version: 1, template: $t, project: $p}' > "$tmp"
+            chmod 600 "$tmp"
+            mv -T -- "$tmp" "$PROGRESS_FILE" || { rm -f -- "$tmp"; die 5 "cannot write to: $(q "$PROGRESS_FILE")"; }
+            ;;
+        *) usage ;;
+    esac
+}
+
+main() {
+    local cmd="${1:-}"
+    [[ "$#" -ge 1 ]] || usage
+    shift
+    case "$cmd" in
+        list) cmd_list "$@" ;;
+        scaffold) cmd_scaffold "$@" ;;
+        status) cmd_status "$@" ;;
+        progress) cmd_progress "$@" ;;
+        *) usage ;;
+    esac
+}
+
+main "$@"

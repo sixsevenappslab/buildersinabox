@@ -1,0 +1,9 @@
+{
+  "name": "biab-pin-claude-code",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned Claude Code for Builders in a Box. To bump: run tools/bump-pins.sh (the weekly bot does), or edit this file and regenerate package-lock.json with npm install --package-lock-only --ignore-scripts.",
+  "dependencies": {
+    "@anthropic-ai/claude-code": "2.1.316"
+  }
+}
