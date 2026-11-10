@@ -1,0 +1,9 @@
+{
+  "name": "biab-pin-codex",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pinned Codex CLI for Builders in a Box. To bump: run tools/bump-pins.sh (the weekly bot does), or edit this file and regenerate package-lock.json with npm install --package-lock-only --ignore-scripts.",
+  "dependencies": {
+    "@openai/codex": "0.167.0"
+  }
+}

@@ -1,0 +1,8 @@
+# Exits as exact-path wrappers (QF-01/02 resolution), plus the forbidden belts.
+# No allow rule on `git push`, `git commit` or `gh pr create` as prefixes.
+prefix_rule(pattern=["@GUARD@/night-commit"], decision="allow")
+prefix_rule(pattern=["@GUARD@/night-push"], decision="allow")
+prefix_rule(pattern=["@GUARD@/night-pr"], decision="allow")
+prefix_rule(pattern=["gh","pr",["merge","close","edit","ready","reopen","review","comment","lock","revert","update-branch"]], decision="forbidden")
+prefix_rule(pattern=["gh",["api","auth","secret","variable","release","workflow","run","repo","ruleset","extension","alias","config"]], decision="forbidden")
+prefix_rule(pattern=["git","push","origin",["main","master","pre","dev"]], decision="forbidden")

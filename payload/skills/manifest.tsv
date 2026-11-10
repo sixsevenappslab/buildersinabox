@@ -1,0 +1,66 @@
+# BIAB skills manifest — which bundled skills install by default.
+# Format: <skill-dir-name>\t<core|optional>[\t<group>]
+#   core     → installed on every box during scaffold and synced on `biab update`.
+#   optional → shipped in the repo but NOT installed by default;
+#              the user opts in with `biab add <skill-or-group>`.
+#   group    → optional 3rd column grouping related skills (e.g. handover, marketing).
+# Override for testing/maintenance: BIB_INSTALL_SKILLS=all installs everything.
+backend-engineer	core
+code-review	core
+code-simplifier	core
+documentator	core
+executive	core
+extend-yourself	core
+first-project	core
+morning-check	core
+product-marketing	core
+qa-testing	core
+second-project	core
+tutorial	core
+ui-ux-consultant	core
+ux-review	core
+welcome	core
+whats-ahead	core
+sdd-base	core
+sdd-coordinator	core
+sdd-docs	core
+sdd-growth	core
+sdd-qa	core
+sdd-spec-writer	core
+spec-implementer	core
+pr-review	core
+quota	core
+deploy-verify	core
+no-ai-slop	core
+incident	optional
+debugging	optional
+deploy-ops	optional
+docker-ops	optional
+pm2-ops	optional
+spec-cleanup	optional
+wireframe-generator	optional
+agent-handover	optional	handover
+wrapup	optional	handover
+unwrap	optional	handover
+hotfix	optional
+fact-checker	optional
+verify-frontend-change	optional
+marketing-context	optional	marketing
+customer-research	optional	marketing
+analytics	optional	marketing
+attribution	optional	marketing
+cro	optional	marketing
+programmatic-seo	optional	marketing
+schema	optional	marketing
+marketing-loops	optional	marketing
+ab-testing	optional	marketing
+ads	optional	marketing
+ai-seo	optional	marketing
+content-strategy	optional	marketing
+copywriting	optional	marketing
+marketing-ideas	optional	marketing
+onboarding	optional	marketing
+popups	optional	marketing
+revops	optional	marketing
+seo-audit	optional	marketing
+signup	optional	marketing

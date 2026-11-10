@@ -1,0 +1,95 @@
+#!/usr/bin/env bash
+# Builders in a Box: make a folder a workspace you can open from your phone
+# (FEAT-035 R5). Used by the /first-project and /second-project skills so they
+# never hand-write `paseo` flags.
+#
+#   biab-workspace <path> [title]   register <path> as a workspace named
+#                                   "BIAB · <title>" (title defaults to the
+#                                   folder name). Safe to run twice: the path
+#                                   identifies the workspace.
+#   biab-workspace --mode           print "paseo" or "ssh": how this box's CLI
+#                                   is reached. Skills read this instead of
+#                                   testing the CLI's name.
+#
+# One decision point: paseo_supports_cli (lib/paseo.sh). When it says yes the
+# folder becomes a Paseo workspace. When it says no (a CLI that cannot run
+# under Paseo with its permission prompts on) it stops and prints the SSH way
+# in. Either way the user's directory is never modified.
+#
+# Runs as the box user, installed root-owned in /opt/buildersinabox/paseo/bin/.
+
+set -euo pipefail
+
+# Test mode (BIB_PASEO_TEST=1) is honoured only for a sandbox prefix under /tmp
+# or /var/tmp (owned by the caller if it exists), or for a non-root caller on
+# the real tree. In root's environment on a real install the flag is ignored:
+# it must never skip require_root, the TTY check or the exec seams.
+if [[ "${BIB_PASEO_TEST:-0}" == "1" ]]; then
+    _bib_tp="${BIB_PASEO_ROOT_TEST:-}"
+    if [[ -z "$_bib_tp" ]]; then
+        [[ "$(id -u)" -ne 0 ]] || BIB_PASEO_TEST=0
+    else
+        case "$_bib_tp" in
+            *..*) BIB_PASEO_TEST=0 ;;
+            /tmp/*|/var/tmp/*) [[ ! -e "$_bib_tp" || -O "$_bib_tp" ]] || BIB_PASEO_TEST=0 ;;
+            *) BIB_PASEO_TEST=0 ;;
+        esac
+    fi
+    unset _bib_tp
+fi
+PREFIX=""
+if [[ "${BIB_PASEO_TEST:-0}" == "1" ]]; then
+    PREFIX="${BIB_PASEO_ROOT_TEST:-}"
+fi
+PAYLOAD_LIB="${PREFIX}/opt/buildersinabox/payload/lib"
+STATE_FILE="${PREFIX}/var/lib/buildersinabox/state.json"
+
+die() { printf 'biab-workspace: %s\n' "$*" >&2; exit 1; }
+
+# shellcheck source=/dev/null
+source "${PAYLOAD_LIB}/ai-cli.sh"
+# shellcheck source=/dev/null
+source "${PAYLOAD_LIB}/paseo.sh"
+
+cli="$(jq -r '.ai_cli // empty' "$STATE_FILE" 2>/dev/null || true)"
+# No default: guessing a CLI would register a Paseo workspace on a box that has
+# no daemon.
+need_cli() { [[ -n "$cli" ]] || die "could not tell which AI CLI this box uses (no .ai_cli in ${STATE_FILE}); run 'biab update' or finish the setup wizard"; }
+
+usage() {
+    printf 'usage: biab-workspace <path> [title]\n       biab-workspace --mode\n' >&2
+    exit 2
+}
+
+case "${1:-}" in
+    --mode) need_cli; paseo_mode "$cli"; printf '\n'; exit 0 ;;
+    -h|--help|"") usage ;;
+esac
+[[ $# -le 2 ]] || usage
+need_cli
+
+# Always an absolute, normalised path (symlinks kept, as the daemon reports
+# them). A leading "-" can then never reach any command as an option.
+path_arg="$1"
+case "$path_arg" in -*) path_arg="./${path_arg}" ;; esac
+[[ -d "$path_arg" ]] || die "not a directory: $1"
+path="$(realpath -s -- "$path_arg")"
+name="${2:-$(basename -- "$path")}"
+
+if [[ "$(paseo_mode "$cli")" == "paseo" ]]; then
+    user="$(id -un)"
+    home="$(paseo_home_for "$HOME")"
+    title="$name"
+    [[ "$title" == "$PASEO_TITLE_PREFIX"* ]] || title="${PASEO_TITLE_PREFIX}${title}"
+    export BIB_PASEO_READY_TIMEOUT="${BIB_PASEO_READY_TIMEOUT:-20}"
+    paseo_wait_ready "$user" "$home" \
+        || die "the Paseo service is not answering. Check it with: biab status"
+    ws_id="$(paseo_ensure_workspace "$user" "$home" "$path" "$title")" \
+        || die "could not register ${path} as a workspace"
+    printf 'Workspace "%s" is ready (id %s).\n' "$title" "$ws_id"
+    printf 'Open the Paseo app and pick it from your list; start an agent there and it opens in that folder.\n'
+else
+    # A CLI that cannot run under Paseo with its permission prompts on has no workspace to
+    # register; the way in is SSH plus the bare CLI.
+    die "this box's AI CLI does not run under Paseo. $(paseo_ssh_fallback_text "$cli" "$(id -un)" "$(hostname)")"
+fi

@@ -1,0 +1,509 @@
+#!/usr/bin/env bash
+# Builders in a Box — Paseo watchdog and operator commands (FEAT-035 T2).
+#
+# Installed root-owned to /opt/buildersinabox/paseo/bin/. One script, several
+# modes, so the health record has exactly one writer:
+#
+#   check (default)  Run by biab-paseo-health.timer every 2 minutes, as root.
+#                    Probes the daemon's /api/health (upstream exempts it from
+#                    auth for supervisors). Healthy -> OK. Unhealthy or stopped
+#                    -> reset-failed + restart, at most 3 per rolling hour, then
+#                    GIVEN_UP and hands off until a human runs `restart`.
+#                    It also runs `biab-paseo-run providers verify` (as the box
+#                    user) and records the verdict as health.json's
+#                    "provider_file": ok | changed | unreadable. That is all: it
+#                    only REPORTS (maintainer decision, 2026-10-31: parity with Claude Code and
+#                    Codex, whose permissions are user files nobody watches). The
+#                    provider settings are made safe at every daemon start.
+#   failed           Run by biab-paseo-failed.service (OnFailure= of the daemon
+#                    unit). Records FAILED only if the unit is really down:
+#                    systemd 255 also fires OnFailure= on every restartable crash.
+#   reset            Forget the restart history (state RESTARTED, empty list).
+#   restart          `sudo biab paseo restart`: reset + restart the daemon.
+#   block            `biab status`: the human-readable Paseo block.
+#   pair [--rotate]  `sudo biab paseo pair`: reprint host/port/password from
+#                    the root-only file (printf only), optionally rotate it,
+#                    and record the pairing once the app connects.
+#
+# States in health.json: OK, RESTARTED, FAILED, GIVEN_UP, and WAITING_TAILNET
+# (R12: a cloud box with no tailnet address yet; the daemon wrapper is waiting
+# on purpose, so restarting it would only burn the budget).
+#
+# No lib sourcing on purpose: this file is copied out of the repo checkout and
+# must stay self-contained. It never logs or prints the phone password except
+# in `pair`, with printf, to the terminal.
+
+set -euo pipefail
+
+# Test mode (BIB_PASEO_TEST=1) is honoured only for a sandbox prefix under /tmp
+# or /var/tmp (owned by the caller if it exists), or for a non-root caller on
+# the real tree. In root's environment on a real install the flag is ignored:
+# it must never skip require_root, the TTY check or the exec seams.
+if [[ "${BIB_PASEO_TEST:-0}" == "1" ]]; then
+    _bib_tp="${BIB_PASEO_ROOT_TEST:-}"
+    if [[ -z "$_bib_tp" ]]; then
+        [[ "$(id -u)" -ne 0 ]] || BIB_PASEO_TEST=0
+    else
+        case "$_bib_tp" in
+            *..*) BIB_PASEO_TEST=0 ;;
+            /tmp/*|/var/tmp/*) [[ ! -e "$_bib_tp" || -O "$_bib_tp" ]] || BIB_PASEO_TEST=0 ;;
+            *) BIB_PASEO_TEST=0 ;;
+        esac
+    fi
+    unset _bib_tp
+fi
+PREFIX=""
+if [[ "${BIB_PASEO_TEST:-0}" == "1" ]]; then
+    PREFIX="${BIB_PASEO_ROOT_TEST:-}"
+fi
+PORT=6767
+UNIT="biab-paseo.service"
+ENV_FILE="${PREFIX}/etc/buildersinabox/paseo.env"
+STATE_FILE="${PREFIX}/var/lib/buildersinabox/state.json"
+HEALTH_DIR="${PREFIX}/var/lib/buildersinabox/paseo"
+HEALTH_FILE="${HEALTH_DIR}/health.json"
+RUN_TARGET="${PREFIX}/opt/buildersinabox/paseo/bin/biab-paseo-run"
+REGISTRY="${PREFIX}/opt/buildersinabox/payload/lib/ai-cli.sh"
+
+# Restart budget. Mirrors the spec (D4): 3 per rolling hour.
+MAX_RESTARTS=3
+WINDOW_SEC=3600
+
+say() { printf 'biab-paseo-health: %s\n' "$*"; }
+die() { printf 'biab-paseo-health: %s\n' "$*" >&2; exit 1; }
+
+now() {
+    if [[ "${BIB_PASEO_TEST:-0}" == "1" && -n "${BIB_PASEO_NOW:-}" ]]; then
+        printf '%s' "$BIB_PASEO_NOW"
+    else
+        date +%s
+    fi
+}
+iso() { date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ; }
+
+need_root() {
+    [[ "${BIB_PASEO_TEST:-0}" == "1" || "$(id -u)" -eq 0 ]] || die "this needs root: run it with sudo"
+}
+
+# --- health record ----------------------------------------------------------
+cur_state="" cur_since=0 cur_times="[]" cur_pfile="" pfile_changed=0
+read_health() {
+    cur_state="" cur_since=0 cur_times="[]" cur_pfile=""
+    [[ -r "$HEALTH_FILE" ]] || return 0
+    local s t
+    s="$(jq -r '.state // empty' "$HEALTH_FILE" 2>/dev/null || true)"
+    [[ -n "$s" ]] || return 0
+    cur_state="$s"
+    t="$(jq -r '.since // empty' "$HEALTH_FILE" 2>/dev/null || true)"
+    [[ -n "$t" ]] && cur_since="$(date -u -d "$t" +%s 2>/dev/null || echo 0)"
+    cur_times="$(jq -c '[.restart_times[]? | select(type == "number")]' "$HEALTH_FILE" 2>/dev/null || echo '[]')"
+    cur_pfile="$(jq -r '.provider_file // "" | if . == "ok" or . == "changed" or . == "unreadable" then . else "" end' "$HEALTH_FILE" 2>/dev/null || true)"
+}
+
+# prune <now> -> restart times still inside the rolling window
+prune() {
+    jq -c --argjson now "$1" --argjson w "$WINDOW_SEC" '[.[] | select(. > ($now - $w))]' <<<"$cur_times"
+}
+
+# write_health <state> <times-json> <now>. `since` moves only when the state does.
+write_health() {
+    local state="$1" times="$2" t="$3" since="$3"
+    [[ "$state" == "$cur_state" && "$cur_since" -gt 0 ]] && since="$cur_since"
+    install -d -m 0755 "$HEALTH_DIR"
+    local tmp="${HEALTH_FILE}.tmp.$$"
+    jq -n --arg s "$state" --arg since "$(iso "$since")" --argjson t "$times" --arg pf "$cur_pfile" \
+        '{state: $s, since: $since, restarts: ($t | length), restart_times: $t}
+         + (if $pf == "" then {} else {provider_file: $pf} end)' > "$tmp"
+    chmod 0644 "$tmp"
+    mv -f "$tmp" "$HEALTH_FILE"
+    if [[ "$state" != "$cur_state" ]]; then
+        say "state ${cur_state:-none} -> ${state} ($(jq 'length' <<<"$times") restart(s) in the last hour)"
+    fi
+}
+
+lock() {
+    install -d -m 0755 "$HEALTH_DIR"
+    exec 9>"${HEALTH_DIR}/.lock"
+    flock -w 60 9 || die "another biab-paseo-health run holds the lock"
+}
+
+tailnet_addr() {
+    local a=""
+    if command -v tailscale >/dev/null 2>&1; then
+        a="$(tailscale ip -4 2>/dev/null | head -n1 || true)"
+    fi
+    [[ "$a" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ && "$a" != "0.0.0.0" ]] && printf '%s' "$a"
+    return 0
+}
+
+do_restart() {
+    systemctl reset-failed "$UNIT" >/dev/null 2>&1 || true
+    systemctl restart "$UNIT" || say "systemctl restart reported an error"
+}
+
+# --- provider settings (FEAT-041): report only ----------------------------------
+# The verify runs AS the box user through biab-paseo-run: the config lives in a
+# folder that user owns, so root never reads it by name. Test seam:
+# BIB_PASEO_HOME_TEST (the Paseo home itself).
+paseo_home_dir() {
+    if [[ "${BIB_PASEO_TEST:-0}" == "1" && -n "${BIB_PASEO_HOME_TEST:-}" ]]; then
+        printf '%s' "$BIB_PASEO_HOME_TEST"
+        return
+    fi
+    local home
+    home="$(getent passwd "$(box_user)" 2>/dev/null | cut -d: -f6 || true)"
+    [[ -n "$home" ]] && printf '%s/.biab/paseo' "$home"
+    return 0
+}
+
+# can_run_as_box_user: root, the box user itself, or the test seam.
+can_run_as_box_user() {
+    local u; u="$(box_user)"
+    [[ -n "$u" ]] || return 1
+    [[ "${BIB_PASEO_TEST:-0}" == "1" || "$(id -u)" -eq 0 || "$(id -un)" == "$u" ]]
+}
+
+# provider_run <verify>: output on stdout+stderr, exit status of the mode.
+provider_run() {
+    local u ph home
+    u="$(box_user)"
+    ph="$(paseo_home_dir)"
+    [[ -n "$u" && -n "$ph" ]] || return 1
+    home="$(dirname "$(dirname "$ph")")"
+    if [[ "${BIB_PASEO_TEST:-0}" == "1" || "$(id -un)" == "$u" ]]; then
+        timeout 60 env HOME="$home" PASEO_HOME="$ph" "$RUN_TARGET" providers "$1" 2>&1
+    else
+        timeout 60 runuser -u "$u" -- env HOME="$home" PASEO_HOME="$ph" "$RUN_TARGET" providers "$1" 2>&1
+    fi
+}
+
+# provider_check: record whether config.json still holds what the daemon start
+# made safe. Sets pfile_changed when the verdict moves. Never restarts or stops
+# anything.
+provider_check() {
+    local out="" v
+    can_run_as_box_user || return 0
+    if out="$(provider_run verify)"; then
+        v=ok
+    elif [[ "$out" == *unreadable* ]]; then
+        v=unreadable
+    else
+        v=changed
+    fi
+    [[ "$v" == "$cur_pfile" ]] && return 0
+    [[ "$v" == ok ]] || say "provider settings ${v} since the service started (reported in biab status)"
+    cur_pfile="$v"
+    pfile_changed=1
+}
+
+# --- check ------------------------------------------------------------------
+cmd_check() {
+    need_root
+    lock
+    read_health
+    # The provider settings are checked on EVERY pass, healthy or not: a daemon that
+    # refuses to start on an unreadable config.json is exactly the case where
+    # `biab status` has to say why.
+    pfile_changed=0
+    provider_check
+    check_body
+    persist_pfile
+}
+
+# persist_pfile: a verdict that changed on a pass that wrote no health record
+# (the daemon is down, restarting or given up) still has to reach health.json.
+persist_pfile() {
+    (( pfile_changed )) || return 0
+    local have tmp
+    have="$(jq -r '.provider_file // ""' "$HEALTH_FILE" 2>/dev/null || true)"
+    [[ "$have" != "$cur_pfile" ]] || return 0
+    if [[ -s "$HEALTH_FILE" ]] && jq -e . "$HEALTH_FILE" >/dev/null 2>&1; then
+        tmp="${HEALTH_FILE}.tmp.$$"
+        jq --arg pf "$cur_pfile" '. + {provider_file: $pf}' "$HEALTH_FILE" > "$tmp" && chmod 0644 "$tmp" && mv -f "$tmp" "$HEALTH_FILE"
+    else
+        write_health "${cur_state:-RESTARTED}" "[]" "$(now)"
+    fi
+}
+
+check_body() {
+    local t unit_state addr times
+    t="$(now)"
+    times="$(prune "$t")"
+
+    unit_state="$(systemctl is-active "$UNIT" 2>/dev/null || true)"
+    case "$unit_state" in
+        activating|deactivating|reloading)
+            # systemd is mid-restart, so it is not ours to restart or count. But
+            # a crash loop sits in "activating" for minutes, and a record that
+            # still says OK would hide it: show RESTARTED until a pass finds the
+            # daemon answering again.
+            if [[ "$cur_state" == "OK" || -z "$cur_state" ]]; then
+                write_health RESTARTED "$times" "$t"
+            fi
+            return 0 ;;
+    esac
+
+    local healthy=0
+    if [[ "$unit_state" == "active" ]]; then
+        addr="$(tailnet_addr)"
+        if [[ -z "$addr" ]]; then
+            [[ "$cur_state" == "WAITING_TAILNET" ]] || write_health WAITING_TAILNET "$times" "$t"
+            return 0
+        fi
+        if curl -fsS --max-time 5 --retry 2 --retry-delay 3 --retry-connrefused \
+                -o /dev/null "http://${addr}:${PORT}/api/health" 2>/dev/null; then
+            healthy=1
+        fi
+    fi
+
+    if (( healthy )); then
+        [[ "$cur_state" == "OK" && "$pfile_changed" -eq 0 ]] || write_health OK "$times" "$t"
+        return 0
+    fi
+
+    if [[ "$cur_state" == "GIVEN_UP" ]]; then
+        return 0   # a human takes it from here: `sudo biab paseo restart`
+    fi
+    if (( $(jq 'length' <<<"$times") >= MAX_RESTARTS )); then
+        write_health GIVEN_UP "$times" "$t"
+        say "daemon still down after ${MAX_RESTARTS} restarts in the last hour; giving up. Run: sudo biab paseo restart"
+        return 0
+    fi
+    times="$(jq -c --argjson t "$t" '. + [$t]' <<<"$times")"
+    write_health RESTARTED "$times" "$t"
+    say "daemon not healthy (unit ${unit_state:-unknown}); restarting (restart $(jq 'length' <<<"$times") of ${MAX_RESTARTS} this hour)"
+    do_restart
+}
+
+# --- failed (OnFailure of the daemon unit) ----------------------------------
+cmd_failed() {
+    need_root
+    lock
+    read_health
+    local t; t="$(now)"
+    # systemd 255 runs OnFailure= on EVERY failed run, even when Restart= is
+    # about to bring the unit back (measured in LXD, 2026-10-20). Only a unit
+    # that is still down has really been given up on.
+    case "$(systemctl is-active "$UNIT" 2>/dev/null || true)" in
+        active|activating|reloading)
+            say "${UNIT} failed once but systemd is restarting it; not recorded as FAILED"
+            return 0 ;;
+    esac
+    # GIVEN_UP is a stronger statement than FAILED: keep it.
+    [[ "$cur_state" == "GIVEN_UP" ]] && return 0
+    write_health FAILED "$(prune "$t")" "$t"
+    say "systemd gave up on ${UNIT} (start limit reached)"
+}
+
+cmd_reset() {
+    need_root
+    lock
+    read_health
+    cur_pfile=""
+    write_health RESTARTED "[]" "$(now)"
+}
+
+cmd_restart() {
+    need_root
+    lock
+    read_health
+    cur_pfile=""
+    write_health RESTARTED "[]" "$(now)"
+    do_restart
+    say "restart requested; the health check will confirm it within 2 minutes"
+    printf 'Restarting the app service. Check it with: biab status\n'
+}
+
+# --- shared lookups for block / pair ----------------------------------------
+box_user() { jq -r '.bib_user // empty' "$STATE_FILE" 2>/dev/null || true; }
+box_cli()  { jq -r '.ai_cli // empty' "$STATE_FILE" 2>/dev/null || true; }
+box_host() {
+    local h=""
+    h="$(tailscale status --json 2>/dev/null | jq -r '.Self.DNSName // empty' 2>/dev/null | sed 's/\.$//' || true)"
+    [[ -n "$h" ]] || h="$(tailnet_addr)"
+    [[ -n "$h" ]] || h="$(hostname)"
+    printf '%s' "$h"
+}
+paseo_daemon_log() {
+    if [[ "${BIB_PASEO_TEST:-0}" == "1" && -n "${BIB_PASEO_HOME_TEST:-}" ]]; then
+        printf '%s/daemon.log' "$BIB_PASEO_HOME_TEST"
+        return
+    fi
+    local u home
+    u="$(box_user)"
+    home="$(getent passwd "$u" 2>/dev/null | cut -d: -f6 || true)"
+    [[ -n "$home" ]] && printf '%s/.biab/paseo/daemon.log' "$home"
+    return 0
+}
+# Number of authenticated app connections from an address other than the box's
+# own (the box's CLI connects from the box's own tailnet address). This runs as
+# root over a file in a folder the box user owns, so the log must be a regular
+# file with no symlink in its last two folders (else it counts as empty), and an
+# unknown own address (no tailnet yet) counts as 0: never "every hello is a
+# phone". Always prints a number, so it cannot kill the caller under set -e.
+foreign_hellos() {
+    local f d n own="$1"
+    f="$(paseo_daemon_log)"
+    if [[ -z "$own" || -z "$f" || ! -f "$f" || -L "$f" || ! -r "$f" ]]; then echo 0; return 0; fi
+    d="$(dirname "$f")"
+    if [[ -L "$d" || -L "$(dirname "$d")" ]]; then echo 0; return 0; fi
+    # Bounded read (a FIFO or /dev/zero swapped in after the checks above must
+    # not hang or flood root): at most 10 MiB, at most 5 s.
+    n="$({ timeout 5 tail -c 10485760 -- "$f" 2>/dev/null || true; } | jq -Rr --arg own "$own" 'fromjson? | select(.msg == "Client connected via hello" and .remoteAddress != $own) | .remoteAddress' \
+        2>/dev/null | wc -l)" || n=0
+    n="${n//[[:space:]]/}"
+    echo "${n:-0}"
+}
+
+# --- block (biab status) ----------------------------------------------------
+# What the last health check found in config.json, in the words it can stand
+# behind: the FILE was compared with what the daemon start set; nothing is said
+# about what a running daemon holds.
+provider_block_lines() {
+    case "$cur_pfile" in
+        ok)
+            if [[ "$(box_cli)" == "antigravity" ]]; then
+                printf '  Antigravity: provider settings as set at start\n'
+            fi ;;
+        changed)
+            # While the daemon waits for the tailnet it has not started yet, so
+            # there is nothing it "changed since": the launcher sets the file
+            # right before it starts, and a restart now would only wait again.
+            [[ "$cur_state" == "WAITING_TAILNET" ]] \
+                || printf '  Antigravity: provider settings changed since the service started \xe2\x80\x94 run: sudo biab paseo restart to re-apply them\n' ;;
+        unreadable) printf '  Antigravity: provider settings unreadable (%s) \xe2\x80\x94 fix or move that file, then run: sudo biab paseo restart\n' "$(paseo_home_dir)/config.json" ;;
+    esac
+}
+
+cmd_block() {
+    if [[ ! -e "${PREFIX}/etc/systemd/system/${UNIT}" && ! -e "$HEALTH_FILE" ]]; then
+        # No daemon here: the Paseo step failed or never ran. Say so and give the
+        # SSH way in, so the box is never left without an interface.
+        local c u; c="$(box_cli)"; u="$(box_user)"
+        printf 'Phone app service: not installed on this box (retry with: sudo biab update)\n'
+        if [[ -n "$c" && -r "$REGISTRY" ]]; then
+            bash -c 'source "$1"; source "$2"; paseo_ssh_fallback_text "$3" "$4" "$5"' \
+                _ "$REGISTRY" "$(dirname "$REGISTRY")/paseo.sh" "$c" "${u:-<user>}" "$(hostname)" 2>/dev/null || true
+        fi
+        return 0
+    fi
+    read_health
+    local state="${cur_state:-UNKNOWN}" since_txt="" restarts
+    if (( cur_since > 0 )); then
+        since_txt=" since $(date -u -d "@$cur_since" '+%Y-%m-%d %H:%M UTC')"
+    fi
+    restarts="$(jq -r '(.restarts // 0)' "$HEALTH_FILE" 2>/dev/null || echo 0)"
+
+    case "$state" in
+        OK)              printf 'Phone app service: OK%s\n' "$since_txt" ;;
+        RESTARTED)       printf 'Phone app service: RESTARTED%s (restarting; the watchdog has used %s of %s restarts this hour)\n' "$since_txt" "$restarts" "$MAX_RESTARTS" ;;
+        FAILED)          printf 'Phone app service: FAILED%s (it stopped and could not restart by itself)\n' "$since_txt" ;;
+        GIVEN_UP)        printf 'Phone app service: GIVEN_UP%s (still down after %s restarts; run: sudo biab paseo restart)\n' "$since_txt" "$MAX_RESTARTS" ;;
+        WAITING_TAILNET) printf 'Phone app service: waiting for the tailnet%s (it starts as soon as Tailscale is up)\n' "$since_txt" ;;
+        *)               printf 'Phone app service: %s (no health check has run yet)\n' "$state" ;;
+    esac
+
+    provider_block_lines
+
+    if [[ "$state" != "OK" && "$state" != "WAITING_TAILNET" ]]; then
+        local user cli cmd=""
+        user="$(box_user)"; cli="$(box_cli)"
+        if [[ -n "$cli" && -r "$REGISTRY" ]]; then
+            cmd="$(bash -c "source '$REGISTRY'; ai_cli_command '$cli'" 2>/dev/null || true)"
+        fi
+        printf 'The app is not reachable, but SSH over your tailnet still works:\n'
+        printf '  ssh %s@%s' "${user:-<user>}" "$(box_host)"
+        [[ -n "$cmd" ]] && printf '  then: %s' "$cmd"
+        printf '\n'
+    fi
+
+    if [[ -e "${HEALTH_DIR}/repair-needed" ]]; then
+        printf 'Phone: re-pair needed, the password was regenerated. Run: sudo biab paseo pair\n'
+    elif [[ -e "${HEALTH_DIR}/paired" ]]; then
+        printf 'Phone: paired\n'
+    else
+        printf 'Phone: not paired yet. Run: sudo biab paseo pair\n'
+    fi
+}
+
+# --- pair -------------------------------------------------------------------
+print_pairing() {
+    local host="$1" password
+    password="$(sed -n 's/^PASEO_PASSWORD=//p' "$ENV_FILE")"
+    printf 'In the Paseo app, open Settings, then Add host,\nthen choose Direct connection and enter:\n\n'
+    printf '  Host:      %s\n' "$host"
+    printf '  Port:      %s\n' "$PORT"
+    printf '  Password:\n  %s\n\n' "$password"
+    printf 'Leave "Use SSL" off. Your phone needs Tailscale\nswitched on.\n\n'
+}
+
+cmd_pair() {
+    need_root
+    local rotate=0
+    case "${1:-}" in
+        "") ;;
+        --rotate) rotate=1 ;;
+        *) die "usage: biab paseo pair [--rotate]" ;;
+    esac
+    # The password goes to a person at a terminal, never into a pipe or a
+    # captured transcript (an agent can run this command). This prevents
+    # ACCIDENTAL leaks only: it is not a boundary against agents, which can read
+    # the password from /proc/<pid>/environ anyway (SECURITY.md). Checked before
+    # rotating, so a refused call changes nothing. Test seam: BIB_PASEO_FORCE_TTY.
+    if [[ ! -t 1 && ! ( "${BIB_PASEO_TEST:-0}" == "1" && "${BIB_PASEO_FORCE_TTY:-0}" == "1" ) ]]; then
+        die "this prints the phone password, so it only runs in a terminal (not piped or captured). Open a terminal and run: sudo biab paseo pair"
+    fi
+
+    if (( rotate )); then
+        rm -f "$ENV_FILE"
+        "$RUN_TARGET" prestart >/dev/null 2>&1 || die "could not create a new credential"
+        systemctl restart "$UNIT" || say "systemctl restart reported an error"
+        printf 'A new password was generated and the app service restarted.\n'
+        printf 'Phones paired before this must be paired again.\n\n'
+    fi
+    [[ -s "$ENV_FILE" ]] || die "no credential at ${ENV_FILE}; run 'biab update' or 'sudo systemctl restart ${UNIT}' first"
+
+    local host own before after attempts=0 answer waited wait_max="${BIB_PASEO_PAIR_WAIT:-15}"
+    host="$(box_host)"
+    own="$(tailnet_addr)"
+    before="$(foreign_hellos "$own")"
+    print_pairing "$host"
+
+    if [[ ! -t 0 && "${BIB_PASEO_TEST:-0}" != "1" ]]; then
+        printf 'Run this again from a terminal to confirm the pairing.\n'
+        return 0
+    fi
+    while (( attempts < 3 )); do
+        printf 'When the app shows your box, press Enter.\nType s to skip.\n> '
+        answer=""
+        read -r answer || { printf '\n'; break; }
+        [[ "${answer,,}" == s* ]] && break
+        waited=0
+        while :; do
+            after="$(foreign_hellos "$own")"
+            if (( after > before )); then
+                install -d -m 0755 "$HEALTH_DIR"
+                install -m 0644 /dev/null "${HEALTH_DIR}/paired"
+                rm -f "${HEALTH_DIR}/repair-needed"
+                printf 'Paired. Your phone is connected.\n'
+                return 0
+            fi
+            (( waited >= wait_max )) && break
+            sleep 1
+            waited=$((waited + 1))
+        done
+        attempts=$((attempts + 1))
+        printf 'The box does not see your phone yet. Check the password,\nthat Tailscale is on, and that "Use SSL" is off.\n\n'
+    done
+    printf 'Not confirmed. Run "sudo biab paseo pair" again when you are ready.\n'
+}
+
+case "${1:-check}" in
+    check)   cmd_check ;;
+    failed)  cmd_failed ;;
+    reset)   cmd_reset ;;
+    restart) cmd_restart ;;
+    block)   cmd_block ;;
+    pair)    shift; cmd_pair "$@" ;;
+    *)       die "unknown mode '${1}'" ;;
+esac

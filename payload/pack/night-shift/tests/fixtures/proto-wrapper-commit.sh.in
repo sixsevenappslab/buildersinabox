@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# MEASUREMENT PROTOTYPE for the QF-01 resolution (FEAT-043 T1). Not product code.
+# A root-owned wrapper the rules would allow by EXACT PATH. It ignores every
+# argument but the first (the commit message) and bakes in everything else, so a
+# prefix rule on its path cannot be widened by what the agent appends.
+set -euo pipefail
+repo='@REPO@'; branch='@BRANCH@'
+[[ "$(git -C "$repo" symbolic-ref --short HEAD)" == "$branch" ]] || { echo "refusing: not on $branch" >&2; exit 1; }
+msg="${1:?usage: commit <message>}"
+git -C "$repo" add -A
+exec git -C "$repo" -c core.hooksPath=/dev/null commit -q -m "$msg"

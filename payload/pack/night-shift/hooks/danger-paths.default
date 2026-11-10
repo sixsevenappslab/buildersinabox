@@ -1,0 +1,53 @@
+# FEAT-039 default danger list. A pass whose PR touches any of these stops at
+# the pull request whatever its reach. Installed root-owned to
+# /var/lib/buildersinabox/night-shift/guard/danger-paths. A repository can ADD
+# patterns through .biab/danger-paths (read from the base commit); it can never
+# remove one of these. Matching is case-insensitive; a pattern without `/`
+# matches the file name at any depth.
+.github/**
+.biab/**
+.env*
+*.pem
+*.key
+**/secrets*
+**/credentials*
+firestore.rules
+*.rules
+Dockerfile*
+docker-compose*
+*.tf
+**/terraform/**
+**/migrations/**
+**/auth/**
+**/*payment*
+**/*billing*
+**/*stripe*
+CODEOWNERS
+.gitattributes
+package.json
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+requirements*.txt
+pyproject.toml
+poetry.lock
+go.mod
+go.sum
+Cargo.toml
+Cargo.lock
+Gemfile*
+# What the next agent or session reads as instructions, or runs on its own:
+# a PR that changes these would be the machine writing to itself.
+CLAUDE.md
+AGENTS.md
+.claude/**
+.mcp.json
+.husky/**
+.pre-commit-config.yaml
+.gitmodules
+.npmrc
+Makefile
+# CI outside GitHub Actions.
+.gitlab-ci.yml
+.circleci/**
+Jenkinsfile
