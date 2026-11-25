@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+# Builders in a Box — manage the installed AIs (FEAT-048 R6).
+#
+#   biab subscription           list installed AIs and their login status
+#   biab subscription add <name>  install one, wire its guard/Paseo/skills, and sign in
+#   (`biab ai` is an alias of the same verb: see install/05-biab-command.sh)
+#
+# Test seam (honoured ONLY when BIB_CLI_TEST=1):
+#   BIB_CLI_ADD_STEPS     space-separated scripts to run instead of the real stack steps.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PAYLOAD_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=../lib/common.sh
+source "${PAYLOAD_DIR}/lib/common.sh"
+# shellcheck source=../lib/ai-cli.sh
+source "${PAYLOAD_DIR}/lib/ai-cli.sh"
+# shellcheck source=../lib/paseo.sh
+source "${PAYLOAD_DIR}/lib/paseo.sh"
+# shellcheck source=../lib/guard.sh
+source "${PAYLOAD_DIR}/lib/guard.sh"
+# shellcheck source=../lib/prompt.sh
+source "${PAYLOAD_DIR}/lib/prompt.sh"
+# shellcheck source=../lib/oauth.sh
+source "${PAYLOAD_DIR}/lib/oauth.sh"
+
+bib_lang_activate "$(bib_lang_current)"
+
+_resolve_box_user() {
+    local u=""
+    u="$(state_get '.bib_user // .user' 2>/dev/null || true)"
+    : "${u:=${BIB_TARGET_USER:-${BIB_USER:-${SUDO_USER:-${USER:-}}}}}"
+    printf '%s' "$u"
+}
+
+cmd_list() {
+    local user primary="" c idx=0 st mode_lbl prim_lbl
+    user="$(_resolve_box_user)"
+    local -a clis=()
+    while IFS= read -r c; do
+        [[ -n "$c" ]] && clis+=("$c")
+    done < <(ai_cli_list)
+
+    if [[ ${#clis[@]} -eq 0 ]]; then
+        msg biab.cli.none
+        return 0
+    fi
+    primary="${clis[0]}"
+    msg biab.cli.header
+    for c in "${clis[@]}"; do
+        prim_lbl=""
+        [[ "$c" == "$primary" ]] && msg_str prim_lbl biab.cli.primary_tag
+        if paseo_supports_cli "$c"; then
+            mode_lbl="Paseo"
+        else
+            mode_lbl="SSH"
+        fi
+        st=""
+        if [[ "${BIB_CLI_TEST:-0}" == "1" ]]; then
+            msg_str st biab.cli.not_signed_in
+        elif [[ -n "$user" ]]; then
+            if ai_cli_login_verify "$c" "$user" >/dev/null 2>&1; then
+                msg_str st biab.cli.signed_in
+            else
+                msg_str st biab.cli.not_signed_in
+            fi
+        else
+            msg_str st biab.cli.unknown
+        fi
+        msg biab.cli.row "$c" "$(ai_cli_display_name "$c")" "$prim_lbl" "$mode_lbl" "$st"
+        idx=$((idx + 1))
+    done
+
+    local -a avail=()
+    local installed_set=" ${clis[*]} "
+    for c in "${BIB_SUPPORTED_AI_CLIS[@]}"; do
+        [[ "$installed_set" == *" $c "* ]] || avail+=("$c")
+    done
+    if [[ ${#avail[@]} -gt 0 ]]; then
+        msg biab.cli.available "$(IFS=,; printf '%s' "${avail[*]}" | sed 's/,/, /g')"
+    fi
+}
+
+cmd_add() {
+    local cli="${1:-}"
+    if [[ -z "$cli" ]]; then
+        msg biab.cli.usage >&2
+        exit 64
+    fi
+    local valid=0 s
+    for s in "${BIB_SUPPORTED_AI_CLIS[@]}"; do
+        [[ "$s" == "$cli" ]] && valid=1
+    done
+    if [[ "$valid" -eq 0 ]]; then
+        msg biab.cli.unknown_cli "$cli" "${BIB_SUPPORTED_AI_CLIS[*]}" >&2
+        exit 64
+    fi
+
+    [[ "${BIB_CLI_TEST:-0}" == "1" ]] || require_root
+
+    local user user_home
+    user="$(_resolve_box_user)"
+    [[ -n "$user" ]] || die "biab-cli: could not resolve box user"  # i18n-ok: maintainer diagnostic
+    user_home="${BIB_USER_HOME:-$(getent passwd "$user" 2>/dev/null | cut -d: -f6 || true)}"
+    [[ -n "$user_home" && -d "$user_home" ]] || die "biab-cli: home directory for '${user}' not found"  # i18n-ok: maintainer diagnostic
+
+    msg biab.cli.adding "$(ai_cli_display_name "$cli")"
+
+    local script rc=0
+    if [[ "${BIB_CLI_TEST:-0}" == "1" && -n "${BIB_CLI_ADD_STEPS:-}" ]]; then
+        local -a steps
+        read -ra steps <<<"$BIB_CLI_ADD_STEPS"
+        for script in "${steps[@]}"; do
+            [[ "$script" == /* ]] || script="${PAYLOAD_DIR}/${script}"
+            [[ -x "$script" ]] || die "biab-cli: install step not executable: ${script}"  # i18n-ok: maintainer diagnostic
+            log "biab-cli: running ${script} for ${cli}"
+            rc=0
+            "$script" >>"$BIB_LOG_FILE" 2>&1 || rc=$?
+            if [[ "$rc" -ne 0 ]]; then
+                msg biab.cli.install_failed "$(ai_cli_display_name "$cli")" "$rc" "$BIB_LOG_FILE" >&2
+                exit "$rc"
+            fi
+        done
+        ai_cli_add_to_state "$cli"
+    else
+        # Install the CLI binary FIRST; only persist into state.json once the
+        # binary install succeeds so a network failure never leaves a broken CLI
+        # recorded in .ai_clis (FEAT-048 R6, R10).
+        local bin_script
+        bin_script="${PAYLOAD_DIR}/$(ai_cli_install_script "$cli")"
+        [[ -x "$bin_script" ]] || die "biab-cli: install step not executable: ${bin_script}"  # i18n-ok: maintainer diagnostic
+        log "biab-cli: running ${bin_script} for ${cli}"
+        "$bin_script" >>"$BIB_LOG_FILE" 2>&1 || rc=$?
+        if [[ "$rc" -ne 0 ]]; then
+            msg biab.cli.install_failed "$(ai_cli_display_name "$cli")" "$rc" "$BIB_LOG_FILE" >&2
+            exit "$rc"
+        fi
+        ai_cli_add_to_state "$cli"
+        for script in "install/46-paseo.sh" "install/47-cli-guard.sh" "install/48-user-content.sh"; do
+            local full="${PAYLOAD_DIR}/${script}"
+            [[ -x "$full" ]] || die "biab-cli: install step not executable: ${full}"  # i18n-ok: maintainer diagnostic
+            log "biab-cli: running ${full} for ${cli}"
+            rc=0
+            "$full" >>"$BIB_LOG_FILE" 2>&1 || rc=$?
+            if [[ "$rc" -ne 0 ]]; then
+                msg biab.cli.install_failed "$(ai_cli_display_name "$cli")" "$rc" "$BIB_LOG_FILE" >&2
+                exit "$rc"
+            fi
+        done
+    fi
+
+    # Seed CLI settings as box user if workspace exists.
+    if [[ -d "${user_home}/ai-platform" && "${BIB_CLI_TEST:-0}" != "1" ]]; then
+        paseo_as_user "$user" env HOME="$user_home" bash -c '
+            set -euo pipefail
+            source "$1/lib/common.sh"
+            source "$1/lib/ai-cli.sh"
+            ai_cli_seed_settings "$2" "$3" "$4"
+        ' _ "$PAYLOAD_DIR" "$cli" "$user_home" "${user_home}/ai-platform" || true
+    fi
+
+    # Login (skip in mock mode or if already signed in).
+    if [[ "${BIB_OAUTH_MOCK:-0}" != "1" ]]; then
+        local vcmd
+        vcmd="$(ai_cli_login_verify_cmd "$cli" "$user")"
+        if bash -c "$vcmd" >/dev/null 2>&1; then
+            msg biab.cli.already_signed_in "$(ai_cli_display_name "$cli")"
+        else
+            msg biab.cli.login_start "$(ai_cli_display_name "$cli")" "$(ai_cli_account_hint "$cli")"
+            ( ai_cli_login_run "$cli" "$user" ) || true
+            if ! bash -c "$vcmd" >/dev/null 2>&1; then
+                sleep 3
+                if ! bash -c "$vcmd" >/dev/null 2>&1; then
+                    msg biab.cli.login_failed "$(ai_cli_display_name "$cli")" "$cli" >&2
+                    exit 1
+                fi
+            fi
+        fi
+    fi
+
+    guard_pending_note "$cli" "$user_home" || true
+    msg biab.cli.added "$(ai_cli_display_name "$cli")"
+}
+
+case "${1:-}" in
+    ""|list) cmd_list ;;
+    add)     shift; cmd_add "$@" ;;
+    *)       msg biab.cli.usage >&2; exit 64 ;;
+esac

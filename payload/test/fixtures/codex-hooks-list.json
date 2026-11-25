@@ -1,0 +1,452 @@
+{
+ "_note": "Responses of the real `codex app-server` hooks/list (codex-cli 0.162.1, scratch CODEX_HOME, no login, no model), captured 2026-11-05. @CH@ is the Codex home and @HOOKS@ the hooks directory the test substitutes. untrusted, invalid_json, invalid_toml, both_files and empty are verbatim captures; trusted, modified, managed and disabled are the untrusted capture with trustStatus/isManaged/enabled edited by hand, because the approval is a TUI step no offline run can make. wrong_event, wrong_matcher and wrong_event_first are the trusted/untrusted captures with eventName or matcher edited by hand (a hook of ours registered under another event or matcher is not the guard).",
+ "untrusted": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "untrusted"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "invalid_json": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [],
+     "warnings": [
+      "failed to parse hooks config @CH@/hooks.json: key must be a string at line 1 column 3"
+     ],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "invalid_toml": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "@CH@",
+     "hooks": [],
+     "warnings": [],
+     "errors": [
+      {
+       "path": "@CH@",
+       "message": "@CH@/config.toml:1:19: unclosed array table, expected `]]`"
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "both_files": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "untrusted"
+      },
+      {
+       "key": "@CH@/config.toml:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "/u/mine.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 600,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/config.toml",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 1,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:315ce82b2874aefb370aa7a5eb33aabbc11267bdc5b9e9ae2bda9e1ca78f428d",
+       "trustStatus": "untrusted"
+      }
+     ],
+     "warnings": [
+      "loading hooks from both @CH@/hooks.json and @CH@/config.toml; prefer a single representation for this layer"
+     ],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "empty": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "trusted": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "trusted"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "modified": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "modified"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "managed": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": true,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "managed"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "disabled": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": false,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "trusted"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "unknown_trust": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "something-new"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "foreign_only": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "/u/mine.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "untrusted"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "wrong_event": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "postToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "trusted"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "wrong_matcher": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Edit",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "trusted"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ },
+ "wrong_event_first": {
+  "id": 2,
+  "result": {
+   "data": [
+    {
+     "cwd": "/home/user",
+     "hooks": [
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "postToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "trusted"
+      },
+      {
+       "key": "@CH@/hooks.json:pre_tool_use:0:0",
+       "eventName": "preToolUse",
+       "handlerType": "command",
+       "command": "@HOOKS@/biab-guardrail-codex.sh",
+       "async": false,
+       "matcher": "Bash",
+       "timeoutSec": 10,
+       "statusMessage": null,
+       "additionalContextLimit": null,
+       "sourcePath": "@CH@/hooks.json",
+       "source": "user",
+       "pluginId": null,
+       "displayOrder": 0,
+       "enabled": true,
+       "isManaged": false,
+       "currentHash": "sha256:a90f15e9374dfd5c42e290eb9132271b390c6860c10d1aedc3c6f23dc67c29f6",
+       "trustStatus": "untrusted"
+      }
+     ],
+     "warnings": [],
+     "errors": []
+    }
+   ]
+  }
+ }
+}

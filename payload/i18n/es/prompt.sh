@@ -1,0 +1,27 @@
+# shellcheck shell=bash disable=SC2034,SC2154
+# FEAT-045 T2: las ayudas de preguntas (lib/prompt.sh): cabecera de paso,
+# preguntas de elección, texto y contraseña, enlaces y códigos QR. Es la gemela
+# de ../en/prompt.sh: mismas claves, mismos %s.
+BIB_MSG[prompt.step.label]='Paso %s de %s'
+BIB_MSG[prompt.step.left]='Falta: %s'
+BIB_MSG[prompt.card.pick]='Elige una'
+BIB_MSG[prompt.card.pick_multi]='Elige una o varias'
+BIB_MSG[prompt.choice.hint]='Escribe un número'
+BIB_MSG[prompt.multi.hint]='Números separados por espacio'
+BIB_MSG[prompt.choice.ask]='Tu elección [%s]'
+BIB_MSG[prompt.choice.invalid]='"%s" no es una opción válida. Inténtalo de nuevo.\n'
+BIB_MSG[prompt.multi.ask]='(ej. 1 3) [%s]'
+BIB_MSG[prompt.multi.invalid]='"%s" no es válido.\nEscribe números como 1 3 e inténtalo de nuevo.\n'
+BIB_MSG[prompt.text.required]='Hace falta un valor. Inténtalo de nuevo.\n\n'
+BIB_MSG[prompt.text.nomatch]='"%s" no tiene el formato esperado. Inténtalo de nuevo.\n\n'
+BIB_MSG[prompt.password.ask]='Contraseña (mínimo %d caracteres): '
+BIB_MSG[prompt.password.short]='Demasiado corta (tiene %d, mínimo %d). Inténtalo de nuevo.\n\n'
+BIB_MSG[prompt.password.again]='Escríbela otra vez para confirmar: '
+BIB_MSG[prompt.password.mismatch]='Las contraseñas no coinciden. Inténtalo de nuevo.\n\n'
+BIB_MSG[prompt.project.hint]='letras minúsculas, dígitos y guiones. De 2 a 31 caracteres. No puede ser platform/stratops/projects.'
+BIB_MSG[prompt.project.ask]='Elige un nombre para tu primer proyecto:'
+BIB_MSG[prompt.project.reserved]='"%s" es un nombre reservado. Inténtalo de nuevo.\n\n'
+BIB_MSG[prompt.confirm.default]='Pulsa Enter cuando hayas completado el paso anterior.'
+BIB_MSG[prompt.url.label]='Abre este enlace en tu teléfono:'
+BIB_MSG[prompt.url.scan]='...o escanea esto con una cámara desde otro dispositivo:'
+BIB_MSG[prompt.qr.toowide]='(El código QR es demasiado ancho para esta pantalla,\nasí que no se dibuja. Usa el enlace de arriba.)\n\n'

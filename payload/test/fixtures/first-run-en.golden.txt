@@ -1,0 +1,2029 @@
+=== header-40
+
+Step 1 of 6 - Secure
+#.......  About 8 minutes left
+
+
+Step 6 of 6 - Done
+########  About a moment left
+
+[rc=0]
+=== header-80
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+[rc=0]
+=== milestone--yes
+1|Secure this box|8 minutes
+[rc=0]
+=== milestone--no
+1|Secure this box|8 minutes
+[rc=0]
+=== milestone-password_set-yes
+2|Connect privately|6 minutes
+[rc=0]
+=== milestone-password_set-no
+2|Connect privately|6 minutes
+[rc=0]
+=== milestone-password_set,tailscale_done-yes
+4|Connect your AI|3 minutes
+[rc=0]
+=== milestone-password_set,tailscale_done-no
+3|Continue remotely|4 minutes
+[rc=0]
+=== milestone-password_set,tailscale_done,ai_cli_done-yes
+5|Prepare your workspace|1 minute
+[rc=0]
+=== milestone-password_set,tailscale_done,ai_cli_done-no
+3|Continue remotely|4 minutes
+[rc=0]
+=== milestone-password_set,tailscale_done,ai_cli_done,scaffold_done-yes
+6|Start building|a moment
+[rc=0]
+=== milestone-password_set,tailscale_done,ai_cli_done,scaffold_done-no
+3|Continue remotely|4 minutes
+[rc=0]
+=== milestone-password_set,tailscale_done,ai_cli_done,scaffold_done,x-yes
+6|Start building|a moment
+[rc=0]
+=== milestone-password_set,tailscale_done,ai_cli_done,scaffold_done,x-no
+3|Continue remotely|4 minutes
+[rc=0]
+=== confirm-default
+Press Enter when you have completed the step above.
+
+Press Enter to go.
+[rc=0]
+=== choice-enter
+  + Pick one: -----+
+  | 1  claude      |
+  | 2  antigravity |
+  | 3  codex       |
+  +----------------+
+  Type a number
+  Your choice [claude] > V=claude
+[rc=0]
+=== choice-bad-then-num
+  + Pick one: -----+
+  | 1  claude      |
+  | 2  antigravity |
+  | 3  codex       |
+  +----------------+
+  Type a number
+  Your choice [claude] > ! Sorry, "9" is not a valid choice. Try again.
+  Your choice [claude] > ! Sorry, "zzz" is not a valid choice. Try again.
+  Your choice [claude] > V=antigravity
+[rc=0]
+=== choice-name
+  + Pick one: -----+
+  | 1  claude      |
+  | 2  antigravity |
+  | 3  codex       |
+  +----------------+
+  Type a number
+  Your choice [claude] > V=codex
+[rc=0]
+=== choice-eof
+  + Pick one: -----+
+  | 1  claude      |
+  | 2  antigravity |
+  | 3  codex       |
+  +----------------+
+  Type a number
+  Your choice [claude] > 
+[TS] WARN: prompt_choice: input stream ended unexpectedly
+[rc=1]
+=== text-flow
+Name?
+(lowercase only)
+> ! A value is required. Try again.
+
+Name?
+(lowercase only)
+> ! Sorry, "foo!" does not match the expected format. Try again.
+
+Name?
+(lowercase only)
+> V=okname
+[rc=0]
+=== text-eof
+Name?
+> 
+[TS] WARN: prompt_text: input stream ended unexpectedly
+[rc=1]
+=== project-reserved
+Pick a name for your first project:
+(lowercase letters, digits and hyphens. 2-31 chars. Cannot be platform/stratops/projects.)
+> ! "platform" is a reserved name. Try again.
+
+Pick a name for your first project:
+(lowercase letters, digits and hyphens. 2-31 chars. Cannot be platform/stratops/projects.)
+> V=myproj
+[rc=0]
+=== project-eof
+Pick a name for your first project:
+(lowercase letters, digits and hyphens. 2-31 chars. Cannot be platform/stratops/projects.)
+> 
+[TS] WARN: prompt_text: input stream ended unexpectedly
+[rc=1]
+=== password-notty
+Pick a strong password:
+
+[TS] WARN: prompt_password: no tty available
+[rc=1]
+=== url-qr
+
+Open this URL on your phone:
+
+    >  https://example.invalid/x
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+
+Custom label:
+
+    >  https://example.invalid/y
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+[rc=0]
+=== url-noqr
+
+Open this URL on your phone:
+
+    >  https://example.invalid/x
+
+[rc=0]
+=== qr-wide
+(The QR code is too wide for this screen, so it
+is not drawn. Use the link above.)
+
+[rc=0]
+=== header-plain
+
+
+  Hello there
+  -----------
+
+[rc=0]
+=== banner
+6
+[rc=0]
+=== oauth-mock
+
+
+  Login: Tailscale
+  ----------------
+
+
+Mocked URL (BIB_OAUTH_MOCK=1):
+
+    >  https://example.invalid/mock/Tailscale
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+[rc=0]
+=== oauth-nocon
+
+
+  Login: Tailscale
+  ----------------
+
+https://x.invalid/a
+
+Open this link on your phone to finish the Tailscale login:
+
+    >  https://x.invalid/a
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+BIB_AGENT_PAUSE: step=Tailscale url=https://x.invalid/a
+[TS] WARN: oauth_step(Tailscale): no console attached, pausing for external login — rerun the same command once Tailscale login is complete
+[rc=78]
+=== oauth-ok
+
+
+  Login: Tailscale
+  ----------------
+
+https://x.invalid/a
+
+Open this link on your phone to finish the Tailscale login:
+
+    >  https://x.invalid/a
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+Press Enter once you have completed the Tailscale login.
+[rc=0]
+=== oauth-nourl
+
+
+  Login: Tailscale
+  ----------------
+
+nothing
+[TS] WARN: oauth_step(Tailscale): no URL captured automatically. Read the output above.
+Press Enter once you have completed the Tailscale login.
+[rc=0]
+=== oauth-verify-fail
+
+
+  Login: Tailscale
+  ----------------
+
+https://x.invalid/a
+
+Open this link on your phone to finish the Tailscale login:
+
+    >  https://x.invalid/a
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+Press Enter once you have completed the Tailscale login.
+[TS] ERROR: Tailscale verification failed. Rerun install.sh to resume.
+[rc=1]
+=== qr-watch
+
+
+Or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+[rc=0]
+=== cli-text-claude
+Claude Code
+a Claude Pro or Max account (a paid plan)
+claude verification failed. Re-run install.sh to retry the login.
+7bc073a606abe82414e8d5d3dc791e50  -
+[rc=0]
+=== cli-login-claude
+You will sign in with your Claude Pro or Max account.
+
+  1. Claude prints a long link. Open it in your browser
+     (touch and hold the link to copy it).
+  2. Sign in and tap Authorize.
+  3. The page shows a code. Copy it.
+  4. Come back here, paste the code at the prompt that
+     says "Paste code here" and press Enter ONCE.
+
+Claude also says "Opening browser". Ignore that line:
+this box has no screen, so nothing opens.
+
+Do not press Enter again until you have the code.
+
+Press Enter to get your sign-in link.
+
+https://claude.invalid/oauth/authorize?x=1
+Paste code here if prompted > [code=]
+
+[rc=0]
+=== cli-text-antigravity
+Antigravity (agy)
+a Google account
+agy login could not be verified. To retry: re-run 'sudo /opt/buildersinabox/payload/install.sh' and complete the Google OAuth (choose 'Google OAuth', paste the authorization code). If it keeps failing, confirm you finished the sign-in in the browser — a successful login writes a token to ~builder/.gemini/antigravity-cli/antigravity-oauth-token.
+7bc073a606abe82414e8d5d3dc791e50  -
+[rc=0]
+=== cli-login-antigravity
+Antigravity (agy) signs in on its own screen. You will
+need a Google account. When it opens:
+
+  1. Choose the login menu entry:  Google OAuth
+  2. agy prints a long sign-in link. Touch and hold it to
+     copy it (it may wrap over several lines: copy it
+     all), open it in your browser and sign in.
+  3. Paste the authorization code it gives you back into
+     agy.
+  4. agy may ask a few setup questions (colour,
+     telemetry, trust this folder). Accept the defaults.
+  5. Back at the agy prompt, type  /quit  (or Ctrl+D) to
+     hand control back to the setup.
+
+When you leave agy, the setup checks the login and goes on.
+Press Enter to launch agy.
+agy tui
+[rc=0]
+=== cli-text-codex
+Codex
+a ChatGPT account
+codex login could not be verified. Most often the ChatGPT 'device code login' toggle is still off — enable it (ChatGPT → Settings → Security) and re-run 'sudo /opt/buildersinabox/payload/install.sh'. Fallbacks: forward Codex's local login port over SSH and log in normally ('ssh -L 1455:localhost:1455 builder@<box>' then 'codex login'), or set an API key with 'codex login --api-key'. A successful login writes a token to ~builder/.codex/auth.json.
+7bc073a606abe82414e8d5d3dc791e50  -
+[rc=0]
+=== cli-login-codex
+Codex signs in with your ChatGPT account, using a device
+code. First, in your browser:
+
+  1. Open ChatGPT > Settings > Security and turn ON
+     "device code login" (also called "device
+     authorization"). Without it the login is refused.
+
+Then we start the login here:
+
+  2. This screen prints a link and a short code.
+  3. Open the link in a real browser (Chrome or Safari),
+     not in the ChatGPT app. Sign in, type the code and
+     approve. There is no QR code in this flow.
+  4. When you approve, this screen notices by itself: there
+     is nothing to paste back here.
+
+Press Enter to start the Codex login.
+codex login stub
+[rc=0]
+=== cli-text-opencode
+OpenCode
+an OpenCode key, or another AI provider account
+OpenCode is not logged in yet. To log in later: connect to the box as builder, run 'opencode auth login', choose OpenCode Go or Zen and paste your key from https://opencode.ai/auth, then run 'biab' to continue the setup.
+7bc073a606abe82414e8d5d3dc791e50  -
+[rc=0]
+=== cli-login-opencode
+OpenCode signs in from its own menu. Before it opens:
+
+  1. In your browser, open  https://opencode.ai/auth ,
+     sign in, add your billing details and copy your API
+     key (OpenCode Go or Zen). Prefer another provider
+     you already pay for? Choose it in the menu instead.
+  2. We start OpenCode's login now. Choose OpenCode Go or
+     OpenCode Zen and paste the key when it asks.
+  3. When it says the credential was saved, the setup
+     goes on by itself.
+
+Press Enter to start the OpenCode login.
+<W>/stubs/sudo: line 3: /usr/local/bin/opencode: No such file or directory
+
+OpenCode is not logged in yet. To log in later: connect to the box as builder, run 'opencode auth login', choose OpenCode Go or Zen and paste your key from https://opencode.ai/auth, then run 'biab' to continue the setup.
+[rc=78]
+=== cli-menu
+  + Choose one or more ----------------+
+  | 1  Claude (Pro/Max) -> Claude Code |
+  | 2  Google           -> Antigravity |
+  | 3  ChatGPT          -> Codex       |
+  | 4  Other / API      -> OpenCode    |
+  +------------------------------------+
+  + Choose one or more --------+
+  | 1  ChatGPT     -> Codex    |
+  | 2  Other / API -> OpenCode |
+  +----------------------------+
+[rc=0]
+=== cli-first-prompt
+This is the first message on a brand-new Builders in a Box, and I may never have used anything like it. Run the tutorial skill and guide me through it, with these rules for your very first reply. One: welcome me in a few short lines. Say what this box is (a private computer that builds software with me and that I control from my phone), what the setup just installed (my AI, a private link to my devices, a workspace with ready-made skills) and what the next 10 minutes look like (connect GitHub, pick a first project, create it, a short tour). Two: always tell me what you are about to do, and why, before you do it, and wait for my go-ahead before anything that changes the box. Three: keep every message short and end it with one question. Four: read the install profile in /var/lib/buildersinabox/state.json so you call this machine by the right name.[rc=0]
+=== bridge-laptop
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+Use your laptop for the rest of setup.
+
+1. Install Tailscale.
+   Sign in with the same account:
+
+https://tailscale.com/download
+
+2. Open its terminal and connect:
+
+ssh builder@biabox
+
+If that name does not work, use:
+
+ssh builder@100.64.1.2
+
+3. In the SSH session, run:
+
+biab
+[rc=0]
+=== bridge-phone
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+On your phone, install Tailscale.
+Sign in with the same account:
+
+https://tailscale.com/download
+Press Enter when it says Connected.
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+Install an SSH app, such as Termius:
+
+https://termius.com/download
+Press Enter when your SSH app is ready.
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+Create a new SSH connection with:
+
+Host
+biabox
+
+Username
+builder
+
+Password
+The password you set in step 1.
+
+If the host name does not work, use:
+
+100.64.1.2
+
+After connecting, run:
+
+biab
+[rc=0]
+=== bridge-main-laptop
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+The next login is easier with copy and paste.
+Choose your device. You will only see its instructions.
+  + Where will you continue? +
+  | 1  Laptop (recommended)  |
+  | 2  Phone                 |
+  +--------------------------+
+  Type a number
+  Your choice [Laptop (recommended)] > 
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+Use your laptop for the rest of setup.
+
+1. Install Tailscale.
+   Sign in with the same account:
+
+https://tailscale.com/download
+
+2. Open its terminal and connect:
+
+ssh builder@biabox.europe-west1-b.c.proj.internal
+
+If that name does not work, use:
+
+ssh builder@100.64.1.2
+
+3. In the SSH session, run:
+
+biab
+
+The monitor is finished. Continue with the SSH session.
+[rc=78]
+=== bridge-main-phone
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+The next login is easier with copy and paste.
+Choose your device. You will only see its instructions.
+  + Where will you continue? +
+  | 1  Laptop (recommended)  |
+  | 2  Phone                 |
+  +--------------------------+
+  Type a number
+  Your choice [Laptop (recommended)] > 
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+On your phone, install Tailscale.
+Sign in with the same account:
+
+https://tailscale.com/download
+Press Enter when it says Connected.
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+Install an SSH app, such as Termius:
+
+https://termius.com/download
+Press Enter when your SSH app is ready.
+
+Step 3 of 6 - Continue remotely
+######......  About 4 minutes left
+
+Create a new SSH connection with:
+
+Host
+biabox.europe-west1-b.c.proj.internal
+
+Username
+builder
+
+Password
+The password you set in step 1.
+
+If the host name does not work, use:
+
+100.64.1.2
+
+After connecting, run:
+
+biab
+
+The monitor is finished. Continue with the SSH session.
+[rc=78]
+=== ssh-cloud-notice
+
+Step 3 of 6 - Check how you connect
+######......  About a moment left
+
+Your cloud provider manages SSH on this server
+(provider-managed). Builders in a Box does not change it:
+no password login is added and no SSH setting is touched.
+
+Port 22 may still be open to the internet. Closing it is
+done in your provider's console, later, once you are sure
+the app works.
+
+Done: SSH is left as your provider set it.
+
+Press Enter to continue.
+[rc=0]
+=== ssh-hold-open-1
+
+
+  SSH is still open to the internet on this box
+  ------------------------------------
+
+This machine is reachable over SSH from 203.0.113.9, which is OUTSIDE
+your Tailscale network — and there is no SSH key on file yet, so a password
+is the only way in. Disabling it now would lock you out, so Builders in a
+Box has NOT marked SSH as secured on this box.
+
+What this means: until you close it, anyone on the internet can try to
+brute-force your password over SSH.
+
+To close it, do EITHER of these:
+
+  1. Reconnect to this box over Tailscale, then run:
+       ssh builder@100.64.1.2      # verify tailnet reachability
+       sudo BIB_SSH_FORCE_TAILSCALE=1 \
+           /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+     (binds sshd to your private Tailscale address only)
+
+  2. Finish /tutorial in the Claude Code app — Beat 2 imports your GitHub
+     SSH key and closes this automatically.
+
+Recovery if you ever get locked out is documented in ~/README.md
+("If SSH ever fails") and SECURITY.md.
+I understand my SSH is still exposed to the internet with a password. What now?
+  Choose one
+  1  reconnect-over-tailscale-first
+  2  I-understand-continue-exposed-for-now
+  Type a number
+  Your choice [reconnect-over-tailscale-first] > [rc=0]
+=== ssh-hold-open-2
+
+
+  SSH is still open to the internet on this box
+  ------------------------------------
+
+This machine is reachable over SSH from 203.0.113.9, which is OUTSIDE
+your Tailscale network — and there is no SSH key on file yet, so a password
+is the only way in. Disabling it now would lock you out, so Builders in a
+Box has NOT marked SSH as secured on this box.
+
+What this means: until you close it, anyone on the internet can try to
+brute-force your password over SSH.
+
+To close it, do EITHER of these:
+
+  1. Reconnect to this box over Tailscale, then run:
+       ssh builder@100.64.1.2      # verify tailnet reachability
+       sudo BIB_SSH_FORCE_TAILSCALE=1 \
+           /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+     (binds sshd to your private Tailscale address only)
+
+  2. Finish /tutorial in the Claude Code app — Beat 2 imports your GitHub
+     SSH key and closes this automatically.
+
+Recovery if you ever get locked out is documented in ~/README.md
+("If SSH ever fails") and SECURITY.md.
+I understand my SSH is still exposed to the internet with a password. What now?
+  Choose one
+  1  reconnect-over-tailscale-first
+  2  I-understand-continue-exposed-for-now
+  Type a number
+  Your choice [reconnect-over-tailscale-first] > [TS] WARN: 35-ssh-finalize: user acknowledged the residual public SSH exposure
+[rc=0]
+=== ssh-hold-open-eof
+
+
+  SSH is still open to the internet on this box
+  ------------------------------------
+
+This machine is reachable over SSH from 203.0.113.9, which is OUTSIDE
+your Tailscale network — and there is no SSH key on file yet, so a password
+is the only way in. Disabling it now would lock you out, so Builders in a
+Box has NOT marked SSH as secured on this box.
+
+What this means: until you close it, anyone on the internet can try to
+brute-force your password over SSH.
+
+To close it, do EITHER of these:
+
+  1. Reconnect to this box over Tailscale, then run:
+       ssh builder@100.64.1.2      # verify tailnet reachability
+       sudo BIB_SSH_FORCE_TAILSCALE=1 \
+           /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+     (binds sshd to your private Tailscale address only)
+
+  2. Finish /tutorial in the Claude Code app — Beat 2 imports your GitHub
+     SSH key and closes this automatically.
+
+Recovery if you ever get locked out is documented in ~/README.md
+("If SSH ever fails") and SECURITY.md.
+[rc=0]
+=== ssh-hold-open-ni
+
+
+  SSH is still open to the internet on this box
+  ------------------------------------
+
+This machine is reachable over SSH from 203.0.113.9, which is OUTSIDE
+your Tailscale network — and there is no SSH key on file yet, so a password
+is the only way in. Disabling it now would lock you out, so Builders in a
+Box has NOT marked SSH as secured on this box.
+
+What this means: until you close it, anyone on the internet can try to
+brute-force your password over SSH.
+
+To close it, do EITHER of these:
+
+  1. Reconnect to this box over Tailscale, then run:
+       ssh builder@100.64.1.2      # verify tailnet reachability
+       sudo BIB_SSH_FORCE_TAILSCALE=1 \
+           /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+     (binds sshd to your private Tailscale address only)
+
+  2. Finish /tutorial in the Claude Code app — Beat 2 imports your GitHub
+     SSH key and closes this automatically.
+
+Recovery if you ever get locked out is documented in ~/README.md
+("If SSH ever fails") and SECURITY.md.
+[rc=0]
+=== ssh-hold-open-ack
+
+
+  SSH is still open to the internet on this box
+  ------------------------------------
+
+This machine is reachable over SSH from 203.0.113.9, which is OUTSIDE
+your Tailscale network — and there is no SSH key on file yet, so a password
+is the only way in. Disabling it now would lock you out, so Builders in a
+Box has NOT marked SSH as secured on this box.
+
+What this means: until you close it, anyone on the internet can try to
+brute-force your password over SSH.
+
+To close it, do EITHER of these:
+
+  1. Reconnect to this box over Tailscale, then run:
+       ssh builder@100.64.1.2      # verify tailnet reachability
+       sudo BIB_SSH_FORCE_TAILSCALE=1 \
+           /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+     (binds sshd to your private Tailscale address only)
+
+  2. Finish /tutorial in the Claude Code app — Beat 2 imports your GitHub
+     SSH key and closes this automatically.
+
+Recovery if you ever get locked out is documented in ~/README.md
+("If SSH ever fails") and SECURITY.md.
+[rc=0]
+=== ssh-reconnect
+
+
+  SSH hardened to key-only (still reachable, not yet tailnet-only)
+  ------------------------------------
+
+You're connected from outside your Tailscale network, so SSH still listens
+on the public interface — but password login is now OFF, so it can't be
+brute-forced (key-only).
+
+To finish locking SSH to your private Tailscale address only, reconnect over
+Tailscale first (so you can't get locked out), then run:
+
+    ssh builder@100.64.1.2      # verify tailnet reachability
+    sudo BIB_SSH_FORCE_TAILSCALE=1 \
+        /opt/buildersinabox/payload/wizard/35-ssh-finalize.sh
+
+Recovery if you get locked out is in ~/README.md ("If SSH ever fails")
+and SECURITY.md.
+[rc=0]
+=== ssh-main-cloud
+
+Step 3 of 6 - Check how you connect
+######......  About a moment left
+
+Your cloud provider manages SSH on this server
+(provider-managed). Builders in a Box does not change it:
+no password login is added and no SSH setting is touched.
+
+Port 22 may still be open to the internet. Closing it is
+done in your provider's console, later, once you are sure
+the app works.
+
+Done: SSH is left as your provider set it.
+
+Press Enter to continue.
+[rc=0]
+=== tailscale-mock
+
+Step 2 of 6 - Connect privately
+####........  About 6 minutes left
+
+Tailscale makes a private link between this box and your
+phone or laptop. Only your own devices can use it.
+
+You will need: a Tailscale account (free). The sign-in
+page lets you create one, or use Google, Microsoft or
+Apple.
+
+Next, a link and a QR code appear. Open the link on your
+phone, sign in and approve this box.
+
+Press Enter to get the Tailscale link.
+
+
+  Login: Tailscale
+  ----------------
+
+
+Mocked URL (BIB_OAUTH_MOCK=1):
+
+    >  https://example.invalid/mock/Tailscale
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+
+* Done: this box is on your private network.
+Name: biabox
+Address: 100.64.1.2
+[rc=0]
+=== tailscale-real
+
+Step 2 of 6 - Connect privately
+####........  About 6 minutes left
+
+Tailscale makes a private link between this box and your
+phone or laptop. Only your own devices can use it.
+
+You will need: a Tailscale account (free). The sign-in
+page lets you create one, or use Google, Microsoft or
+Apple.
+
+Next, a link and a QR code appear. Open the link on your
+phone, sign in and approve this box.
+
+Press Enter to get the Tailscale link.
+
+
+  Login: Tailscale
+  ----------------
+
+To authenticate, visit:
+https://login.tailscale.invalid/a/abc123
+
+Open this link on your phone to finish the Tailscale login:
+
+    >  https://login.tailscale.invalid/a/abc123
+
+...or scan this with a camera on another device:
+
+  ██ ██
+  █   █
+  ██ ██
+
+Press Enter once you have completed the Tailscale login.
+
+* Done: this box is on your private network.
+Name: biabox
+Address: 100.64.1.2
+[rc=0]
+=== password-already
+skip
+[rc=0]
+=== choose-cli-menu
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+Pick the AIs you pay for and install them on this box.
+The first one you pick is primary (runs /tutorial).
+Press Enter to keep: Claude Code
+
+Which AI subscriptions do you have?
+  + Your AI subscriptions -------------+
+  | 1  Claude (Pro/Max) -> Claude Code |
+  | 2  Google           -> Antigravity |
+  | 3  ChatGPT          -> Codex       |
+  | 4  Other / API      -> OpenCode    |
+  +------------------------------------+
+  Numbers separated by spaces
+  (e.g. 1 3) [1] > 
+* Done: using Claude Code.
+
+To sign in you will need:
+  a Claude Pro or Max account (a paid plan)
+
+[rc=0]
+=== choose-cli-yes
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+Pick the AIs you pay for and install them on this box.
+The first one you pick is primary (runs /tutorial).
+Press Enter to keep: Claude Code
+
+Which AI subscriptions do you have?
+  + Your AI subscriptions -------------+
+  | 1  Claude (Pro/Max) -> Claude Code |
+  | 2  Google           -> Antigravity |
+  | 3  ChatGPT          -> Codex       |
+  | 4  Other / API      -> OpenCode    |
+  +------------------------------------+
+  Numbers separated by spaces
+  (e.g. 1 3) [1] > 
+* Done: using Claude Code.
+
+To sign in you will need:
+  a Claude Pro or Max account (a paid plan)
+
+[rc=0]
+=== choose-cli-switch
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+Pick the AIs you pay for and install them on this box.
+The first one you pick is primary (runs /tutorial).
+Press Enter to keep: Claude Code
+
+Which AI subscriptions do you have?
+  + Your AI subscriptions -------------+
+  | 1  Claude (Pro/Max) -> Claude Code |
+  | 2  Google           -> Antigravity |
+  | 3  ChatGPT          -> Codex       |
+  | 4  Other / API      -> OpenCode    |
+  +------------------------------------+
+  Numbers separated by spaces
+  (e.g. 1 3) [1] > Installing Antigravity (agy). This takes a minute or two...
+* Done: Antigravity (agy) is installed.
+
+To sign in you will need:
+  a Google account
+
+Press Enter to continue.
+[rc=0]
+=== choose-cli-pending
+Installing Codex. This takes a minute or two...
+* Done: Codex is installed.
+
+[rc=0]
+=== choose-cli-pending-fail
+Installing Codex. This takes a minute or two...
+[TS] ERROR: 05-choose-cli: install step not executable: /nonexistent/step.sh
+[rc=1]
+=== login-step-claude-ok
+Now you sign in to Claude Code, so the AI
+on this box works for your account.
+
+You will need:
+  a Claude Pro or Max account (a paid plan)
+
+You will sign in with your Claude Pro or Max account.
+
+  1. Claude prints a long link. Open it in your browser
+     (touch and hold the link to copy it).
+  2. Sign in and tap Authorize.
+  3. The page shows a code. Copy it.
+  4. Come back here, paste the code at the prompt that
+     says "Paste code here" and press Enter ONCE.
+
+Claude also says "Opening browser". Ignore that line:
+this box has no screen, so nothing opens.
+
+Do not press Enter again until you have the code.
+
+Press Enter to get your sign-in link.
+
+https://claude.invalid/oauth/authorize?x=1
+Paste code here if prompted > [code=]
+
+[TS] ERROR: claude verification failed. Re-run install.sh to retry the login.
+[rc=1]
+=== login-step-claude-already
+[rc=0]
+=== login-step-antigravity-ok
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+Now you sign in to Antigravity (agy), so the AI
+on this box works for your account.
+
+You will need:
+  a Google account
+
+Antigravity (agy) signs in on its own screen. You will
+need a Google account. When it opens:
+
+  1. Choose the login menu entry:  Google OAuth
+  2. agy prints a long sign-in link. Touch and hold it to
+     copy it (it may wrap over several lines: copy it
+     all), open it in your browser and sign in.
+  3. Paste the authorization code it gives you back into
+     agy.
+  4. agy may ask a few setup questions (colour,
+     telemetry, trust this folder). Accept the defaults.
+  5. Back at the agy prompt, type  /quit  (or Ctrl+D) to
+     hand control back to the setup.
+
+When you leave agy, the setup checks the login and goes on.
+Press Enter to launch agy.
+agy tui
+[TS] ERROR: agy login could not be verified. To retry: re-run 'sudo /opt/buildersinabox/payload/install.sh' and complete the Google OAuth (choose 'Google OAuth', paste the authorization code). If it keeps failing, confirm you finished the sign-in in the browser — a successful login writes a token to ~builder/.gemini/antigravity-cli/antigravity-oauth-token.
+[rc=1]
+=== login-step-antigravity-already
+[rc=0]
+=== login-step-codex-ok
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+Now you sign in to Codex, so the AI
+on this box works for your account.
+
+You will need:
+  a ChatGPT account
+
+Codex signs in with your ChatGPT account, using a device
+code. First, in your browser:
+
+  1. Open ChatGPT > Settings > Security and turn ON
+     "device code login" (also called "device
+     authorization"). Without it the login is refused.
+
+Then we start the login here:
+
+  2. This screen prints a link and a short code.
+  3. Open the link in a real browser (Chrome or Safari),
+     not in the ChatGPT app. Sign in, type the code and
+     approve. There is no QR code in this flow.
+  4. When you approve, this screen notices by itself: there
+     is nothing to paste back here.
+
+Press Enter to start the Codex login.
+codex login stub
+[TS] ERROR: codex login could not be verified. Most often the ChatGPT 'device code login' toggle is still off — enable it (ChatGPT → Settings → Security) and re-run 'sudo /opt/buildersinabox/payload/install.sh'. Fallbacks: forward Codex's local login port over SSH and log in normally ('ssh -L 1455:localhost:1455 builder@<box>' then 'codex login'), or set an API key with 'codex login --api-key'. A successful login writes a token to ~builder/.codex/auth.json.
+[rc=1]
+=== login-step-codex-already
+Login method: Claude Max account
+[rc=0]
+=== login-step-opencode-ok
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+Now you sign in to OpenCode, so the AI
+on this box works for your account.
+
+You will need:
+  an OpenCode key, or another AI provider account
+
+OpenCode signs in from its own menu. Before it opens:
+
+  1. In your browser, open  https://opencode.ai/auth ,
+     sign in, add your billing details and copy your API
+     key (OpenCode Go or Zen). Prefer another provider
+     you already pay for? Choose it in the menu instead.
+  2. We start OpenCode's login now. Choose OpenCode Go or
+     OpenCode Zen and paste the key when it asks.
+  3. When it says the credential was saved, the setup
+     goes on by itself.
+
+Press Enter to start the OpenCode login.
+<W>/stubs/sudo: line 3: /usr/local/bin/opencode: No such file or directory
+
+OpenCode is not logged in yet. To log in later: connect to the box as builder, run 'opencode auth login', choose OpenCode Go or Zen and paste your key from https://opencode.ai/auth, then run 'biab' to continue the setup.
+[rc=78]
+=== login-step-opencode-already
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+Now you sign in to OpenCode, so the AI
+on this box works for your account.
+
+You will need:
+  an OpenCode key, or another AI provider account
+
+OpenCode signs in from its own menu. Before it opens:
+
+  1. In your browser, open  https://opencode.ai/auth ,
+     sign in, add your billing details and copy your API
+     key (OpenCode Go or Zen). Prefer another provider
+     you already pay for? Choose it in the menu instead.
+  2. We start OpenCode's login now. Choose OpenCode Go or
+     OpenCode Zen and paste the key when it asks.
+  3. When it says the credential was saved, the setup
+     goes on by itself.
+
+Press Enter to start the OpenCode login.
+<W>/stubs/sudo: line 3: /usr/local/bin/opencode: No such file or directory
+
+OpenCode is not logged in yet. To log in later: connect to the box as builder, run 'opencode auth login', choose OpenCode Go or Zen and paste your key from https://opencode.ai/auth, then run 'biab' to continue the setup.
+[rc=78]
+=== scaffold
+
+Step 5 of 6 - Prepare your workspace
+##########..  About 1 minute left
+
+This sets up your workspace: a folder called ai-platform
+in your home, plus the ready-made skills your AI uses
+(code review, specs, debugging and more).
+
+You will need nothing. It takes about a minute.
+
+* Done: N skills installed. Your workspace is ready at
+~/ai-platform
+[rc=0]
+=== paseo-pairing-short
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      100.64.1.2
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on (you set it up earlier).
+
+The app may list this box as "biabox", its machine name.
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+[rc=0]
+=== paseo-pairing-long
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      100.64.1.2
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on (you set it up earlier).
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+[rc=0]
+=== paseo-fallback-claude
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+=== paseo-finale-claude-0
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+=== paseo-finale-claude-1
+Claude Code is logged in and your first agent is running.
+
+Open the Paseo app on your phone. You will find the
+workspace "BIAB · ai-platform" and the agent
+"BIAB · Start here".
+
+The agent is already talking: it will welcome you and
+guide you through your first project, step by step.
+[rc=0]
+=== paseo-fallback-opencode
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  opencode
+[rc=0]
+=== paseo-finale-opencode-0
+OpenCode is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  opencode
+[rc=0]
+=== paseo-finale-opencode-1
+OpenCode is logged in and your first agent is running.
+
+Open the Paseo app on your phone. You will find the
+workspace "BIAB · ai-platform" and the agent
+"BIAB · Start here".
+
+The agent is already talking: it will welcome you and
+guide you through your first project, step by step.
+[rc=0]
+=== paseo-guide-skip
+Your first agent is running on this box. Now connect the
+app on your phone to it.
+
+You will need: your phone, with Tailscale switched on, and
+the Paseo app from your phone's app store.
+
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      host
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on (you set it up earlier).
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+When the app shows your box, press Enter.
+Type s to skip and pair later.
+> [rc=1]
+=== paseo-guide-3x
+Your first agent is running on this box. Now connect the
+app on your phone to it.
+
+You will need: your phone, with Tailscale switched on, and
+the Paseo app from your phone's app store.
+
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      host
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on (you set it up earlier).
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+When the app shows your box, press Enter.
+Type s to skip and pair later.
+> The box does not see your phone yet. Check the password,
+that Tailscale is on, and that "Use SSL" is off.
+
+When the app shows your box, press Enter.
+Type s to skip and pair later.
+> The box does not see your phone yet. Check the password,
+that Tailscale is on, and that "Use SSL" is off.
+
+When the app shows your box, press Enter.
+Type s to skip and pair later.
+> The box does not see your phone yet. Check the password,
+that Tailscale is on, and that "Use SSL" is off.
+
+[rc=1]
+=== paseo-guide-eof
+Your first agent is running on this box. Now connect the
+app on your phone to it.
+
+You will need: your phone, with Tailscale switched on, and
+the Paseo app from your phone's app store.
+
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      host
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on (you set it up earlier).
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+When the app shows your box, press Enter.
+Type s to skip and pair later.
+> 
+[rc=1]
+=== paseo-step-ok
+
+Step 6 of 6 - Open your box in the app
+############  About 2 minutes left
+
+This starts your first AI agent on the box and gives you
+the way to talk to it from your phone: the Paseo app.
+
+Starting your first agent...
+
+<<CLEARED>>
+* Done: your phone is connected.
+
+We cleared the screen so the password is not left on it
+(some apps keep their own scrollback). To see it again:
+
+sudo biab paseo pair
+
+Press Enter to continue.
+[rc=0]
+=== paseo-step-skip
+
+Step 6 of 6 - Open your box in the app
+############  About 2 minutes left
+
+This starts your first AI agent on the box and gives you
+the way to talk to it from your phone: the Paseo app.
+
+Starting your first agent...
+
+<<CLEARED>>
+No problem. To pair later, run this on the box:
+
+sudo biab paseo pair
+
+We cleared the screen so the password is not left on it
+(some apps keep their own scrollback). That command
+shows it again.
+
+Press Enter to continue.
+[rc=0]
+=== paseo-step-notready
+
+Step 6 of 6 - Open your box in the app
+############  About 2 minutes left
+
+This starts your first AI agent on the box and gives you
+the way to talk to it from your phone: the Paseo app.
+
+Starting your first agent...
+
+[TS] WARN: 50-paseo: the Paseo daemon did not answer within 120s
+The app service is not answering yet.
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=1]
+=== paseo-step-unsupported
+[TS] WARN: 50-paseo: opencode does not run under Paseo on this box
+OpenCode does not run in the Paseo app yet.
+
+OpenCode runs in the app only while its own settings make it ask before it edits
+files or runs commands. Right now: the seeded rule is off
+Fix that and run "biab" again.
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  opencode
+[rc=1]
+=== wizard-run-fresh
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 1 of 6 - Secure this box
+##..........  About 8 minutes left
+
+Hi. In a few short steps, this box will be ready
+to build from your phone or laptop.
+
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
+
+You will need:
+  - your phone
+  - an account with at least one AI: Claude,
+    ChatGPT, Google or OpenCode (step 4)
+About 10 minutes. The steps:
+
+  1. Choose a password for this box
+  2. Connect it privately to your devices
+  3. Continue from your phone or laptop
+  4. Choose your AIs and sign in
+  5. Prepare your workspace
+  6. Open it in the app on your phone
+
+Tip: if the text looks small, pinch the screen to zoom in,
+or turn your phone sideways.
+
+Press Enter to begin.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+=== wizard-run-cloud
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 1 of 6 - Secure this box
+##..........  About 8 minutes left
+
+Hi. In a few short steps, this box will be ready
+to build from your phone or laptop.
+
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
+
+You will need:
+  - your phone
+  - an account with at least one AI: Claude,
+    ChatGPT, Google or OpenCode (step 4)
+About 10 minutes. The steps:
+
+  1. Choose a password for this box
+  2. Connect it privately to your devices
+  3. Check how you connect
+  4. Choose your AIs and sign in
+  5. Prepare your workspace
+  6. Open it in the app on your phone
+
+Tip: if the text looks small, pinch the screen to zoom in,
+or turn your phone sideways.
+
+Press Enter to begin.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Codex is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  codex
+[rc=0]
+=== wizard-run-resumed-ssh
+
+Step 4 of 6 - Connect your AI
+########....  About 3 minutes left
+
+You are connected remotely. We will continue
+from this terminal.
+
+Press Enter to continue.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+=== wizard-run-resumed-console
+
+Step 2 of 6 - Connect privately
+####........  About 6 minutes left
+
+We will continue from the next unfinished step.
+
+Press Enter to continue.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+=== wizard-run-gift
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 1 of 6 - Secure this box
+##..........  About 8 minutes left
+
+Hi. In a few short steps, this box will be ready
+to build from your phone or laptop.
+
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
+
+You will need:
+  - your phone
+  - an account with at least one AI: Claude,
+    ChatGPT, Google or OpenCode (step 4)
+About 10 minutes. The steps:
+
+  1. Choose a password for this box
+  2. Connect it privately to your devices
+  3. Continue from your phone or laptop
+  4. Choose your AIs and sign in
+  5. Prepare your workspace
+  6. Open it in the app on your phone
+
+Tip: if the text looks small, pinch the screen to zoom in,
+or turn your phone sideways.
+
+Press Enter to begin.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+=== wizard-run-noclibefore
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 1 of 6 - Secure this box
+##..........  About 8 minutes left
+
+Hi. In a few short steps, this box will be ready
+to build from your phone or laptop.
+
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
+
+You will need:
+  - your phone
+  - an account with at least one AI: Claude,
+    ChatGPT, Google or OpenCode (step 4)
+About 10 minutes. The steps:
+
+  1. Choose a password for this box
+  2. Connect it privately to your devices
+  3. Continue from your phone or laptop
+  4. Choose your AIs and sign in
+  5. Prepare your workspace
+  6. Open it in the app on your phone
+
+Tip: if the text looks small, pinch the screen to zoom in,
+or turn your phone sideways.
+
+Press Enter to begin.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+=== wizard-run-confirm-keep
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 1 of 6 - Secure this box
+##..........  About 8 minutes left
+
+Hi. In a few short steps, this box will be ready
+to build from your phone or laptop.
+
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
+
+You will need:
+  - your phone
+  - an account with at least one AI: Claude,
+    ChatGPT, Google or OpenCode (step 4)
+About 10 minutes. The steps:
+
+  1. Choose a password for this box
+  2. Connect it privately to your devices
+  3. Continue from your phone or laptop
+  4. Choose your AIs and sign in
+  5. Prepare your workspace
+  6. Open it in the app on your phone
+
+Tip: if the text looks small, pinch the screen to zoom in,
+or turn your phone sideways.
+
+Press Enter to begin.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+[state lang=es confirmed=false]
+=== wizard-run-confirm-switch
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 1 of 6 - Secure this box
+##..........  About 8 minutes left
+
+Hi. In a few short steps, this box will be ready
+to build from your phone or laptop.
+
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
+
+You will need:
+  - your phone
+  - an account with at least one AI: Claude,
+    ChatGPT, Google or OpenCode (step 4)
+About 10 minutes. The steps:
+
+  1. Choose a password for this box
+  2. Connect it privately to your devices
+  3. Continue from your phone or laptop
+  4. Choose your AIs and sign in
+  5. Prepare your workspace
+  6. Open it in the app on your phone
+
+Tip: if the text looks small, pinch the screen to zoom in,
+or turn your phone sideways.
+
+Press Enter to begin.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+[state lang=es confirmed=false]
+=== wizard-run-confirmed
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 1 of 6 - Secure this box
+##..........  About 8 minutes left
+
+Hi. In a few short steps, this box will be ready
+to build from your phone or laptop.
+
+You are setting up a private place
+to build with AI on your own hardware.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.
+
+You will need:
+  - your phone
+  - an account with at least one AI: Claude,
+    ChatGPT, Google or OpenCode (step 4)
+About 10 minutes. The steps:
+
+  1. Choose a password for this box
+  2. Connect it privately to your devices
+  3. Continue from your phone or laptop
+  4. Choose your AIs and sign in
+  5. Prepare your workspace
+  6. Open it in the app on your phone
+
+Tip: if the text looks small, pinch the screen to zoom in,
+or turn your phone sideways.
+
+Press Enter to begin.
+[step 01-set-password]
+[step 10-tailscale-up]
+[step 35-ssh-finalize]
+[step 36-phone-bridge]
+[step 05-choose-cli]
+[step 38-ai-cli-login]
+[step 40-scaffold]
+[step 50-paseo]
+
+  +--------------------------------+
+  |   ___                          |
+  |  |   |  builders               |
+  |  |___|  in a box               |
+  +--------------------------------+
+
+Step 6 of 6 - Start building
+############  About a moment left
+
+Your Builders in a Box is ready.
+
+Claude Code is logged in and your first agent is running.
+
+Your phone is not paired yet. When you are ready, run
+this on the box:
+
+sudo biab paseo pair
+
+You can always work over SSH, with no app:
+
+ssh builder@100.64.1.2
+
+Then run:  claude
+[rc=0]
+[state lang=es confirmed=true]
+=== install-usage
+Usage: sudo install.sh [options]
+
+Options:
+  --ai=<claude|antigravity|codex|opencode>  Pick the AI to install (default: claude).
+  --flavor=<default|gift>    Pick the copy/banner flavor (default: default).
+  --profile=<dedicated|cloud>  Who owns SSH on this box (default: dedicated).
+                             'cloud' is for a provider-managed VPS: BIAB then
+                             never writes an sshd drop-in, never enables
+                             password auth and never binds sshd to the tailnet.
+                             Persisted on first install; survives biab update.
+  --lang=<en|es>             Language of the setup screens (default: ask, else en).
+                             Persisted on first install; `biab lang` changes it.
+  --force                    Reset wizard-phase state so the wizard runs again.
+                             Does not reinstall the stack.
+  --skip-wizard              Install the stack and exit (no OAuth steps).
+                             Useful for CI / image baking.
+  --non-interactive          Read BIB_USER, BIB_NAME, BIB_FLAVOR, BIB_AI_CLI
+                             from the environment. Fail fast if any required
+                             var is missing. Used by CI and autoinstall.
+  --update                   Re-run idempotently on a box that already went
+                             through install once. Skips completed phases.
+  --uninstall                Remove everything BIAB-owned and exit.
+                             Leaves user home, Tailscale, gh, Claude auth.
+  --selftest                 Run the personal-refs guard against the install
+                             tree and verify state.json schema; exit.
+  --latest                   With --update or --skip-wizard: install the newest
+                             stable upstream versions instead of the tested pins.
+                             Untested and unsupported; `biab update` returns.
+  --auto-update on [schedule] | off | status
+                             The opt-in update timer (never uses --latest).
+  --i-know-what-im-doing     Continue even if the OS is not Ubuntu 24.04.
+  -h, --help                 Show this help.
+[rc=0]
+=== install-unknown-arg
+Usage: sudo install.sh [options]
+
+Options:
+  --ai=<claude|antigravity|codex|opencode>  Pick the AI to install (default: claude).
+  --flavor=<default|gift>    Pick the copy/banner flavor (default: default).
+  --profile=<dedicated|cloud>  Who owns SSH on this box (default: dedicated).
+                             'cloud' is for a provider-managed VPS: BIAB then
+                             never writes an sshd drop-in, never enables
+                             password auth and never binds sshd to the tailnet.
+                             Persisted on first install; survives biab update.
+  --lang=<en|es>             Language of the setup screens (default: ask, else en).
+                             Persisted on first install; `biab lang` changes it.
+  --force                    Reset wizard-phase state so the wizard runs again.
+                             Does not reinstall the stack.
+  --skip-wizard              Install the stack and exit (no OAuth steps).
+                             Useful for CI / image baking.
+  --non-interactive          Read BIB_USER, BIB_NAME, BIB_FLAVOR, BIB_AI_CLI
+                             from the environment. Fail fast if any required
+                             var is missing. Used by CI and autoinstall.
+  --update                   Re-run idempotently on a box that already went
+                             through install once. Skips completed phases.
+  --uninstall                Remove everything BIAB-owned and exit.
+                             Leaves user home, Tailscale, gh, Claude auth.
+  --selftest                 Run the personal-refs guard against the install
+                             tree and verify state.json schema; exit.
+  --latest                   With --update or --skip-wizard: install the newest
+                             stable upstream versions instead of the tested pins.
+                             Untested and unsupported; `biab update` returns.
+  --auto-update on [schedule] | off | status
+                             The opt-in update timer (never uses --latest).
+  --i-know-what-im-doing     Continue even if the OS is not Ubuntu 24.04.
+  -h, --help                 Show this help.
+[TS] ERROR: unknown argument: --bogus
+[rc=1]
+=== preflight-ack
+[TS] WARN: installing over SSH with no private network up yet (BIB_SSH_INSTALL_ACK=1 set, continuing)
+[rc=0]
+=== preflight-noninteractive
+
+⚠ You are installing over an SSH connection and the private network
+  (Tailscale) is not up yet. Later in setup, SSH gets restricted to that
+  private network only — if this session is not reachable over it, you
+  will be locked out.
+
+  Expected and safe on a VPS: the wizard hardens to key-only first and
+  never locks you out mid-session. NOT safe inside a console-less VM
+  (e.g. multipass, whose shell is itself SSH) — that is not supported.
+  Use a hypervisor with a real console instead (VirtualBox, UTM,
+  virt-manager/Proxmox).
+
+[TS] ERROR: no tty to confirm from (or --non-interactive). Set BIB_SSH_INSTALL_ACK=1 if you understand the risk, or install from a console.
+[rc=1]
+=== end

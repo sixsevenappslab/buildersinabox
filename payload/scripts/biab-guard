@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# biab-guard — register or read BIAB's shell-command guard for an AI CLI (FEAT-042).
+#
+#   biab-guard install <cli> <box-user-home>   register the guard (adds, never removes)
+#   biab-guard state   <cli> <box-user-home>   print its state word (see lib/ai-cli.sh)
+#   biab-guard matrix                          print the per-CLI capability table the README
+#                                              holds (generated, never hand-written)
+#
+# Meant to run AS THE BOX USER (install/47-cli-guard.sh drops to it): everything it
+# writes lives in that user's home and belongs to them. The home is an argument because
+# $HOME is not trustworthy under runuser/sudo (OF-07); it is exported for the CLI's own
+# tools. No sudo, no network, no model call.
+
+set -euo pipefail
+
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../lib/ai-cli.sh
+source "${SELF_DIR}/../lib/ai-cli.sh"
+# shellcheck source=../lib/guard.sh
+source "${SELF_DIR}/../lib/guard.sh"
+
+usage() { echo "usage: biab-guard install|state <cli> <box-user-home> | matrix" >&2; exit 2; }
+
+if [[ "${1:-}" == matrix && $# -eq 1 ]]; then guard_matrix; exit 0; fi
+[[ $# -eq 3 ]] || usage
+verb="$1" cli="$2" home="$3"
+[[ -d "$home" ]] || { echo "biab-guard: ${home} is not a directory" >&2; exit 2; }
+export HOME="$home"
+
+case "$verb" in
+    install) ai_cli_guard_install "$cli" "$home" ;;
+    state)   ai_cli_guard_state "$cli" "$home"; echo ;;
+    *)       usage ;;
+esac

@@ -1,0 +1,27 @@
+# shellcheck shell=bash disable=SC2034,SC2154
+# FEAT-045 T2: the prompt helpers (lib/prompt.sh): step header, choice, text and
+# password questions, links and QR codes. English is byte-identical to what the
+# helpers printed before the catalog; the Spanish twin is ../es/prompt.sh.
+BIB_MSG[prompt.step.label]='Step %s of %s'
+BIB_MSG[prompt.step.left]='About %s left'
+BIB_MSG[prompt.card.pick]='Choose one'
+BIB_MSG[prompt.card.pick_multi]='Choose one or more'
+BIB_MSG[prompt.choice.hint]='Type a number'
+BIB_MSG[prompt.multi.hint]='Numbers separated by spaces'
+BIB_MSG[prompt.choice.ask]='Your choice [%s]'
+BIB_MSG[prompt.choice.invalid]='Sorry, "%s" is not a valid choice. Try again.\n'
+BIB_MSG[prompt.multi.ask]='(e.g. 1 3) [%s]'
+BIB_MSG[prompt.multi.invalid]='Sorry, "%s" is not valid.\nType numbers like 1 3 and try again.\n'
+BIB_MSG[prompt.text.required]='A value is required. Try again.\n\n'
+BIB_MSG[prompt.text.nomatch]='Sorry, "%s" does not match the expected format. Try again.\n\n'
+BIB_MSG[prompt.password.ask]='Password (at least %d characters): '
+BIB_MSG[prompt.password.short]='Too short (got %d chars, need at least %d). Try again.\n\n'
+BIB_MSG[prompt.password.again]='Type it again to confirm: '
+BIB_MSG[prompt.password.mismatch]='Passwords don'\''t match. Try again.\n\n'
+BIB_MSG[prompt.project.hint]='lowercase letters, digits and hyphens. 2-31 chars. Cannot be platform/stratops/projects.'
+BIB_MSG[prompt.project.ask]='Pick a name for your first project:'
+BIB_MSG[prompt.project.reserved]='"%s" is a reserved name. Try again.\n\n'
+BIB_MSG[prompt.confirm.default]='Press Enter when you have completed the step above.'
+BIB_MSG[prompt.url.label]='Open this URL on your phone:'
+BIB_MSG[prompt.url.scan]='...or scan this with a camera on another device:'
+BIB_MSG[prompt.qr.toowide]='(The QR code is too wide for this screen, so it\nis not drawn. Use the link above.)\n\n'

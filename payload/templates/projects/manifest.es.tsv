@@ -1,0 +1,5 @@
+# Builders in a Box - Spanish descriptions of the project templates (FEAT-045). Two TAB separated columns:
+#   name  description
+# One row per row of manifest.tsv; `biab-project list` shows these when the language of the box is es.
+personal-coach	Coach personal en Slack: una IA empática en tu Slack que sabe lo que se está ejecutando en este equipo.
+finance-dashboard	Panel de finanzas personales: CSV del banco, categorización con IA y precios de fondos, publicado en un dominio tuyo.

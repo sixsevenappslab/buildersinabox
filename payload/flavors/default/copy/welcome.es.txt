@@ -1,0 +1,9 @@
+Estás preparando un lugar privado
+para construir con IA en tu hardware.
+
+Puedes interrumpir esta configuración.
+Ejecuta `biab` más tarde: continuará
+desde el primer paso sin terminar.
+
+Primero, elige una contraseña para
+este equipo.

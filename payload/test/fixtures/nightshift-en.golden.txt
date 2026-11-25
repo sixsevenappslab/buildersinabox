@@ -1,0 +1,749 @@
+=== usage
+Usage: biab-night-shift <command>
+
+  run       run one pass now (simulates unless the box is armed)
+  status    show what is installed, armed, disabled, and how the last pass went
+  arm       show the cost, ask for confirmation, then allow real passes (sudo)
+            --reach pr|dev|main  how far a pass may go (default dev):
+                              pr   stop at the pull request
+                              dev  merge to your dev branch after the gates
+                              main merge to your default branch (asks for
+                                   UNLOCK MAIN)
+            --unprotected-ok  also run against repos whose default branch has
+                              no required review on GitHub (hook = only brake)
+  disarm    go back to simulating without uninstalling anything (sudo)
+
+  As you, not root (uses your gh login):
+  dev-setup <project>   create and protect the project's dev branch
+  dev-sync <project>    merge the default branch into dev when dev is behind
+  promote <project>     open (or reuse) the dev -> default PR and print the
+                        merge-commit command that finishes it
+[rc=0]
+=== usage-bad
+Usage: biab-night-shift <command>
+
+  run       run one pass now (simulates unless the box is armed)
+  status    show what is installed, armed, disabled, and how the last pass went
+  arm       show the cost, ask for confirmation, then allow real passes (sudo)
+            --reach pr|dev|main  how far a pass may go (default dev):
+                              pr   stop at the pull request
+                              dev  merge to your dev branch after the gates
+                              main merge to your default branch (asks for
+                                   UNLOCK MAIN)
+            --unprotected-ok  also run against repos whose default branch has
+                              no required review on GitHub (hook = only brake)
+  disarm    go back to simulating without uninstalling anything (sudo)
+
+  As you, not root (uses your gh login):
+  dev-setup <project>   create and protect the project's dev branch
+  dev-sync <project>    merge the default branch into dev when dev is behind
+  promote <project>     open (or reuse) the dev -> default PR and print the
+                        merge-commit command that finishes it
+[rc=1]
+=== status-factory
+night shift
+  binary       not installed
+  timer        not installed
+  mode         simulating (not armed). Arm with: sudo biab-night-shift arm
+  kill switch  off
+  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub
+  reach        pr
+  budget       $2.00 per pass, 3600s wall clock
+  last pass    none recorded
+[rc=0]
+=== status-armed-dev
+night shift
+  binary       installed
+  timer        enabled
+  mode         ARMED — passes run for real and spend your subscription
+  kill switch  off
+  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub
+  reach        dev — merges to your dev branch after CI, an independent review and your dev check; main still needs you
+  budget       $2.00 implementation + $0.50 independent review per pass, 3600s wall clock
+  last pass    merged (merged-to-dev) FEAT-001-demo.md https://github.com/tester/demo/pull/12 stopped_at=done-dev dev_check=pass
+[rc=0]
+=== status-armed-dev-killswitch
+night shift
+  binary       installed
+  timer        enabled
+  mode         ARMED — passes run for real and spend your subscription
+  kill switch  ON — no pass will run
+  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub
+  reach        dev — merges to your dev branch after CI, an independent review and your dev check; main still needs you
+  budget       $2.00 implementation + $0.50 independent review per pass, 3600s wall clock
+  last pass    merged (merged-to-dev) FEAT-001-demo.md https://github.com/tester/demo/pull/12 stopped_at=done-dev dev_check=pass
+[rc=0]
+=== status-armed-dev-budget-invalid
+night shift
+  binary       installed
+  timer        not installed
+  mode         ARMED — passes run for real and spend your subscription
+  kill switch  off
+  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub
+  reach        dev — merges to your dev branch after CI, an independent review and your dev check; main still needs you
+  budget       $2.00 per pass, 3600s wall clock — review ceiling INVALID, so nothing will merge (reinstall the pack)
+  last pass    merged (merged-to-dev) FEAT-001-demo.md https://github.com/tester/demo/pull/12 stopped_at=done-dev dev_check=pass
+[rc=0]
+=== status-armed-pr-unprotected
+night shift
+  binary       not installed
+  timer        not installed
+  mode         ARMED — passes run for real and spend your subscription
+  kill switch  off
+  branch lock  NOT REQUIRED — you accepted unprotected default branches (arm --unprotected-ok); the hook is the only brake
+  reach        pr — stops at the pull request; you review and merge
+  budget       $2.00 per pass, 3600s wall clock
+  last pass    none recorded
+[rc=0]
+=== status-armed-main
+night shift
+  binary       not installed
+  timer        not installed
+  mode         ARMED — passes run for real and spend your subscription
+  kill switch  off
+  branch lock  NOT REQUIRED — you accepted unprotected default branches (arm --unprotected-ok); the hook is the only brake
+  reach        main — merges to your default branch after the same gates; no lock any more, you accepted that in writing
+  budget       $2.00 implementation + $0.50 independent review per pass, 3600s wall clock
+  last pass    none recorded
+[rc=0]
+=== status-main-lowered
+night shift
+  binary       not installed
+  timer        not installed
+  mode         ARMED — passes run for real and spend your subscription
+  kill switch  off
+  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub
+  reach        pr (asked for main, lowered: main-optin-invalid)
+  budget       $2.00 per pass, 3600s wall clock
+  last pass    none recorded
+[rc=0]
+=== status-armed-before-ladder
+night shift
+  binary       not installed
+  timer        not installed
+  mode         ARMED — passes run for real and spend your subscription
+  kill switch  off
+  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub
+  reach        pr (armed before the reach ladder; re-arm to choose)
+  budget       $2.00 per pass, 3600s wall clock
+  last pass    none recorded
+[rc=0]
+=== status-unarmed-before-ladder
+night shift
+  binary       not installed
+  timer        not installed
+  mode         simulating (not armed). Arm with: sudo biab-night-shift arm
+  kill switch  off
+  branch lock  required — a pass aborts unless the default branch needs an approving review on GitHub
+  reach        pr (asked for pr, lowered: reach-invalid)
+  budget       $2.00 per pass, 3600s wall clock
+  last pass    none recorded
+[rc=0]
+=== mode-not-root
+biab-night-shift: refusing to spend — <box>/varlib/night-shift/mode says 'real' but is not root-owned mode 0644 (found owner=<user> mode=644).
+biab-night-shift: a mode file the agent can write is not a human confirmation. Fix it with:
+biab-night-shift:   sudo install -o root -g root -m 0644 /dev/null <box>/varlib/night-shift/mode && printf real | sudo tee <box>/varlib/night-shift/mode >/dev/null
+night-shift: [dry run] would implement <box>/projects/demo/specs/active/FEAT-001-demo.md in <box>/projects/demo
+night-shift: [dry run] nothing was written, no tokens were spent. Arm with: sudo biab-night-shift arm
+night-shift: verdict=dry-run reason=mode-file-unrecognised spec=<box>/projects/demo/specs/active/FEAT-001-demo.md
+[rc=0]
+=== mode-wrong-content
+biab-night-shift: <box>/varlib/night-shift/mode EXISTS but its contents are not the exact literal 'real' — this pass will only simulate.
+biab-night-shift: nothing is armed. Re-arm deliberately with: sudo biab-night-shift arm
+night-shift: [dry run] would implement <box>/projects/demo/specs/active/FEAT-001-demo.md in <box>/projects/demo
+night-shift: [dry run] nothing was written, no tokens were spent. Arm with: sudo biab-night-shift arm
+night-shift: verdict=dry-run reason=mode-file-unrecognised spec=<box>/projects/demo/specs/active/FEAT-001-demo.md
+[rc=0]
+=== mode-symlink
+biab-night-shift: <box>/varlib/night-shift/mode is a symlink — refusing to treat it as a human confirmation (simulating instead).
+biab-night-shift: fix it with: sudo rm -f <box>/varlib/night-shift/mode && sudo biab-night-shift arm
+night-shift: [dry run] would implement <box>/projects/demo/specs/active/FEAT-001-demo.md in <box>/projects/demo
+night-shift: [dry run] nothing was written, no tokens were spent. Arm with: sudo biab-night-shift arm
+night-shift: verdict=dry-run reason=mode-file-unrecognised spec=<box>/projects/demo/specs/active/FEAT-001-demo.md
+[rc=0]
+=== unprotected-ok-wrong-content
+biab-night-shift: <box>/varlib/night-shift/unprotected-ok EXISTS but does not hold the exact literal 'real' — ignoring it. Re-create it with: sudo biab-night-shift arm --unprotected-ok
+night-shift: implementing <box>/projects/demo/specs/active/FEAT-001-demo.md (project=demo, cli=claude, budget=$2.00)
+done: https://github.com/tester/demo/pull/12
+night-shift: verdict=pr reason=pull-request-open spec=<box>/projects/demo/specs/active/FEAT-001-demo.md pr=https://github.com/tester/demo/pull/12 stopped_at=done-pr
+[rc=0]
+=== unprotected-ok-not-root
+biab-night-shift: refusing to spend — <box>/varlib/night-shift/mode says 'real' but is not root-owned mode 0644 (found owner=<user> mode=644).
+biab-night-shift: a mode file the agent can write is not a human confirmation. Fix it with:
+biab-night-shift:   sudo install -o root -g root -m 0644 /dev/null <box>/varlib/night-shift/mode && printf real | sudo tee <box>/varlib/night-shift/mode >/dev/null
+biab-night-shift: ignoring <box>/varlib/night-shift/unprotected-ok — not root-owned mode 0644 (found owner=<user> mode=644); a file the agent can write is not the owner's acceptance.
+night-shift: [dry run] would implement <box>/projects/demo/specs/active/FEAT-001-demo.md in <box>/projects/demo
+night-shift: [dry run] nothing was written, no tokens were spent. Arm with: sudo biab-night-shift arm
+night-shift: verdict=dry-run reason=mode-file-unrecognised spec=<box>/projects/demo/specs/active/FEAT-001-demo.md
+[rc=0]
+=== reach-wrong-content
+night-shift: running at pr tonight: the reach state is not valid (reach-invalid); re-arm with: sudo biab-night-shift arm
+night-shift: implementing <box>/projects/demo/specs/active/FEAT-001-demo.md (project=demo, cli=claude, budget=$2.00)
+done: https://github.com/tester/demo/pull/12
+night-shift: verdict=pr reason=pull-request-open spec=<box>/projects/demo/specs/active/FEAT-001-demo.md pr=https://github.com/tester/demo/pull/12 stopped_at=reach
+[rc=0]
+=== review-budget-too-high
+night-shift: the review ceiling <box>/varlib/night-shift/guard/review-budget-usd is missing or invalid; nothing can merge, so nothing is spent. Reinstall the pack: sudo biab pack add night-shift
+night-shift: verdict=aborted reason=review-budget-invalid spec=<box>/projects/demo/specs/active/FEAT-001-demo.md stopped_at=precheck
+[rc=0]
+=== review-budget-not-root
+biab-night-shift: refusing to spend — <box>/varlib/night-shift/mode says 'real' but is not root-owned mode 0644 (found owner=<user> mode=644).
+biab-night-shift: a mode file the agent can write is not a human confirmation. Fix it with:
+biab-night-shift:   sudo install -o root -g root -m 0644 /dev/null <box>/varlib/night-shift/mode && printf real | sudo tee <box>/varlib/night-shift/mode >/dev/null
+night-shift: [dry run] would implement <box>/projects/demo/specs/active/FEAT-001-demo.md in <box>/projects/demo
+night-shift: [dry run] nothing was written, no tokens were spent. Arm with: sudo biab-night-shift arm
+night-shift: verdict=dry-run reason=mode-file-unrecognised spec=<box>/projects/demo/specs/active/FEAT-001-demo.md
+[rc=0]
+=== gates-wrong-content
+biab-night-shift: <box>/varlib/night-shift/reach EXISTS but does not hold one of the exact literals (pr dev main) — ignoring the reach. Re-create it with: sudo biab-night-shift arm
+biab-night-shift: <box>/varlib/night-shift/main-optin EXISTS but does not hold one of the exact literals (lock-removed) — ignoring the main opt-in. Re-create it with: sudo biab-night-shift arm
+biab-night-shift: <box>/varlib/night-shift/guard/review-budget-usd does not hold an amount above 0 and at most 1.00 — no review ceiling, so nothing will merge.
+biab-night-shift: <box>/varlib/night-shift/unprotected-ok EXISTS but does not hold the exact literal 'real' — ignoring it. Re-create it with: sudo biab-night-shift arm --unprotected-ok
+done
+[rc=0]
+=== gates-not-root
+biab-night-shift: ignoring <box>/varlib/night-shift/reach — not root-owned mode 0644 (found owner=<user> mode=644); a file the agent can write is not the owner's reach.
+biab-night-shift: ignoring <box>/varlib/night-shift/main-optin — not root-owned mode 0644 (found owner=<user> mode=644); a file the agent can write is not the owner's main opt-in.
+biab-night-shift: ignoring <box>/varlib/night-shift/guard/review-budget-usd — not root-owned mode 0644 (found owner=<user> mode=644).
+biab-night-shift: ignoring <box>/varlib/night-shift/unprotected-ok — not root-owned mode 0644 (found owner=<user> mode=644); a file the agent can write is not the owner's acceptance.
+done
+[rc=0]
+=== gates-symlinks
+biab-night-shift: <box>/varlib/night-shift/reach is a symlink — ignoring the reach it points at.
+biab-night-shift: <box>/varlib/night-shift/main-optin is a symlink — ignoring the main opt-in it points at.
+biab-night-shift: <box>/varlib/night-shift/guard/review-budget-usd is missing, a symlink or not a regular file — no review ceiling, so nothing will merge.
+done
+[rc=0]
+=== gates-absent
+biab-night-shift: <box>/varlib/night-shift/guard/review-budget-usd is missing, a symlink or not a regular file — no review ceiling, so nothing will merge.
+done
+[rc=0]
+=== run-dry
+night-shift: [dry run] would implement <box>/projects/demo/specs/active/FEAT-001-demo.md in <box>/projects/demo
+night-shift: [dry run] nothing was written, no tokens were spent. Arm with: sudo biab-night-shift arm
+night-shift: verdict=dry-run reason=disarmed spec=<box>/projects/demo/specs/active/FEAT-001-demo.md
+[rc=0]
+=== run-dirty-tree
+night-shift: verdict=aborted reason=dirty-tree:untracked.txt spec=<box>/projects/demo/specs/active/FEAT-001-demo.md
+[rc=0]
+=== run-state-not-writable
+night-shift: cannot write to /proc/none/attempted — refusing to run
+night-shift: verdict=aborted reason=state-not-writable
+[rc=0]
+=== run-no-candidates
+night-shift: verdict=no-candidates reason=no-projects
+[rc=0]
+=== run-killswitch
+night-shift: verdict=disabled reason=kill-switch-set
+[rc=0]
+=== real-pass-unprotected
+night-shift: the default branch of <box>/projects/demo has no required review on GitHub (no-required-review).
+night-shift: Without it the PreToolUse hook is the only thing between an unattended pass and a merge, and a hook is a brake, not a lock.
+night-shift: Protect the branch (Settings > Branches or a ruleset: require a pull request with 1 approving review, include administrators),
+night-shift: or accept the risk explicitly with: sudo biab-night-shift arm --unprotected-ok
+night-shift: verdict=aborted reason=default-branch-not-protected spec=<box>/projects/demo/specs/active/FEAT-001-demo.md stopped_at=precheck
+[rc=0]
+=== real-pass-unprotected-accepted
+night-shift: warning: the default branch of <box>/projects/demo has no required review on GitHub (no-required-review); running anyway because the owner accepted that with 'arm --unprotected-ok'. Tonight the PreToolUse hook is the only brake.
+night-shift: implementing <box>/projects/demo/specs/active/FEAT-001-demo.md (project=demo, cli=claude, budget=$2.00)
+done: https://github.com/tester/demo/pull/12
+night-shift: verdict=pr reason=pull-request-open spec=<box>/projects/demo/specs/active/FEAT-001-demo.md pr=https://github.com/tester/demo/pull/12 stopped_at=done-pr
+[rc=0]
+=== real-pass-review-ceiling-invalid
+night-shift: the review ceiling <box>/varlib/night-shift/guard/review-budget-usd is missing or invalid; nothing can merge, so nothing is spent. Reinstall the pack: sudo biab pack add night-shift
+night-shift: verdict=aborted reason=review-budget-invalid spec=<box>/projects/demo/specs/active/FEAT-001-demo.md stopped_at=precheck
+[rc=0]
+=== real-pass-summary-not-writable
+night-shift: <box>/state/last-run.json cannot be written; a merge nobody can read about is not made. Nothing spent.
+night-shift: verdict=aborted reason=summary-not-writable spec=<box>/projects/demo/specs/active/FEAT-001-demo.md stopped_at=precheck
+[rc=0]
+=== real-pass-unattended-missing
+night-shift: verdict=aborted reason=cli-lacks-unattended-capability spec=<box>/projects/demo/specs/active/FEAT-001-demo.md stopped_at=precheck
+[rc=0]
+=== lowered-as-root
+night-shift: running at pr tonight: a dev/main pass never runs as root (the dev check would). Let the timer run it as the operator.
+night-shift: implementing <box>/projects/demo/specs/active/FEAT-001-demo.md (project=demo, cli=claude, budget=$2.00)
+done: https://github.com/tester/demo/pull/12
+night-shift: verdict=pr reason=pull-request-open spec=<box>/projects/demo/specs/active/FEAT-001-demo.md pr=https://github.com/tester/demo/pull/12 stopped_at=precheck
+[rc=0]
+=== lowered-default-is-dev
+night-shift: warning: the default branch of <box>/projects/demo has no required review on GitHub (no-required-review); running anyway because the owner accepted that with 'arm --unprotected-ok'. Tonight the PreToolUse hook is the only brake.
+night-shift: running at pr tonight: the default branch of tester/demo is called dev; dev reach needs a separate dev branch
+night-shift: implementing <box>/projects/demo/specs/active/FEAT-001-demo.md (project=demo, cli=claude, budget=$2.00)
+done: https://github.com/tester/demo/pull/12
+night-shift: verdict=pr reason=pull-request-open spec=<box>/projects/demo/specs/active/FEAT-001-demo.md pr=https://github.com/tester/demo/pull/12 stopped_at=precheck
+[rc=0]
+=== lowered-dev-missing
+night-shift: running at pr tonight: the dev branch of tester/demo is missing or can be force-pushed or deleted. Fix it with: biab-night-shift dev-setup demo
+night-shift: implementing <box>/projects/demo/specs/active/FEAT-001-demo.md (project=demo, cli=claude, budget=$2.00)
+done: https://github.com/tester/demo/pull/12
+night-shift: verdict=pr reason=pull-request-open spec=<box>/projects/demo/specs/active/FEAT-001-demo.md pr=https://github.com/tester/demo/pull/12 stopped_at=precheck
+[rc=0]
+=== lowered-dev-behind
+night-shift: running at pr tonight: dev is behind main (2 commits). Bring it up to date with: biab-night-shift dev-sync demo
+night-shift: implementing <box>/projects/demo/specs/active/FEAT-001-demo.md (project=demo, cli=claude, budget=$2.00)
+done: https://github.com/tester/demo/pull/12
+night-shift: verdict=pr reason=pull-request-open spec=<box>/projects/demo/specs/active/FEAT-001-demo.md pr=https://github.com/tester/demo/pull/12 stopped_at=precheck
+[rc=0]
+=== review-spec-missing
+night-shift: review: specs/active/FEAT-404-gone.md does not exist at the base commit <sha>
+error 0
+[rc=1]
+=== review-diff-unreadable
+night-shift: review: the diff of PR #1 is unreadable, empty or over 204800 bytes (gh exit 1, 0 bytes)
+error 0
+[rc=1]
+=== review-head-moved
+night-shift: review: PR #1 head moved while reading its diff (pinned aaaaaaaaaaaa, now bbbbbbbbbbbb)
+error 0
+[rc=1]
+=== review-no-valid-answer
+night-shift: review: no valid answer (exit 0); treating it as a stop
+error 0
+[rc=1]
+=== arm-bad-option
+night-shift: arm: unknown option '--bogus' (accepted: --reach pr|dev|main, --unprotected-ok)
+[rc=1]
+=== arm-bad-reach
+night-shift: arm: --reach must be pr, dev or main (got 'sideways')
+[rc=1]
+=== arm-cli-cannot
+night-shift: cannot arm this box: the 'opencode' CLI does not declare the 'unattended' capability.
+night-shift: Arming needs all three of: a headless mode, a per-run spend cap, and a mechanical tool guard.
+night-shift: Simulated passes keep working — 'biab-night-shift run' will still tell you which spec it would pick.
+[rc=1]
+=== arm-dev-cancel
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: dev — merges to your dev branch after CI, an independent review and your dev check; main still needs you.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 implementation + $0.50 independent review = $2.50 max
+  review ceiling file: MISSING OR INVALID (<box>/varlib/night-shift/guard/review-budget-usd) — passes will stop before spending until the pack is reinstalled
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The agent itself still stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+At dev reach, after the agent has exited, this runner merges its PR into your
+dev branch only if: the PR is the one it opened tonight, it touches no danger
+zone, CI is green, an independent review finds nothing blocking, and your
+.biab/dev-check.sh passes. That merge is a BRAKE, not a lock: the runner and
+the agent share your account and token. Main still needs you (promote).
+A project with no CI, no dev branch or no dev check stays at the pull request.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: night-shift: not armed (nothing was written). The box keeps simulating.
+[rc=1]
+=== arm-pr-cancel
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: pr — stops at the pull request; you review and merge.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 (--max-budget-usd)
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The pass stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: night-shift: not armed (nothing was written). The box keeps simulating.
+[rc=1]
+=== arm-pr-unprotected-notice
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: pr — stops at the pull request; you review and merge.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 (--max-budget-usd)
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The pass stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+  --unprotected-ok: you are switching the second one OFF. Passes will run
+  against repositories with no required review, with the hook as the only
+  brake. Undo with: sudo biab-night-shift arm
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: night-shift: not armed (nothing was written). The box keeps simulating.
+[rc=1]
+=== arm-dev-not-root
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: dev — merges to your dev branch after CI, an independent review and your dev check; main still needs you.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 implementation + $0.50 independent review = $2.50 max
+  review ceiling file: MISSING OR INVALID (<box>/varlib/night-shift/guard/review-budget-usd) — passes will stop before spending until the pack is reinstalled
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The agent itself still stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+At dev reach, after the agent has exited, this runner merges its PR into your
+dev branch only if: the PR is the one it opened tonight, it touches no danger
+zone, CI is green, an independent review finds nothing blocking, and your
+.biab/dev-check.sh passes. That merge is a BRAKE, not a lock: the runner and
+the agent share your account and token. Main still needs you (promote).
+A project with no CI, no dev branch or no dev check stays at the pull request.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: night-shift: the mode file must be created by root — a file you can write is not a confirmation the agent cannot forge.
+night-shift: re-run: sudo biab-night-shift arm
+[rc=1]
+=== arm-main-cancel
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: main — merges to your default branch after the same gates; no lock any more, you accepted that in writing.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 implementation + $0.50 independent review = $2.50 max
+  review ceiling file: MISSING OR INVALID (<box>/varlib/night-shift/guard/review-budget-usd) — passes will stop before spending until the pack is reinstalled
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The agent itself still stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+At main reach the runner merges into your DEFAULT branch after the same gates.
+The required-review lock is no longer the stop. The runner does not change
+your branch protection: if your default branch is still locked, GitHub refuses
+the merge and the pass ends at the pull request.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: 
+Type UNLOCK MAIN to accept that the review lock is no longer the stop: night-shift: not armed (nothing was written). Arm at dev reach instead with: sudo biab-night-shift arm
+[rc=1]
+=== arm-with-quota-cache
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: pr — stops at the pull request; you review and merge.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 (--max-budget-usd)
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days, cost-equivalent: $41.20 (from the quota skill's cache)
+
+The pass stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: night-shift: not armed (nothing was written). The box keeps simulating.
+[rc=1]
+=== arm-gift-cancel
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: pr — stops at the pull request; you review and merge.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 (--max-budget-usd)
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The pass stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: 
+This box was set up as a gift. Whoever is holding it now pays for what
+it spends tonight, and may not have expected that.
+Type IUNDERSTAND to confirm you are that person: night-shift: not armed (nothing was written).
+[rc=1]
+=== arm-gift-not-root
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: pr — stops at the pull request; you review and merge.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 (--max-budget-usd)
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The pass stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: 
+This box was set up as a gift. Whoever is holding it now pays for what
+it spends tonight, and may not have expected that.
+Type IUNDERSTAND to confirm you are that person: night-shift: the mode file must be created by root — a file you can write is not a confirmation the agent cannot forge.
+night-shift: re-run: sudo biab-night-shift arm
+[rc=1]
+=== arm-dev-as-root
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: dev — merges to your dev branch after CI, an independent review and your dev check; main still needs you.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 implementation + $0.50 independent review = $2.50 max
+  review ceiling file: MISSING OR INVALID (<box>/varlib/night-shift/guard/review-budget-usd) — passes will stop before spending until the pack is reinstalled
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The agent itself still stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+At dev reach, after the agent has exited, this runner merges its PR into your
+dev branch only if: the PR is the one it opened tonight, it touches no danger
+zone, CI is green, an independent review finds nothing blocking, and your
+.biab/dev-check.sh passes. That merge is a BRAKE, not a lock: the runner and
+the agent share your account and token. Main still needs you (promote).
+A project with no CI, no dev branch or no dev check stays at the pull request.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: night-shift: armed at reach dev.
+night-shift: each project needs a dev branch first, created as you (not root): biab-night-shift dev-setup <project>
+night-shift: armed. Turn it off again at any time with: sudo biab-night-shift disarm
+night-shift: or stop a single night without disarming: touch <box>/state/night-shift-disabled
+[rc=0]
+=== arm-pr-unprotected-as-root
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: pr — stops at the pull request; you review and merge.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 (--max-budget-usd)
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The pass stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+  --unprotected-ok: you are switching the second one OFF. Passes will run
+  against repositories with no required review, with the hook as the only
+  brake. Undo with: sudo biab-night-shift arm
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: night-shift: armed WITHOUT requiring branch protection. The hook is the only brake tonight.
+night-shift: armed at reach pr.
+night-shift: armed. Turn it off again at any time with: sudo biab-night-shift disarm
+night-shift: or stop a single night without disarming: touch <box>/state/night-shift-disabled
+[rc=0]
+=== arm-main-as-root
+Arming the night shift means this box will run your AI unattended,
+on your subscription, while you are asleep.
+
+Reach: main — merges to your default branch after the same gates; no lock any more, you accepted that in writing.
+
+What one pass can cost:
+  hard cap per pass:   $2.00 implementation + $0.50 independent review = $2.50 max
+  review ceiling file: MISSING OR INVALID (<box>/varlib/night-shift/guard/review-budget-usd) — passes will stop before spending until the pack is reinstalled
+  wall-clock cap:      3600 seconds, enforced by systemd (TimeoutStartSec)
+  passes per night:    1, one spec, no retries
+  your last 7 days: not available (run the /quota skill once to build the cache)
+
+The agent itself still stops at the pull request. Two things keep it there:
+  a hook   allows only a push to its own branch and "gh pr create", and blocks
+           merges, releases, the GitHub API, CI edits, root and eval. A brake.
+  GitHub   a required review on your default branch that the agent, acting as
+           you, cannot give itself. The lock. A pass aborts if it is missing.
+
+At main reach the runner merges into your DEFAULT branch after the same gates.
+The required-review lock is no longer the stop. The runner does not change
+your branch protection: if your default branch is still locked, GitHub refuses
+the merge and the pass ends at the pull request.
+
+Type ARM (in capitals) to allow real passes, anything else to cancel: 
+Type UNLOCK MAIN to accept that the review lock is no longer the stop: night-shift: armed WITHOUT requiring branch protection. The hook is the only brake tonight.
+night-shift: armed at reach main.
+night-shift: armed. Turn it off again at any time with: sudo biab-night-shift disarm
+night-shift: or stop a single night without disarming: touch <box>/state/night-shift-disabled
+[rc=0]
+=== disarm-already
+night-shift: already disarmed (the pack stays installed and the timer stays enabled).
+[rc=0]
+=== disarm-not-root
+night-shift: removing the mode file needs root. Re-run: sudo biab-night-shift disarm
+[rc=1]
+=== disarm-as-root
+night-shift: disarmed. The pack is still installed and the timer still fires — passes just simulate again.
+[rc=0]
+=== dev-as-root
+night-shift: dev-setup runs as you, not as root: it uses your own gh login. Re-run without sudo.
+[rc=1]
+=== dev-no-project
+night-shift: usage: biab-night-shift dev-setup <project>   (a directory under <box>/projects)
+[rc=1]
+=== dev-bad-name
+night-shift: usage: biab-night-shift dev-setup <project>   (a directory under <box>/projects)
+[rc=1]
+=== dev-not-git
+night-shift: dev-setup: <box>/projects/nothing is not a git repository
+[rc=1]
+=== dev-not-git-dir
+night-shift: dev-setup: <box>/projects/nothing is not a git repository
+[rc=1]
+=== dev-gh-logged-out
+night-shift: dev-setup: gh is not logged in. Run: gh auth login
+[rc=1]
+=== dev-default-is-dev
+night-shift: dev-setup: the default branch of tester/demo is already called dev; the reach ladder needs a separate dev branch
+[rc=1]
+=== dev-setup-new
+night-shift: created dev in tester/demo from main at 0123456789ab
+night-shift: dev in tester/demo is protected: no force push, no deletion, required checks copied from main.
+night-shift: next: commit a .biab/dev-check.sh that shows the change works (exit 0), or the project stays at the pull request.
+[rc=0]
+=== dev-setup-exists
+night-shift: dev already exists in tester/demo; (re)applying its protection
+night-shift: dev in tester/demo is protected: no force push, no deletion, required checks copied from main.
+night-shift: next: commit a .biab/dev-check.sh that shows the change works (exit 0), or the project stays at the pull request.
+[rc=0]
+=== dev-setup-no-tip
+night-shift: dev-setup: cannot read the tip of main in tester/demo
+[rc=1]
+=== dev-setup-create-refused
+night-shift: dev-setup: GitHub refused to create the dev branch in tester/demo
+[rc=1]
+=== dev-setup-protect-refused
+night-shift: created dev in tester/demo from main at 0123456789ab
+night-shift: dev-setup: GitHub refused to protect dev in tester/demo (you need admin rights on the repository)
+[rc=1]
+=== dev-sync-up-to-date
+night-shift: dev is up to date with main; nothing to do.
+[rc=0]
+=== dev-sync-merged
+night-shift: merged 2 commit(s) of main into dev.
+[rc=0]
+=== dev-sync-conflict
+night-shift: dev-sync: GitHub could not merge main into dev (a conflict?). Resolve it by hand on a branch and open a PR into dev.
+[rc=1]
+=== dev-sync-no-dev
+night-shift: dev-sync: cannot compare dev with main in tester/demo (does dev exist? run dev-setup)
+[rc=1]
+=== promote-opens
+night-shift: opened https://github.com/tester/demo/pull/12
+night-shift: dev is 3 commit(s) ahead of main. Finish it with:
+  gh pr merge 12 --repo tester/demo --merge
+night-shift: a merge commit, never a squash merge. If main requires an approving review, it needs one first.
+[rc=0]
+=== promote-reuses
+night-shift: reusing the open promotion PR https://github.com/tester/demo/pull/7
+night-shift: dev is 3 commit(s) ahead of main. Finish it with:
+  gh pr merge 7 --repo tester/demo --merge
+night-shift: a merge commit, never a squash merge. If main requires an approving review, it needs one first.
+[rc=0]
+=== promote-nothing
+night-shift: dev has nothing that main does not; nothing to promote.
+[rc=1]
+=== promote-cannot-open
+night-shift: promote: could not open the dev -> main pull request in tester/demo
+[rc=1]
+=== promote-no-dev
+night-shift: promote: cannot compare main with dev in tester/demo (does dev exist? run dev-setup)
+[rc=1]
+=== install-notice-armable
+
+  Night shift installed — and switched OFF.
+
+  What it does once you turn it on: at 03:00 it picks ONE spec you have
+  validated and implements it with your AI. The agent itself stops at
+  the pull request: a hook blocks merges, releases, pushes to main or dev,
+  the GitHub API and CI edits — a brake. The lock is a required review on
+  your default branch, which a pass checks for and refuses to run without.
+
+  WHAT IT COSTS: a real pass spends YOUR subscription, unattended, while you
+  are asleep. Capped at $2.00 ($2.50 with the review at dev reach) and
+  3600s per pass, one spec per night, no retries. Nothing is spent
+  until you arm it.
+
+  Try it first — this spends nothing and tells you what it would have done:
+      biab-night-shift run
+      biab-night-shift status
+
+  When you are ready:
+      sudo biab-night-shift arm      (shows the cost, asks you to type ARM)
+      sudo biab-night-shift disarm   (back to simulating, nothing uninstalled)
+
+  Reach: a new arm defaults to 'dev'. After CI, an independent review and
+  your .biab/dev-check.sh pass, the runner merges into a dev branch ($2.50
+  max per pass). 'arm --reach pr' stops at the pull request instead. A box
+  armed before this version keeps stopping at the pull request until you
+  re-arm.
+[rc=0]
+=== install-notice-not-armable
+
+  Night shift installed — and switched OFF.
+
+  What it does once you turn it on: at 03:00 it picks ONE spec you have
+  validated and implements it with your AI. The agent itself stops at
+  the pull request: a hook blocks merges, releases, pushes to main or dev,
+  the GitHub API and CI edits — a brake. The lock is a required review on
+  your default branch, which a pass checks for and refuses to run without.
+
+  WHAT IT COSTS: a real pass spends YOUR subscription, unattended, while you
+  are asleep. Capped at $2.00 ($2.50 with the review at dev reach) and
+  3600s per pass, one spec per night, no retries. Nothing is spent
+  until you arm it.
+
+  Try it first — this spends nothing and tells you what it would have done:
+      biab-night-shift run
+      biab-night-shift status
+
+  NOTE about this box: it runs 'opencode', which cannot be armed. Arming
+  requires a headless mode, a per-run spend cap and a mechanical tool guard,
+  and 'opencode' does not offer all three. Simulated passes work fine and are
+  genuinely useful — but on this box the night shift will stay a simulation.
+[rc=0]
+=== uninstall-nothing
+night-shift pack uninstall: nothing to remove
+[rc=0]
+=== uninstall-removes
+night-shift pack uninstall: timer was not enabled, continuing
+night-shift pack uninstall: removing <box>/root/usr/local/bin/biab-night-shift
+night-shift pack uninstall: removing <box>/varlib/night-shift/guard
+night-shift pack uninstall: removing <box>/state
+night-shift pack uninstall: complete
+night-shift pack uninstall: left alone: the dev branch on GitHub and .biab/ in your projects (remove a dev branch yourself with: git push origin --delete dev)
+[rc=0]
+=== pack-missing
+biab-night-shift: cannot find the pack at <W>/nowhere
+biab-night-shift: reinstall it with 'sudo biab pack add night-shift', or set BIAB_PACK_ROOT to the pack directory.
+[rc=1]
+=== end

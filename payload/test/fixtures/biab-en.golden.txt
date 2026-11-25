@@ -1,0 +1,1266 @@
+=== help
+biab — Builders in a Box CLI
+  biab           resume the installer from the last completed step
+  biab status    short summary: phone-app service, setup steps (--json for state.json)
+  biab logs      follow the bootstrap log
+  biab update    pull latest BIAB + re-run install scripts (no reinstall needed)
+                 biab update --latest   install the newest upstream Claude Code, Codex,
+                                        Paseo and agy instead of the tested versions
+                                        (unsupported; 'biab update' returns to them)
+  biab auto-update  scheduled 'biab update', off until you turn it on
+                 biab auto-update on [weekly|daily|monthly|'Mon 03:30']  |  off  |  status
+                                        (it runs plain 'biab update': on a box that used
+                                         --latest, the next run puts it back on the tested versions)
+  biab add       install an optional bundled skill or skill group (e.g. 'biab add incident', 'biab add handover', 'biab add marketing')
+  biab subscription  see the AIs on this box, or add one ('biab subscription add codex')
+                 (also: 'biab ai', same thing)
+  biab pack      manage opt-in heavyweight capability packs
+                 (browser: a sandboxed headless Chromium the agent can drive.
+                  night-shift: overnight work on specs you have validated —
+                  installed switched OFF, and it spends your subscription
+                  once you switch it on, so read what it prints.)
+                 biab pack list            show available packs + status
+                 biab pack add <name>      install a pack
+                 biab pack remove <name>   uninstall a pack
+  biab worktrees clean [--dry-run] [--yes]
+                 retire the worktrees of merged pull requests; shows what goes and why the rest stay
+  biab paseo     the phone-app service (needs sudo)
+                 biab paseo pair [--rotate]   show host/port/password and confirm
+                                              pairing; --rotate makes a new password
+                 biab paseo restart           restart it and clear a "gave up" state
+  biab lang      show or change the language (English or Español): biab lang [en|es]
+  biab help      this message
+[rc=0]
+=== help-dash
+biab — Builders in a Box CLI
+  biab           resume the installer from the last completed step
+  biab status    short summary: phone-app service, setup steps (--json for state.json)
+  biab logs      follow the bootstrap log
+  biab update    pull latest BIAB + re-run install scripts (no reinstall needed)
+                 biab update --latest   install the newest upstream Claude Code, Codex,
+                                        Paseo and agy instead of the tested versions
+                                        (unsupported; 'biab update' returns to them)
+  biab auto-update  scheduled 'biab update', off until you turn it on
+                 biab auto-update on [weekly|daily|monthly|'Mon 03:30']  |  off  |  status
+                                        (it runs plain 'biab update': on a box that used
+                                         --latest, the next run puts it back on the tested versions)
+  biab add       install an optional bundled skill or skill group (e.g. 'biab add incident', 'biab add handover', 'biab add marketing')
+  biab subscription  see the AIs on this box, or add one ('biab subscription add codex')
+                 (also: 'biab ai', same thing)
+  biab pack      manage opt-in heavyweight capability packs
+                 (browser: a sandboxed headless Chromium the agent can drive.
+                  night-shift: overnight work on specs you have validated —
+                  installed switched OFF, and it spends your subscription
+                  once you switch it on, so read what it prints.)
+                 biab pack list            show available packs + status
+                 biab pack add <name>      install a pack
+                 biab pack remove <name>   uninstall a pack
+  biab worktrees clean [--dry-run] [--yes]
+                 retire the worktrees of merged pull requests; shows what goes and why the rest stay
+  biab paseo     the phone-app service (needs sudo)
+                 biab paseo pair [--rotate]   show host/port/password and confirm
+                                              pairing; --rotate makes a new password
+                 biab paseo restart           restart it and clear a "gave up" state
+  biab lang      show or change the language (English or Español): biab lang [en|es]
+  biab help      this message
+[rc=0]
+=== paseo-usage
+usage: biab paseo {pair [--rotate]|restart}
+[rc=1]
+=== worktrees-usage
+usage: biab worktrees clean [--dry-run] [--yes]
+[rc=64]
+=== paseo-antigravity-stub
+Antigravity now runs in the Paseo app and asks before it runs shell commands, writes files in your project, home folder, ~/.biab or /var/tmp, and reads files outside your project; there is nothing to switch.
+[rc=0]
+=== status-usage
+usage: biab status [--json]
+[rc=1]
+=== status-json
+{
+  "bib_user": "builder",
+  "ai_cli": "claude",
+  "phases": {
+    "password_set": true
+  }
+}
+[rc=0]
+=== update-usage
+usage: biab update [--latest]
+[rc=1]
+=== add-missing
+biab add: missing group name.
+Usage: biab add <group>   (optional: incident, debugging, deploy-ops, docker-ops, pm2-ops, spec-cleanup, wireframe-generator, handover, agent-handover, wrapup, unwrap, hotfix, fact-checker, verify-frontend-change, marketing, marketing-context, customer-research, analytics, attribution, cro, programmatic-seo, schema, marketing-loops, ab-testing, ads, ai-seo, content-strategy, copywriting, marketing-ideas, onboarding, popups, revops, seo-audit, signup)
+[rc=1]
+=== add-unknown
+biab add: unknown group 'nosuchskill'.
+Usage: biab add <group>   (optional: incident, debugging, deploy-ops, docker-ops, pm2-ops, spec-cleanup, wireframe-generator, handover, agent-handover, wrapup, unwrap, hotfix, fact-checker, verify-frontend-change, marketing, marketing-context, customer-research, analytics, attribution, cro, programmatic-seo, schema, marketing-loops, ab-testing, ads, ai-seo, content-strategy, copywriting, marketing-ideas, onboarding, popups, revops, seo-audit, signup)
+[rc=1]
+=== add-sdd
+SDD skills are installed by default since v0.2 — nothing to do.
+Type / in your AI and look for /sdd-coordinator to get started.
+[rc=0]
+=== add-core
+'tutorial' is a core skill — already installed on every box.
+[rc=0]
+=== add-optional
+Installed skill 'incident' -> <W>/home/.agents/skills/incident
+Type / in your AI and look for /incident.
+[rc=0]
+=== add-optional-again
+'incident' is already installed — nothing to do.
+Type / in your AI and look for /incident.
+[rc=0]
+=== add-group
+Installed skill 'agent-handover' -> <W>/home/.agents/skills/agent-handover
+Type / in your AI and look for /agent-handover.
+Installed skill 'wrapup' -> <W>/home/.agents/skills/wrapup
+Type / in your AI and look for /wrapup.
+Installed skill 'unwrap' -> <W>/home/.agents/skills/unwrap
+Type / in your AI and look for /unwrap.
+[rc=0]
+=== add-notfound
+biab add: skill 'ghost' not found in the bundled payload.
+[rc=0]
+=== pack-usage
+usage: biab pack {list|add|remove} <name>
+[rc=1]
+=== pack-list
+browser	not installed
+night-shift	not installed
+[rc=0]
+=== pack-list-installed
+browser	not installed
+night-shift	installed
+[rc=0]
+=== pack-add-noname
+usage: biab pack add <name>
+[rc=1]
+=== pack-remove-noname
+usage: biab pack remove <name>
+[rc=1]
+=== pack-list-empty
+no packs available
+[rc=0]
+=== update-nogit
+biab update: <W>/root/opt/buildersinabox is not a git checkout — nothing to update
+(this device was installed before remote updates were supported, or the .git folder was removed)
+[rc=1]
+=== update-run
+==> Syncing latest BIAB into <W>/root/opt/buildersinabox
+==> Re-running install scripts (idempotent, no wizard)
+[install.sh --skip-wizard]
+==> Done.
+If new wizard steps were added you can resume them with: biab
+[rc=0]
+=== update-latest
+==> Syncing latest BIAB into <W>/root/opt/buildersinabox
+==> Re-running install scripts (idempotent, no wizard)
+[install.sh --skip-wizard --latest]
+==> Done.
+If new wizard steps were added you can resume them with: biab
+[rc=0]
+=== auto-update-dispatch
+[install.sh --auto-update status]
+[rc=0]
+=== paseo-pair-noservice
+biab paseo: the phone-app service is not installed on this box (see: biab status). Retry with: sudo biab update
+[rc=1]
+=== paseo-restart-noservice
+biab paseo: the phone-app service is not installed on this box (see: biab status). Retry with: sudo biab update
+[rc=1]
+=== status-nostate
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+(no state.json yet: run biab to start the setup)
+Raw state: biab status --json
+[rc=0]
+=== status-nocli
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+Box: user builder, AI not chosen yet, profile ?
+Steps done: none
+Raw state: biab status --json
+[rc=0]
+=== status-aicli-empty
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+Box: user builder, AI not chosen yet, profile ?
+Steps done: none
+Raw state: biab status --json
+[rc=0]
+=== status-nodaemon-claude
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+You can always work over SSH, with no app:
+
+ssh builder@biabox.europe-west1-b.c.proj.internal
+
+Then run:  claude
+Box: user builder, AI claude, profile dedicated
+Steps done: stack_installed, password_set
+Not done yet: scaffold_done  (run: biab)
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Claude Code, or Claude Code has its hooks turned off in its own config
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+Raw state: biab status --json
+[rc=0]
+=== status-nodaemon-antigravity
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+You can always work over SSH, with no app:
+
+ssh builder@biabox.europe-west1-b.c.proj.internal
+
+Then run:  agy
+Box: user builder, AI antigravity, profile dedicated
+Steps done: stack_installed, password_set
+Not done yet: scaffold_done  (run: biab)
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Antigravity (agy), or Antigravity (agy) has its hooks turned off in its own config
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+Raw state: biab status --json
+[rc=0]
+=== status-nodaemon-codex
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+You can always work over SSH, with no app:
+
+ssh builder@biabox.europe-west1-b.c.proj.internal
+
+Then run:  codex
+Box: user builder, AI codex, profile dedicated
+Steps done: stack_installed, password_set
+Not done yet: scaffold_done  (run: biab)
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+Raw state: biab status --json
+[rc=0]
+=== status-nodaemon-opencode
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+You can always work over SSH, with no app:
+
+ssh builder@biabox.europe-west1-b.c.proj.internal
+
+Then run:  opencode
+Box: user builder, AI opencode, profile dedicated
+Steps done: stack_installed, password_set
+Not done yet: scaffold_done  (run: biab)
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    base permissions not in place: BIAB adds its rules on top of the permission.bash it seeds in ~/.config/opencode/opencode.json, and that file is missing (sudo biab update creates it) or not in that shape (invalid JSON, JSONC, a blanket allow: fix the file, then run sudo biab update)
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+Raw state: biab status --json
+[rc=0]
+=== status-latest
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+You can always work over SSH, with no app:
+
+ssh builder@biabox.europe-west1-b.c.proj.internal
+
+Then run:  claude
+Box: user builder, AI claude, profile cloud
+Steps done: stack_installed
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Claude Code, or Claude Code has its hooks turned off in its own config
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+OFF-PIN since 2026-11-01T10:00:00Z: untested versions. Return with: biab update
+Raw state: biab status --json
+[rc=0]
+=== status-latest-nosince
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+You can always work over SSH, with no app:
+
+ssh <user>@biabox.europe-west1-b.c.proj.internal
+
+Then run:  claude
+Box: user ?, AI claude, profile ?
+Steps done: none
+OFF-PIN since unknown: untested versions. Return with: biab update
+Raw state: biab status --json
+[rc=0]
+=== status-badjson
+Builders in a Box: status
+Phone app service: not installed on this box (retry with: sudo biab update)
+(state.json could not be read)
+Raw state: biab status --json
+[rc=0]
+=== status-daemon-OK
+Builders in a Box: status
+Phone app service: OK since 2026-10-20 10:00 UTC
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI codex, profile ?
+Steps done: stack_installed
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+Raw state: biab status --json
+[rc=0]
+=== status-daemon-RESTARTED
+Builders in a Box: status
+Phone app service: RESTARTED since 2026-10-20 10:00 UTC (restarting; the watchdog has used 1 of 3 restarts this hour)
+The app is not reachable, but SSH over your tailnet still works:
+  ssh builder@box.tailnet.ts.net  then: codex
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI codex, profile ?
+Steps done: stack_installed
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+Raw state: biab status --json
+[rc=0]
+=== status-daemon-FAILED
+Builders in a Box: status
+Phone app service: FAILED since 2026-10-20 10:00 UTC (it stopped and could not restart by itself)
+The app is not reachable, but SSH over your tailnet still works:
+  ssh builder@box.tailnet.ts.net  then: codex
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI codex, profile ?
+Steps done: stack_installed
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+Raw state: biab status --json
+[rc=0]
+=== status-daemon-GIVEN_UP
+Builders in a Box: status
+Phone app service: GIVEN_UP since 2026-10-20 10:00 UTC (still down after 3 restarts; run: sudo biab paseo restart)
+The app is not reachable, but SSH over your tailnet still works:
+  ssh builder@box.tailnet.ts.net  then: codex
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI codex, profile ?
+Steps done: stack_installed
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+Raw state: biab status --json
+[rc=0]
+=== status-daemon-WAITING_TAILNET
+Builders in a Box: status
+Phone app service: waiting for the tailnet since 2026-10-20 10:00 UTC (it starts as soon as Tailscale is up)
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI codex, profile ?
+Steps done: stack_installed
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+Raw state: biab status --json
+[rc=0]
+=== status-daemon-WHATEVER
+Builders in a Box: status
+Phone app service: WHATEVER (no health check has run yet)
+The app is not reachable, but SSH over your tailnet still works:
+  ssh builder@box.tailnet.ts.net  then: codex
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI codex, profile ?
+Steps done: stack_installed
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+Raw state: biab status --json
+[rc=0]
+=== status-provider-ok
+Builders in a Box: status
+Phone app service: OK since 2026-10-20 10:00 UTC
+  Antigravity: provider settings as set at start
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI antigravity, profile ?
+Steps done: stack_installed
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Antigravity (agy), or Antigravity (agy) has its hooks turned off in its own config
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+Raw state: biab status --json
+[rc=0]
+=== status-provider-changed
+Builders in a Box: status
+Phone app service: OK since 2026-10-20 10:00 UTC
+  Antigravity: provider settings changed since the service started — run: sudo biab paseo restart to re-apply them
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI antigravity, profile ?
+Steps done: stack_installed
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Antigravity (agy), or Antigravity (agy) has its hooks turned off in its own config
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+Raw state: biab status --json
+[rc=0]
+=== status-provider-unreadable
+Builders in a Box: status
+Phone app service: OK since 2026-10-20 10:00 UTC
+  Antigravity: provider settings unreadable (<W>/home/config.json) — fix or move that file, then run: sudo biab paseo restart
+Phone: not paired yet. Run: sudo biab paseo pair
+Box: user builder, AI antigravity, profile ?
+Steps done: stack_installed
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Antigravity (agy), or Antigravity (agy) has its hooks turned off in its own config
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+Raw state: biab status --json
+[rc=0]
+=== status-paired
+Builders in a Box: status
+Phone app service: OK since 2026-10-20 10:00 UTC
+Phone: paired
+Box: user builder, AI antigravity, profile ?
+Steps done: stack_installed
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Antigravity (agy), or Antigravity (agy) has its hooks turned off in its own config
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+Raw state: biab status --json
+[rc=0]
+=== status-repair
+Builders in a Box: status
+Phone app service: OK since 2026-10-20 10:00 UTC
+Phone: re-pair needed, the password was regenerated. Run: sudo biab paseo pair
+Box: user builder, AI antigravity, profile ?
+Steps done: stack_installed
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Antigravity (agy), or Antigravity (agy) has its hooks turned off in its own config
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+Raw state: biab status --json
+[rc=0]
+=== paseo-restart
+biab-paseo-health: state OK -> RESTARTED (0 restart(s) in the last hour)
+biab-paseo-health: restart requested; the health check will confirm it within 2 minutes
+Restarting the app service. Check it with: biab status
+[rc=0]
+=== paseo-pair-bogus
+biab-paseo-health: usage: biab paseo pair [--rotate]
+[rc=1]
+=== paseo-pair-eof
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      100.64.1.2
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on.
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+When the app shows your box, press Enter.
+Type s to skip.
+> 
+Not confirmed. Run "sudo biab paseo pair" again when you are ready.
+[rc=0]
+=== paseo-pair-notty
+biab-paseo-health: this prints the phone password, so it only runs in a terminal (not piped or captured). Open a terminal and run: sudo biab paseo pair
+[rc=1]
+=== paseo-pair-skip
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      100.64.1.2
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on.
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+When the app shows your box, press Enter.
+Type s to skip.
+> Not confirmed. Run "sudo biab paseo pair" again when you are ready.
+[rc=0]
+=== paseo-pair-three
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      100.64.1.2
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on.
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+When the app shows your box, press Enter.
+Type s to skip.
+> The box does not see your phone yet. Check the password,
+that Tailscale is on, and that "Use SSL" is off.
+
+When the app shows your box, press Enter.
+Type s to skip.
+> The box does not see your phone yet. Check the password,
+that Tailscale is on, and that "Use SSL" is off.
+
+When the app shows your box, press Enter.
+Type s to skip.
+> The box does not see your phone yet. Check the password,
+that Tailscale is on, and that "Use SSL" is off.
+
+Not confirmed. Run "sudo biab paseo pair" again when you are ready.
+[rc=0]
+=== paseo-pair-nocred
+biab-paseo-health: no credential at <W>/root/etc/buildersinabox/paseo.env; run 'biab update' or 'sudo systemctl restart biab-paseo.service' first
+[rc=1]
+=== paseo-pair-rotate-run
+A new password was generated and the app service restarted.
+Phones paired before this must be paired again.
+
+biab-paseo-health: no credential at <W>/root/etc/buildersinabox/paseo.env; run 'biab update' or 'sudo systemctl restart biab-paseo.service' first
+[rc=1]
+=== paseo-pair-paired
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      100.64.1.2
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on.
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+When the app shows your box, press Enter.
+Type s to skip.
+> Paired. Your phone is connected.
+[rc=0]
+=== paseo-pair-again
+In the Paseo app, open Settings, then Add host, then
+choose Direct connection and enter:
+
+  Host:      100.64.1.2
+  Port:      6767
+  Password:
+  sekrit
+
+Leave "Use SSL" off. Your phone needs Tailscale switched
+on.
+
+The app lists this box under a long name that starts
+with "biabox" (its machine name).
+To rename it, open the host's settings in the app and tap
+the pencil.
+
+Run this again from a terminal to confirm the pairing.
+[rc=0]
+=== cli-hint-claude
+needs a paid Claude subscription (Pro or above). Guard and night shift.
+
+[rc=0]
+=== cli-hint-antigravity
+Google's Antigravity (agy) — needs a Google account. Guard, no night shift.
+not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== cli-hint-codex
+OpenAI Codex — sign in with your ChatGPT account. Guard (you approve it once), no night shift yet.
+not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== cli-hint-opencode
+OpenCode — sign in with an OpenCode Go/Zen key or another provider. Partial guard. No night shift.
+not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== cli-menu
+  + Choose one or more ----------------+
+  | 1  Claude (Pro/Max) -> Claude Code |
+  | 2  Google           -> Antigravity |
+  | 3  ChatGPT          -> Codex       |
+  | 4  Other / API      -> OpenCode    |
+  +------------------------------------+
+[rc=0]
+=== night-generic
+not available for Fake CLI yet
+[rc=0]
+=== guard-claude-none
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        none  Builders in a Box adds no guard on Claude Code; only Claude Code's own prompts protect this box
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-active
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        yes   blocks common destructive shell commands (best-effort)
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-off
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        off   hooks disabled in settings.json (disableAllHooks)
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-disabled
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        off   switched off inside Claude Code
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-pending
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    PENDING APPROVAL: installed, but NOT active until you approve it
+                     Approve it once: run `claude`, then type /hooks
+                     Until then Claude Code skips it (`claude exec` included)
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-changed
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    PENDING APPROVAL: its entry was changed after you approved it, so Claude Code no longer runs it
+                     Review and approve it again: run `claude`, then type /hooks
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-invalid
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    Claude Code cannot load its hooks or config file (invalid): fix it, then run: sudo biab update
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-unverifiable
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        ?     cannot check what Claude Code loads right now (command not found or no answer): not claiming it is active
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-missing
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Claude Code, or Claude Code has its hooks turned off in its own config
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-partial
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    part of the guard is in place
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-linked
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    a file BIAB writes for this guard (settings.json, hooks.json) is a symbolic link and BIAB does not write through links: add the hooks to its target yourself, or replace the link with a file
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-blocked
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    registered, but its script or rules file is missing or not executable
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-overridden
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    overridden by another config of Claude Code
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-weird
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        no    state: weird
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-claude-killswitch
+Safety net (Claude Code):
+  base         yes   Paseo asks before it acts
+  guard        off   hooks disabled (sentinel present)
+  night shift  yes   supported (opt-in: biab pack add night-shift)
+[rc=0]
+=== guard-antigravity-none
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        none  Builders in a Box adds no guard on Antigravity (agy); only Antigravity (agy)'s own prompts protect this box
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-active
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        yes   blocks common destructive shell commands (best-effort)
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-off
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        off   hooks disabled in settings.json (disableAllHooks)
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-disabled
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        off   switched off inside Antigravity (agy)
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-pending
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    PENDING APPROVAL: installed, but NOT active until you approve it
+                     Approve it once: run `agy`, then type /hooks
+                     Until then Antigravity (agy) skips it (`agy exec` included)
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-changed
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    PENDING APPROVAL: its entry was changed after you approved it, so Antigravity (agy) no longer runs it
+                     Review and approve it again: run `agy`, then type /hooks
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-invalid
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    Antigravity (agy) cannot load its hooks or config file (invalid): fix it, then run: sudo biab update
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-unverifiable
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        ?     cannot check what Antigravity (agy) loads right now (command not found or no answer): not claiming it is active
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-missing
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Antigravity (agy), or Antigravity (agy) has its hooks turned off in its own config
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-partial
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    part of the guard is in place
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-linked
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    a file BIAB writes for this guard (settings.json, hooks.json) is a symbolic link and BIAB does not write through links: add the hooks to its target yourself, or replace the link with a file
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-blocked
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    registered, but its script or rules file is missing or not executable
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-overridden
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    overridden by another config of Antigravity (agy)
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-weird
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        no    state: weird
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-antigravity-killswitch
+Safety net (Antigravity (agy)):
+  base         yes   Paseo asks before it acts
+  guard        off   hooks disabled (sentinel present)
+  night shift  no    not possible with Antigravity (agy) today: its command-line mode waits for a terminal an unattended run does not have, and it cannot log in without a person at a screen
+[rc=0]
+=== guard-codex-none
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        none  Builders in a Box adds no guard on Codex; only Codex's own prompts protect this box
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-active
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        yes   blocks common destructive shell commands (best-effort) (no confirm prompts on Codex)
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-off
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        off   hooks disabled in settings.json (disableAllHooks)
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-disabled
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        off   switched off inside Codex (its hooks screen, or [features] hooks = false in config.toml)
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-pending
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    PENDING APPROVAL: installed, but NOT active until you approve it
+                     Approve it once: run `codex`, then type /hooks
+                     Until then Codex skips it (`codex exec` included)
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-changed
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    PENDING APPROVAL: its entry was changed after you approved it, so Codex no longer runs it
+                     Review and approve it again: run `codex`, then type /hooks
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-invalid
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    Codex cannot load its hooks or config file (invalid): fix it, then run: sudo biab update
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-unverifiable
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        ?     cannot check what Codex loads right now (command not found or no answer): not claiming it is active
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-missing
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    the guard is not registered for Codex, or Codex has its hooks turned off in its own config
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-partial
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    part of the guard is in place
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-linked
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    a file BIAB writes for this guard (settings.json, hooks.json) is a symbolic link and BIAB does not write through links: add the hooks to its target yourself, or replace the link with a file
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-blocked
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    registered, but its script or rules file is missing or not executable
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-overridden
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    overridden by another config of Codex
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-weird
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        no    state: weird
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-codex-killswitch
+Safety net (Codex):
+  base         yes   Paseo asks before it acts
+  guard        off   hooks disabled (sentinel present)
+  night shift  no    not wired for Codex yet (it has the pieces, not the unattended run)
+[rc=0]
+=== guard-opencode-none
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        none  Builders in a Box adds no guard on OpenCode; only OpenCode's own prompts protect this box
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-active
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        yes   blocks common destructive shell commands (best-effort) (no confirm prompts on OpenCode) (PARTIAL: shell patterns only, quoted and glued forms of rm/chmod/chown are not all caught)
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-off
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        off   hooks disabled in settings.json (disableAllHooks)
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-disabled
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        off   switched off inside OpenCode
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-pending
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    PENDING APPROVAL: installed, but NOT active until you approve it
+                     Approve it once: run `opencode`, then type /hooks
+                     Until then OpenCode skips it (`opencode exec` included)
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-changed
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    PENDING APPROVAL: its entry was changed after you approved it, so OpenCode no longer runs it
+                     Review and approve it again: run `opencode`, then type /hooks
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-invalid
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    OpenCode cannot load its hooks or config file (invalid): fix it, then run: sudo biab update
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-unverifiable
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        ?     cannot check what OpenCode loads right now (command not found or no answer): not claiming it is active
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-missing
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    the guard rules are not in ~/.config/opencode/opencode.json yet: run sudo biab update
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-partial
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    some guard rules in ~/.config/opencode/opencode.json are missing, were changed, or are overridden by a rule of yours that comes after them
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-linked
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    ~/.config, ~/.config/opencode or opencode.json is a symbolic link and BIAB does not write through links: put the rules in its target yourself, or replace the link with a file
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-blocked
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    base permissions not in place: BIAB adds its rules on top of the permission.bash it seeds in ~/.config/opencode/opencode.json, and that file is missing (sudo biab update creates it) or not in that shape (invalid JSON, JSONC, a blanket allow: fix the file, then run sudo biab update)
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-overridden
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    the rules are in ~/.config/opencode/opencode.json, but OpenCode's base permission check fails (<W>/gh/.config/opencode/opencode.json does not exist, and OpenCode's default is to allow edits and shell commands): an allow of yours that comes before ours is overridden where it overlaps, and an allow in an agent, a mode, ~/.opencode or the workspace opencode.json applies after ours
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-weird
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        no    state: weird
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-killswitch
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        off   hooks disabled (sentinel present)
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-opencode-killswitch-rules
+Safety net (OpenCode):
+  base         no    no phone-app interface for OpenCode: reach it over ssh
+  guard        off   hooks disabled (sentinel present)
+                     the guard rules ALREADY in ~/.config/opencode/opencode.json keep denying: the switch only stops BIAB from adding them. To remove them, delete from permission.bash the keys printed by: bash /opt/buildersinabox/payload/hooks/opencode-guard.sh keys
+  night shift  no    not available for OpenCode: no unattended mode with a spend cap and a tool guard that Builders in a Box can verify
+[rc=0]
+=== guard-codex-note
+note: ~/.codex/config.toml has hooks of its own. Codex warns about two hook files each session; that is normal and not from BIAB.
+(its hooks screen, or [features] hooks = false in config.toml)[rc=0]
+=== guard-opencode-note
+PARTIAL: N deny rules in ~/.config/opencode/opencode.json: a different, smaller coverage than Claude Code's or Codex's.
+Not covered: a pipe into a shell or into fdisk (curl | bash), quoted targets (rm -rf "/"), rm -rf /*, commands inside bash -c,
+a renamed fork bomb, a one-line heredoc, a command split over two lines, and any command that does not start with
+the tool's own name (sudo -E, env, VAR=1 rm, nohup, doubled spaces).
+Known false positives: a quoted > /dev/sda inside text, git push -f to a branch whose name contains main or master.
+Not confirmed: subagents obeying these rules. Overridden by a project's own opencode.json that allows everything, and by
+the OPENCODE_CONFIG_CONTENT and OPENCODE_PERMISSION environment variables.
+[rc=0]
+=== guard-unproven
+                     installed, NOT verified: Antigravity (agy) loads the plugin, but nobody has seen it block a command yet, so Builders in a Box does not count it
+                     installed, NOT verified, and switched off inside Antigravity (agy)
+                     installed, NOT verified, and the hooks are disabled (sentinel present)
+                     installed, NOT verified, and Antigravity (agy) did not load its hook (or its script or rules file is gone)
+                     installed, NOT verified: cannot check what Antigravity (agy) loads right now (command not found or no answer)
+                     installed, NOT verified (state: weird)
+[rc=0]
+=== guard-pending-note
+
+One more step: the safety guard for
+Codex is NOT active yet. Approve it
+once: run `codex`, then type /hooks.
+
+Could not check the safety guard for
+Codex yet. If `biab status` does
+not show it active, run `codex`, then
+type /hooks and approve it.
+[rc=0]
+=== perm-nohome
+the box user's home folder could not be found[rc=1]
+=== perm-noconfig
+<W>/oc-none/.config/opencode/opencode.json does not exist, and OpenCode's default is to allow edits and shell commands[rc=1]
+=== perm-symlink
+a symbolic link in the way (BIAB never reads or writes through links in your home folder): <W>/oc-link/.config/opencode/opencode.json[rc=1]
+=== perm-jsonc
+<W>/oc-jsonc/.config/opencode/opencode.jsonc exists next to opencode.json, and BIAB does not merge JSONC[rc=1]
+=== perm-badjson
+<W>/oc-badjson/.config/opencode/opencode.json is not valid JSON[rc=1]
+=== perm-notobj
+<W>/oc-notobj/.config/opencode/opencode.json: its top level is not a JSON object[rc=1]
+=== perm-nopermission
+<W>/oc-noperm/.config/opencode/opencode.json: it has no permission rules[rc=1]
+=== perm-wildcard
+<W>/oc-wildcard/.config/opencode/opencode.json: a wildcard permission rule can override the rules that ask[rc=1]
+=== perm-agentmode
+<W>/oc-agentmode/.config/opencode/opencode.json: an agent or mode rule in the same file allows actions without asking (OpenCode applies it after the global rules)[rc=1]
+=== perm-editallow
+<W>/oc-editallow/.config/opencode/opencode.json: permission.edit does not ask or deny[rc=1]
+=== perm-bashallow
+<W>/oc-bashallow/.config/opencode/opencode.json: permission.bash does not ask or deny by default[rc=1]
+=== perm-overlay-link
+a symbolic link in the way: <W>/oc-overlaylink/.opencode/agent[rc=1]
+=== perm-overlay-dirlink
+a symbolic link in the way: <W>/oc-overlaydirlink/.opencode[rc=1]
+=== perm-overlay-jsonc
+<W>/oc-overlayjsonc/.opencode/opencode.jsonc exists, and BIAB does not read JSONC[rc=1]
+=== perm-overlay-allow
+<W>/oc-overlayallow/.opencode/opencode.json: it allows actions without asking, after the global rules[rc=1]
+=== perm-overlay-badjson
+<W>/oc-overlaybad/.opencode/opencode.json is not valid JSON[rc=1]
+=== perm-overlay-notobject
+<W>/oc-overlaynotobj/.opencode/opencode.json: its top level is not a JSON object[rc=1]
+=== perm-agentfile
+an agent file under <W>/oc-agentfile/.config/opencode/agents allows actions without asking[rc=1]
+=== perm-ok
+[rc=0]
+[rc=0]
+=== perm-owner
+refused: the home folder /usr has no ordinary owner to write as[rc=1]
+=== perm-claude
+[rc=0]
+[rc=0]
+=== guard-opencode-overridden-real
+the rules are in ~/.config/opencode/opencode.json, but OpenCode's base permission check fails (<W>/oc-none/.config/opencode/opencode.json does not exist, and OpenCode's default is to allow edits and shell commands): an allow of yours that comes before ours is overridden where it overlaps, and an allow in an agent, a mode, ~/.opencode or the workspace opencode.json applies after ours
+[rc=0]
+=== paseo-reason-nouser
+the box user could not be found in the setup state
+[rc=0]
+=== paseo-reason-opencode
+<W>/oc-editallow/.config/opencode/opencode.json: permission.edit does not ask or deny
+[rc=0]
+=== paseo-reason-claude
+[none]
+[rc=0]
+=== paseo-refuse-symlink
+paseo: refusing to continue: <W>/a-link is a symbolic link. BIAB never writes through links in your home folder. Remove the link (or move it away) and run the step again.
+[rc=1]
+=== agy-convert-asks
+
+Antigravity now runs in the Paseo app. It asks before it runs shell commands and
+before it writes files in your project, your home folder, ~/.biab or /var/tmp,
+and before it reads files outside your project.
+It does not ask before it reads inside the project, searches the web, opens web
+pages or writes in /tmp. The prompt offers only allow once or reject, with no
+always-allow; the Auto Accept switch in the app is separate. (Measured with agy 1.4.11.)
+Conversations started in the old full-access mode stay in the app but cannot
+be continued: start a new agent. Applying this restarts the phone-app service,
+which ends any agent that was running.
+
+[tightened=0]
+false
+[rc=0]
+=== agy-convert-tightened
+
+Antigravity now runs in the Paseo app. It asks before it runs shell commands and
+before it writes files in your project, your home folder, ~/.biab or /var/tmp,
+and before it reads files outside your project.
+It does not ask before it reads inside the project, searches the web, opens web
+pages or writes in /tmp. The prompt offers only allow once or reject, with no
+always-allow; the Auto Accept switch in the app is separate. (Measured with agy 1.4.11.)
+Your agy setting allowNonWorkspaceAccess was true; it is now false, which is
+what makes reads outside the project ask.
+Conversations started in the old full-access mode stay in the app but cannot
+be continued: start a new agent. Applying this restarts the phone-app service,
+which ends any agent that was running.
+
+[tightened=told]
+false
+[rc=0]
+=== agy-convert-noask
+
+Antigravity now runs in the Paseo app. It asks before it runs shell commands and
+before it writes files in your project, your home folder, ~/.biab or /var/tmp.
+It does not ask before it reads inside the project, searches the web, opens web
+pages or writes in /tmp. The prompt offers only allow once or reject, with no
+always-allow; the Auto Accept switch in the app is separate. (Measured with agy 1.4.11.)
+Reads outside your project do not ask on this box: allowNonWorkspaceAccess in
+<W>/agy-home/.gemini/antigravity-cli/settings.json is not false.
+Conversations started in the old full-access mode stay in the app but cannot
+be continued: start a new agent. Applying this restarts the phone-app service,
+which ends any agent that was running.
+
+[tightened=0]
+false
+[rc=0]
+=== agy-convert-unverified
+[TS] WARN: paseo: Antigravity's provider settings are not verified yet, so the old opt-in key was kept (see 'biab status' for the file and what to do)
+[rc=1]
+=== agy-tighten-report
+
+Antigravity now asks before it reads files outside your project: your agy setting
+allowNonWorkspaceAccess was true and is now false. Your skills folder is not
+affected.
+
+[told]
+[quiet]
+[rc=0]
+=== agy-tighten-rc0
+[rc=0 tightened=1]
+[rc=0]
+=== agy-tighten-rc3
+[rc=0 tightened=0]
+[rc=0]
+=== agy-tighten-rc4
+[TS] WARN: paseo: <W>/agy-home/.gemini/antigravity-cli/settings.json (or a folder above it) is a symbolic link, not a regular file or not a JSON object, so BIAB left it alone. Reads outside your project will not ask until it holds "allowNonWorkspaceAccess": false; set that by hand. 'biab update' will look again.
+[rc=0 tightened=0]
+[rc=0]
+=== agy-tighten-rc1
+[TS] WARN: paseo: could not change allowNonWorkspaceAccess in <W>/agy-home/.gemini/antigravity-cli/settings.json. Reads outside your project will not ask until it holds "allowNonWorkspaceAccess": false; set that by hand. 'biab update' will try again.
+[rc=0 tightened=0]
+[rc=0]
+=== paseo-migrate
+
+Your projects are now in the Paseo app (workspaces named "BIAB · ...").
+Your tmux sessions were not touched.
+
+To pair your phone, run this in a terminal:  sudo biab paseo pair
+
+[rc=0]
+[rc=0]
+=== pins-latest-warning
+WARNING: --latest installs the newest upstream version of Claude Code, Codex, Paseo and agy, ignoring the versions Builders in a Box tested together. This combination is untested and unsupported. Run 'biab update' to return to the tested versions.
+OFF-PIN since 2026-11-01T10:00:00Z: untested versions. Return with: biab update
+[rc=0]
+=== project-usage
+biab-project: usage: biab-project list [--all] | scaffold <template|idea> <project> | status <project> | progress get | progress set <template|idea> <project>
+[rc=64]
+=== project-usage-list
+biab-project: usage: biab-project list [--all] | scaffold <template|idea> <project> | status <project> | progress get | progress set <template|idea> <project>
+[rc=64]
+=== project-list
+personal-coach	2 evenings	Personal Slack coach: an empathic AI in your Slack that knows what is running on this box.
+[rc=0]
+=== project-list-all
+personal-coach	2 evenings	Personal Slack coach: an empathic AI in your Slack that knows what is running on this box.
+finance-dashboard	4-8 evenings	Personal finance dashboard: bank CSV, AI categorisation and fund prices, shipped to a domain you own.
+[rc=0]
+=== project-bad-name
+biab-project: invalid project name: bad\ name
+[rc=3]
+=== project-bad-template
+biab-project: unknown template: nope
+[rc=3]
+=== project-progress-none
+biab-project: no progress yet
+[rc=1]
+=== project-progress-set
+[rc=0]
+=== project-progress-get
+personal-coach	demo
+[rc=0]
+=== project-progress-set-bad
+biab-project: unknown template: nope
+[rc=3]
+=== project-progress-set-badname
+biab-project: invalid project name: bad\ name
+[rc=3]
+=== project-scaffold
+created CLAUDE.md
+created AGENTS.md
+created specs/draft/FEAT-002-personal-slack-coach.md
+created .biab/dev-check.sh
+[rc=0]
+=== project-scaffold-again
+unchanged CLAUDE.md
+unchanged AGENTS.md
+unchanged specs/draft/FEAT-002-personal-slack-coach.md
+unchanged .biab/dev-check.sh
+[rc=0]
+=== project-status
+init
+[rc=0]
+=== project-status-none
+scaffold
+[rc=0]
+=== project-status-bad
+biab-project: invalid project name: bad\ name
+[rc=3]
+=== project-overwrite
+biab-project: would overwrite: demo/CLAUDE.md
+[rc=2]
+=== project-force
+biab-project: usage: biab-project list [--all] | scaffold <template|idea> <project> | status <project> | progress get | progress set <template|idea> <project>
+[rc=64]
+=== project-name-in-use
+created CLAUDE.md
+created AGENTS.md
+created specs/draft/FEAT-002-personal-slack-coach.md
+created .biab/dev-check.sh
+[rc=0]
+=== project-progress-inuse
+biab-project: name already in use: taken
+[rc=6]
+=== project-scaffold-idea
+created CLAUDE.md
+created AGENTS.md
+created .biab/dev-check.sh
+[rc=0]
+=== project-cannot-write
+biab-project: cannot write to: <W>/proj
+[rc=5]
+=== project-bad-catalogue
+biab-project: bad catalogue: /nonexistent
+[rc=4]
+=== project-bad-catalogue-line
+biab-project: bad catalogue: <W>/manifest.tsv:1
+[rc=4]
+=== project-progress-corrupt
+biab-project: corrupt progress file: <W>/home/.config/biab-first-project/progress.json
+[rc=3]
+=== project-home-unset
+biab-project: cannot write to: $HOME is not set
+[rc=5]
+=== project-symlink
+biab-project: bad catalogue: symlink in template source: <W>/root/opt/buildersinabox/payload/templates/projects/symt
+[rc=4]
+=== project-no-validator
+biab-project: template source missing: <W>/root/opt/buildersinabox/payload/lib/prompt.sh
+[rc=0]
+=== firstboot-paseo
+
+Your box is ready. Open the Paseo app on your phone to find your agent.
+To pair the app (or see the password again) run:  sudo biab paseo pair
+[rc=0]
+=== firstboot-ssh
+
+Your box is ready. Connect over SSH and run your AI.
+[rc=0]
+=== firstboot-noinstall
+WARN: <W>/root/opt/buildersinabox/payload/install.sh not found.
+[rc=0]
+=== end

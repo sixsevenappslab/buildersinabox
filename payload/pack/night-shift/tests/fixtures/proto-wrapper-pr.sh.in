@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# MEASUREMENT PROTOTYPE for the QF-02 resolution (FEAT-043 T1). Not product code.
+# Takes no arguments: repo, base and head are fixed here, so `--repo other/x`
+# appended by the agent changes nothing.
+set -euo pipefail
+cd '@REPO@'
+exec gh pr create --repo '@SLUG@' --base '@BASE@' --head '@BRANCH@' --fill

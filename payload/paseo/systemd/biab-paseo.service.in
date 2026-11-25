@@ -1,0 +1,43 @@
+# Builders in a Box — Paseo daemon (FEAT-035).
+#
+# This file is a TEMPLATE. 46-paseo.sh renders it with envsubst, substituting
+# ${BIB_USER} and ${PASEO_HOME} (explicit allowlist).
+#
+# A SYSTEM unit, not `systemd --user`, for the reason the night shift gives: the
+# daemon can run shells for the user, and its bind address, relay switch and
+# password must not be editable by the agents it launches. ~/.config/systemd/user
+# belongs to the user; /etc/systemd/system does not. The bind/relay/password live
+# in the environment below and in biab-paseo-run, which Paseo documents as
+# overriding the user-writable ~/.paseo/config.json.
+#
+# Restart arithmetic: StartLimitIntervalSec must stay well above
+# RestartMaxDelaySec x StartLimitBurst, or the counter resets before it trips
+# and the unit loops forever (a daemon crash-looped 136 times that way).
+# Here the worst-case span is 60 s x 8 = 480 s < 900 s.
+[Unit]
+Description=Builders in a Box: Paseo daemon (tailnet only)
+After=network-online.target tailscaled.service
+Wants=network-online.target
+StartLimitIntervalSec=900
+StartLimitBurst=8
+# systemd gives up after the burst; this records it (biab-paseo-health failed).
+OnFailure=biab-paseo-failed.service
+
+[Service]
+User=${BIB_USER}
+Environment=PASEO_HOME=${PASEO_HOME}
+Environment=PASEO_RELAY_ENABLED=false
+Environment=PASEO_LOG_FILE_LEVEL=warn
+EnvironmentFile=-/etc/buildersinabox/paseo.env
+ExecStartPre=+/opt/buildersinabox/paseo/bin/biab-paseo-run prestart
+ExecStart=/opt/buildersinabox/paseo/bin/biab-paseo-run
+Restart=on-failure
+RestartSec=3
+RestartSteps=5
+RestartMaxDelaySec=60
+# Throttle, never kill: the daemon's cgroup holds the user's agents, so a
+# MemoryMax would destroy legitimate work. Tuned from T6 measurements.
+MemoryHigh=5G
+
+[Install]
+WantedBy=multi-user.target

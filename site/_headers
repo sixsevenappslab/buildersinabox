@@ -1,0 +1,7 @@
+# Cloudflare Pages headers.
+# Serve the installer bootstrap as plain text with a short cache so
+# script updates propagate quickly, and so `curl | bash` gets exactly
+# what's in the repo (no HTML wrapper, no long-lived CDN cache).
+/install.sh
+  Content-Type: text/plain; charset=utf-8
+  Cache-Control: public, max-age=300

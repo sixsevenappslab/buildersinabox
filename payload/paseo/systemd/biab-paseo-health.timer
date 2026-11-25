@@ -1,0 +1,13 @@
+# Builders in a Box — Paseo watchdog schedule (FEAT-035).
+# Picks up a clean `systemctl stop` (which systemd never undoes) and a daemon
+# that is up but not answering, within about 2 minutes.
+[Unit]
+Description=Builders in a Box: Paseo daemon health check every 2 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=2min
+AccuracySec=10s
+
+[Install]
+WantedBy=timers.target

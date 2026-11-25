@@ -1,0 +1,5 @@
+{
+  "name": "biab-guard",
+  "version": "1.0.0",
+  "description": "Builders in a Box: refuses destructive shell commands before Antigravity runs them"
+}

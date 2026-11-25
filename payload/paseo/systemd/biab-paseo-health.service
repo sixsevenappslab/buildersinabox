@@ -1,0 +1,8 @@
+# Builders in a Box — one watchdog pass over the Paseo daemon (FEAT-035).
+# Run by biab-paseo-health.timer. Static file, no template.
+[Unit]
+Description=Builders in a Box: check the Paseo daemon and restart it if needed
+
+[Service]
+Type=oneshot
+ExecStart=/opt/buildersinabox/paseo/bin/biab-paseo-health check

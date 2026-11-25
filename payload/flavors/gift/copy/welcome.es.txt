@@ -1,0 +1,9 @@
+Este equipo es tu lugar privado para
+construir, ${BIB_NAME}.
+
+Puedes interrumpir esta configuración.
+Ejecuta `biab` más tarde: continuará
+desde el primer paso sin terminar.
+
+Primero, elige una contraseña para
+este equipo.

@@ -1,0 +1,14 @@
+# Builders in a Box — autologin the operator user on tty1.
+# Combined with /etc/profile.d/biab-firstboot.sh this drives the first-boot
+# wizard automatically: the user lands in a shell, the profile script
+# detects firstboot.pending and runs the wizard. After the wizard finishes
+# it removes the pending marker, so subsequent boots just open a normal shell.
+#
+# This file is a TEMPLATE. install.sh renders it at install time via
+# envsubst, substituting ${BIB_USER} for the resolved operator account
+# and writing the result to /etc/systemd/system/getty@tty1.service.d/
+# autologin.conf.
+
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty -o '-p -f -- \\u' --autologin ${BIB_USER} --noclear --keep-baud %I 115200,38400,9600 $TERM

@@ -1,0 +1,655 @@
+=== claude-guard rm-root
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: recursive force-remove of a root or home path"}}
+[rc=0]
+=== codex-guard rm-root
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: recursive force-remove of a root or home path"}}
+[rc=0]
+=== agy-guard rm-root
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: recursive force-remove of a root or home path"}
+[rc=0]
+=== claude-guard mkfs
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: mkfs (formats a filesystem)"}}
+[rc=0]
+=== codex-guard mkfs
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: mkfs (formats a filesystem)"}}
+[rc=0]
+=== agy-guard mkfs
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: mkfs (formats a filesystem)"}
+[rc=0]
+=== claude-guard wipefs
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: wipefs (wipes filesystem signatures)"}}
+[rc=0]
+=== codex-guard wipefs
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: wipefs (wipes filesystem signatures)"}}
+[rc=0]
+=== agy-guard wipefs
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: wipefs (wipes filesystem signatures)"}
+[rc=0]
+=== claude-guard dd-disk
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: dd writing to a raw disk device"}}
+[rc=0]
+=== codex-guard dd-disk
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: dd writing to a raw disk device"}}
+[rc=0]
+=== agy-guard dd-disk
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: dd writing to a raw disk device"}
+[rc=0]
+=== claude-guard redirect-disk
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: redirect overwriting a raw disk device"}}
+[rc=0]
+=== codex-guard redirect-disk
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: redirect overwriting a raw disk device"}}
+[rc=0]
+=== agy-guard redirect-disk
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: redirect overwriting a raw disk device"}
+[rc=0]
+=== claude-guard sgdisk
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: sgdisk writing a partition table"}}
+[rc=0]
+=== codex-guard sgdisk
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: sgdisk writing a partition table"}}
+[rc=0]
+=== agy-guard sgdisk
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: sgdisk writing a partition table"}
+[rc=0]
+=== claude-guard parted
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: parted non-interactive partition write"}}
+[rc=0]
+=== codex-guard parted
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: parted non-interactive partition write"}}
+[rc=0]
+=== agy-guard parted
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: parted non-interactive partition write"}
+[rc=0]
+=== claude-guard fdisk-script
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: fdisk scripted (non-interactive) partition write"}}
+[rc=0]
+=== codex-guard fdisk-script
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: fdisk scripted (non-interactive) partition write"}}
+[rc=0]
+=== agy-guard fdisk-script
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: fdisk scripted (non-interactive) partition write"}
+[rc=0]
+=== claude-guard fork-bomb
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: fork bomb"}}
+[rc=0]
+=== codex-guard fork-bomb
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: fork bomb"}}
+[rc=0]
+=== agy-guard fork-bomb
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: fork bomb"}
+[rc=0]
+=== claude-guard pipe-sudo-shell
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: remote script piped into a root shell"}}
+[rc=0]
+=== codex-guard pipe-sudo-shell
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: remote script piped into a root shell"}}
+[rc=0]
+=== agy-guard pipe-sudo-shell
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: remote script piped into a root shell"}
+[rc=0]
+=== claude-guard chmod-root
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: recursive chmod on a root path"}}
+[rc=0]
+=== codex-guard chmod-root
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: recursive chmod on a root path"}}
+[rc=0]
+=== agy-guard chmod-root
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: recursive chmod on a root path"}
+[rc=0]
+=== claude-guard chown-root
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: recursive chown on a root path"}}
+[rc=0]
+=== codex-guard chown-root
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: recursive chown on a root path"}}
+[rc=0]
+=== agy-guard chown-root
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: recursive chown on a root path"}
+[rc=0]
+=== claude-guard force-push-main
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: force-push to a protected branch (main/master)"}}
+[rc=0]
+=== codex-guard force-push-main
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box guardrail blocked a destructive command: force-push to a protected branch (main/master)"}}
+[rc=0]
+=== agy-guard force-push-main
+{"decision":"deny","reason":"Builders in a Box guardrail blocked a destructive command: force-push to a protected branch (main/master)"}
+[rc=0]
+=== claude-guard force-with-lease
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Builders in a Box guardrail wants confirmation: force-with-lease push"}}
+[rc=0]
+=== codex-guard force-with-lease
+(silent)
+[rc=0]
+=== agy-guard force-with-lease
+{"decision":"ask","reason":"Builders in a Box guardrail wants confirmation: force-with-lease push"}
+[rc=0]
+=== claude-guard pipe-shell
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Builders in a Box guardrail wants confirmation: downloading and running a remote script"}}
+[rc=0]
+=== codex-guard pipe-shell
+(silent)
+[rc=0]
+=== agy-guard pipe-shell
+{"decision":"ask","reason":"Builders in a Box guardrail wants confirmation: downloading and running a remote script"}
+[rc=0]
+=== claude-secret dotenv ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret dotenv bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret dotenv
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret dotenv
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret ssh-key ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret ssh-key bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret ssh-key
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret ssh-key
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret claude-secrets ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret claude-secrets bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret claude-secrets
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret claude-secrets
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret codex-auth ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret codex-auth bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret codex-auth
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret codex-auth
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret secrets-env ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret secrets-env bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret secrets-env
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret secrets-env
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret credentials-json ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret credentials-json bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret credentials-json
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret credentials-json
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret creds-json ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret creds-json bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret creds-json
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret creds-json
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret paseo-env ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret paseo-env bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret paseo-env
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret paseo-env
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret agy-oauth-token ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret agy-oauth-token bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret agy-oauth-token
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret agy-oauth-token
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-secret firestore-rules ask
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== claude-secret firestore-rules bypass
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value. Unattended session (bypassPermissions): denied."}}
+[rc=0]
+=== codex-secret firestore-rules
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Builders in a Box secret guard blocked a secret-file read: Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}}
+[rc=0]
+=== agy-secret firestore-rules
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== agy-secret read_file
+{"decision":"ask","reason":"Reading a credential or secret file (.env / secrets / auth tokens / SSH keys) would record its plaintext contents in the session transcript. Compare file paths, mtime, permissions, or sha256 instead, or ask the user for the value."}
+[rc=0]
+=== claude-guard unreadable
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Builders in a Box guardrail wants confirmation: could not read the command from the tool input"}}
+[rc=0]
+=== claude-guard no-command
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Builders in a Box guardrail wants confirmation: could not read the command from the tool input"}}
+[rc=0]
+=== agy-guard unreadable
+{"decision":"ask","reason":"Builders in a Box guardrail wants confirmation: could not read the command from the tool input"}
+[rc=0]
+=== claude-guard rules-missing
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask","permissionDecisionReason":"Builders in a Box guardrail wants confirmation: guard rules missing or unreadable (run: biab status)"}}
+[rc=0]
+=== agy-guard rules-missing
+{"decision":"ask","reason":"Builders in a Box guardrail wants confirmation: guard rules missing or unreadable (run: biab status)"}
+[rc=0]
+=== agy-secret rules-missing
+{"decision":"ask","reason":"Builders in a Box secret guard wants confirmation: secret-guard-rules.sh missing or unreadable (run: biab status)"}
+[rc=0]
+=== corpus decisions
+guard 1	deny	rm-root	reason
+guard 2	deny	rm-root	reason
+guard 3	deny	rm-root	reason
+guard 4	deny	rm-root	reason
+guard 5	deny	rm-root	reason
+guard 6	deny	rm-root	reason
+guard 7	deny	rm-root	reason
+guard 8	deny	rm-root	reason
+guard 9	deny	rm-root	reason
+guard 10	deny	rm-root	reason
+guard 11	deny	rm-root	reason
+guard 12	deny	rm-root	reason
+guard 13	deny	rm-root	reason
+guard 14	deny	rm-root	reason
+guard 15	deny	rm-root	reason
+guard 16	deny	rm-root	reason
+guard 17	deny	rm-root	reason
+guard 18	deny	rm-root	reason
+guard 19	deny	rm-root	reason
+guard 20	deny	rm-root	reason
+guard 21	deny	rm-root	reason
+guard 22	deny	rm-root	reason
+guard 23	deny	rm-root	reason
+guard 24	pass	-	-
+guard 25	pass	-	-
+guard 26	pass	-	-
+guard 27	pass	-	-
+guard 28	pass	-	-
+guard 29	pass	-	-
+guard 30	pass	-	-
+guard 31	pass	-	-
+guard 32	pass	-	-
+guard 33	pass	-	-
+guard 34	deny	mkfs	reason
+guard 35	deny	mkfs	reason
+guard 36	deny	mkfs	reason
+guard 37	deny	mkfs	reason
+guard 38	pass	-	-
+guard 39	pass	-	-
+guard 40	pass	-	-
+guard 41	deny	wipefs	reason
+guard 42	deny	wipefs	reason
+guard 43	pass	-	-
+guard 44	deny	dd-disk	reason
+guard 45	deny	dd-disk	reason
+guard 46	deny	dd-disk	reason
+guard 47	deny	dd-disk	reason
+guard 48	deny	dd-disk	reason
+guard 49	pass	-	-
+guard 50	pass	-	-
+guard 51	pass	-	-
+guard 52	pass	-	-
+guard 53	deny	redirect-disk	reason
+guard 54	deny	redirect-disk	reason
+guard 55	deny	redirect-disk	reason
+guard 56	deny	redirect-disk	reason
+guard 57	pass	-	-
+guard 58	pass	-	-
+guard 59	pass	-	-
+guard 60	deny	sgdisk	reason
+guard 61	deny	sgdisk	reason
+guard 62	pass	-	-
+guard 63	pass	-	-
+guard 64	deny	parted	reason
+guard 65	deny	parted	reason
+guard 66	deny	parted	reason
+guard 67	deny	parted	reason
+guard 68	deny	parted	reason
+guard 69	pass	-	-
+guard 70	pass	-	-
+guard 71	pass	-	-
+guard 72	deny	fdisk-script	reason
+guard 73	deny	fdisk-script	reason
+guard 74	deny	fdisk-script	reason
+guard 75	deny	fdisk-script	reason
+guard 76	pass	-	-
+guard 77	pass	-	-
+guard 78	deny	fork-bomb	reason
+guard 79	deny	fork-bomb	reason
+guard 80	deny	fork-bomb	reason
+guard 81	deny	fork-bomb	reason
+guard 82	pass	-	-
+guard 83	pass	-	-
+guard 84	pass	-	-
+guard 85	deny	pipe-sudo-shell	reason
+guard 86	deny	pipe-sudo-shell	reason
+guard 87	deny	pipe-sudo-shell	reason
+guard 88	deny	pipe-sudo-shell	reason
+guard 89	pass	-	-
+guard 90	deny	chmod-root	reason
+guard 91	deny	chmod-root	reason
+guard 92	deny	chmod-root	reason
+guard 93	deny	chmod-root	reason
+guard 94	deny	chmod-root	reason
+guard 95	deny	chmod-root	reason
+guard 96	deny	chmod-root	reason
+guard 97	deny	chmod-root	reason
+guard 98	pass	-	-
+guard 99	pass	-	-
+guard 100	pass	-	-
+guard 101	pass	-	-
+guard 102	deny	chown-root	reason
+guard 103	deny	chown-root	reason
+guard 104	deny	chown-root	reason
+guard 105	deny	chown-root	reason
+guard 106	deny	chown-root	reason
+guard 107	deny	chown-root	reason
+guard 108	pass	-	-
+guard 109	pass	-	-
+guard 110	pass	-	-
+guard 111	deny	force-push-main	reason
+guard 112	deny	force-push-main	reason
+guard 113	deny	force-push-main	reason
+guard 114	deny	force-push-main	reason
+guard 115	deny	force-push-main	reason
+guard 116	deny	force-push-main	reason
+guard 117	pass	-	-
+guard 118	pass	-	-
+guard 119	ask	force-with-lease	reason
+guard 120	pass	-	-
+guard 121	ask	pipe-shell	reason
+guard 122	ask	pipe-shell	reason
+guard 123	ask	pipe-shell	reason
+guard 124	ask	pipe-shell	reason
+guard 125	pass	-	-
+guard 126	pass	-	-
+guard 127	pass	-	-
+guard 128	ask	force-with-lease	reason
+guard 129	ask	force-with-lease	reason
+guard 130	pass	-	-
+guard 131	pass	-	-
+guard 132	deny	pipe-sudo-shell	reason
+guard 133	pass	-	-
+guard 134	pass	-	-
+guard 135	pass	-	-
+guard 136	deny	rm-root	reason
+guard 137	deny	rm-root	reason
+guard 138	deny	rm-root	reason
+guard 139	deny	rm-root	reason
+guard 140	deny	rm-root	reason
+guard 141	deny	force-push-main	reason
+guard 142	deny	rm-root	reason
+guard 143	deny	rm-root	reason
+guard 144	deny	rm-root	reason
+guard 145	deny	rm-root	reason
+guard 146	deny	rm-root	reason
+guard 147	deny	rm-root	reason
+guard 148	pass	-	-
+guard 149	pass	-	-
+guard 150	pass	-	-
+guard 151	pass	-	-
+guard 152	pass	-	-
+guard 153	pass	-	-
+guard 154	pass	-	-
+guard 155	pass	-	-
+guard 156	pass	-	-
+guard 157	pass	-	-
+guard 158	pass	-	-
+guard 159	pass	-	-
+guard 160	pass	-	-
+guard 161	pass	-	-
+guard 162	pass	-	-
+guard 163	pass	-	-
+guard 164	pass	-	-
+guard 165	pass	-	-
+guard 166	pass	-	-
+guard 167	deny	rm-root	reason
+guard 168	deny	pipe-sudo-shell	reason
+guard 169	pass	-	-
+guard 170	pass	-	-
+guard 171	pass	-	-
+guard 172	pass	-	-
+guard 173	pass	-	-
+guard 174	pass	-	-
+guard 175	pass	-	-
+guard 176	deny	sgdisk	reason
+guard 177	deny	pipe-sudo-shell	reason
+guard 178	ask	pipe-shell	reason
+guard 179	pass	-	-
+guard 180	pass	-	-
+guard 181	pass	-	-
+guard 182	pass	-	-
+secret 1 default	ask	dotenv	reason
+secret 1 deny	deny	dotenv	reason
+secret 1 bypassPermissions	deny	dotenv	reason
+secret 2 default	ask	dotenv	reason
+secret 2 deny	deny	dotenv	reason
+secret 2 bypassPermissions	deny	dotenv	reason
+secret 3 default	ask	dotenv	reason
+secret 3 deny	deny	dotenv	reason
+secret 3 bypassPermissions	deny	dotenv	reason
+secret 4 default	ask	dotenv	reason
+secret 4 deny	deny	dotenv	reason
+secret 4 bypassPermissions	deny	dotenv	reason
+secret 5 default	ask	dotenv	reason
+secret 5 deny	deny	dotenv	reason
+secret 5 bypassPermissions	deny	dotenv	reason
+secret 6 default	ask	dotenv	reason
+secret 6 deny	deny	dotenv	reason
+secret 6 bypassPermissions	deny	dotenv	reason
+secret 7 default	ask	dotenv	reason
+secret 7 deny	deny	dotenv	reason
+secret 7 bypassPermissions	deny	dotenv	reason
+secret 8 default	ask	dotenv	reason
+secret 8 deny	deny	dotenv	reason
+secret 8 bypassPermissions	deny	dotenv	reason
+secret 9 default	ask	dotenv	reason
+secret 9 deny	deny	dotenv	reason
+secret 9 bypassPermissions	deny	dotenv	reason
+secret 10 default	ask	dotenv	reason
+secret 10 deny	deny	dotenv	reason
+secret 10 bypassPermissions	deny	dotenv	reason
+secret 11 default	ask	dotenv	reason
+secret 11 deny	deny	dotenv	reason
+secret 11 bypassPermissions	deny	dotenv	reason
+secret 12 default	ask	ssh-key	reason
+secret 12 deny	deny	ssh-key	reason
+secret 12 bypassPermissions	deny	ssh-key	reason
+secret 13 default	ask	ssh-key	reason
+secret 13 deny	deny	ssh-key	reason
+secret 13 bypassPermissions	deny	ssh-key	reason
+secret 14 default	ask	ssh-key	reason
+secret 14 deny	deny	ssh-key	reason
+secret 14 bypassPermissions	deny	ssh-key	reason
+secret 15 default	ask	ssh-key	reason
+secret 15 deny	deny	ssh-key	reason
+secret 15 bypassPermissions	deny	ssh-key	reason
+secret 16 default	ask	claude-secrets	reason
+secret 16 deny	deny	claude-secrets	reason
+secret 16 bypassPermissions	deny	claude-secrets	reason
+secret 17 default	ask	claude-secrets	reason
+secret 17 deny	deny	claude-secrets	reason
+secret 17 bypassPermissions	deny	claude-secrets	reason
+secret 18 default	ask	codex-auth	reason
+secret 18 deny	deny	codex-auth	reason
+secret 18 bypassPermissions	deny	codex-auth	reason
+secret 19 default	ask	codex-auth	reason
+secret 19 deny	deny	codex-auth	reason
+secret 19 bypassPermissions	deny	codex-auth	reason
+secret 20 default	ask	secrets-env	reason
+secret 20 deny	deny	secrets-env	reason
+secret 20 bypassPermissions	deny	secrets-env	reason
+secret 21 default	ask	secrets-env	reason
+secret 21 deny	deny	secrets-env	reason
+secret 21 bypassPermissions	deny	secrets-env	reason
+secret 22 default	ask	credentials-json	reason
+secret 22 deny	deny	credentials-json	reason
+secret 22 bypassPermissions	deny	credentials-json	reason
+secret 23 default	ask	credentials-json	reason
+secret 23 deny	deny	credentials-json	reason
+secret 23 bypassPermissions	deny	credentials-json	reason
+secret 24 default	ask	creds-json	reason
+secret 24 deny	deny	creds-json	reason
+secret 24 bypassPermissions	deny	creds-json	reason
+secret 25 default	ask	creds-json	reason
+secret 25 deny	deny	creds-json	reason
+secret 25 bypassPermissions	deny	creds-json	reason
+secret 26 default	ask	paseo-env	reason
+secret 26 deny	deny	paseo-env	reason
+secret 26 bypassPermissions	deny	paseo-env	reason
+secret 27 default	ask	paseo-env	reason
+secret 27 deny	deny	paseo-env	reason
+secret 27 bypassPermissions	deny	paseo-env	reason
+secret 28 default	ask	agy-oauth-token	reason
+secret 28 deny	deny	agy-oauth-token	reason
+secret 28 bypassPermissions	deny	agy-oauth-token	reason
+secret 29 default	ask	agy-oauth-token	reason
+secret 29 deny	deny	agy-oauth-token	reason
+secret 29 bypassPermissions	deny	agy-oauth-token	reason
+secret 30 default	ask	firestore-rules	reason
+secret 30 deny	deny	firestore-rules	reason
+secret 30 bypassPermissions	deny	firestore-rules	reason
+secret 31 default	ask	firestore-rules	reason
+secret 31 deny	deny	firestore-rules	reason
+secret 31 bypassPermissions	deny	firestore-rules	reason
+secret 32 default	pass	-	-
+secret 32 deny	pass	-	-
+secret 32 bypassPermissions	pass	-	-
+secret 33 default	pass	-	-
+secret 33 deny	pass	-	-
+secret 33 bypassPermissions	pass	-	-
+secret 34 default	pass	-	-
+secret 34 deny	pass	-	-
+secret 34 bypassPermissions	pass	-	-
+secret 35 default	pass	-	-
+secret 35 deny	pass	-	-
+secret 35 bypassPermissions	pass	-	-
+secret 36 default	pass	-	-
+secret 36 deny	pass	-	-
+secret 36 bypassPermissions	pass	-	-
+secret 37 default	pass	-	-
+secret 37 deny	pass	-	-
+secret 37 bypassPermissions	pass	-	-
+secret 38 default	pass	-	-
+secret 38 deny	pass	-	-
+secret 38 bypassPermissions	pass	-	-
+secret 39 default	pass	-	-
+secret 39 deny	pass	-	-
+secret 39 bypassPermissions	pass	-	-
+secret 40 default	pass	-	-
+secret 40 deny	pass	-	-
+secret 40 bypassPermissions	pass	-	-
+secret 41 default	pass	-	-
+secret 41 deny	pass	-	-
+secret 41 bypassPermissions	pass	-	-
+secret 42 default	pass	-	-
+secret 42 deny	pass	-	-
+secret 42 bypassPermissions	pass	-	-
+secret 43 default	pass	-	-
+secret 43 deny	pass	-	-
+secret 43 bypassPermissions	pass	-	-
+secret 44 default	pass	-	-
+secret 44 deny	pass	-	-
+secret 44 bypassPermissions	pass	-	-
+secret 45 default	pass	-	-
+secret 45 deny	pass	-	-
+secret 45 bypassPermissions	pass	-	-
+secret 46 default	pass	-	-
+secret 46 deny	pass	-	-
+secret 46 bypassPermissions	pass	-	-
+secret 47 default	pass	-	-
+secret 47 deny	pass	-	-
+secret 47 bypassPermissions	pass	-	-
+secret 48 default	pass	-	-
+secret 48 deny	pass	-	-
+secret 48 bypassPermissions	pass	-	-
+secret 49 default	pass	-	-
+secret 49 deny	pass	-	-
+secret 49 bypassPermissions	pass	-	-
+secret 50 default	pass	-	-
+secret 50 deny	pass	-	-
+secret 50 bypassPermissions	pass	-	-
+secret 51 default	pass	-	-
+secret 51 deny	pass	-	-
+secret 51 bypassPermissions	pass	-	-
+secret 52 default	pass	-	-
+secret 52 deny	pass	-	-
+secret 52 bypassPermissions	pass	-	-
+secret 53 default	pass	-	-
+secret 53 deny	pass	-	-
+secret 53 bypassPermissions	pass	-	-
+secret 54 default	pass	-	-
+secret 54 deny	pass	-	-
+secret 54 bypassPermissions	pass	-	-
+secret 55 default	pass	-	-
+secret 55 deny	pass	-	-
+secret 55 bypassPermissions	pass	-	-
+secret 56 default	pass	-	-
+secret 56 deny	pass	-	-
+secret 56 bypassPermissions	pass	-	-
+secret 57 default	pass	-	-
+secret 57 deny	pass	-	-
+secret 57 bypassPermissions	pass	-	-
+secret 58 default	pass	-	-
+secret 58 deny	pass	-	-
+secret 58 bypassPermissions	pass	-	-
+secret 59 default	pass	-	-
+secret 59 deny	pass	-	-
+secret 59 bypassPermissions	pass	-	-
+secret 60 default	pass	-	-
+secret 60 deny	pass	-	-
+secret 60 bypassPermissions	pass	-	-
+secret 61 default	pass	-	-
+secret 61 deny	pass	-	-
+secret 61 bypassPermissions	pass	-	-
+secret 62 default	pass	-	-
+secret 62 deny	pass	-	-
+secret 62 bypassPermissions	pass	-	-
+secret 63 default	pass	-	-
+secret 63 deny	pass	-	-
+secret 63 bypassPermissions	pass	-	-
+secret 64 default	pass	-	-
+secret 64 deny	pass	-	-
+secret 64 bypassPermissions	pass	-	-
+secret 65 default	pass	-	-
+secret 65 deny	pass	-	-
+secret 65 bypassPermissions	pass	-	-
+=== end

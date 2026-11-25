@@ -1,0 +1,46 @@
+{
+  "biab-guardrail": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/buildersinabox/payload/hooks/biab-guardrail-agy.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "run_command|read_file|view_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/buildersinabox/payload/hooks/biab-secret-guard-agy.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "write_file|edit_file|write_to_file|replace_file_content",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/opt/buildersinabox/payload/hooks/biab-format-agy.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "/opt/buildersinabox/payload/hooks/biab-specs-agy.sh",
+        "timeout": 10
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+This box is your private place to build,
+${BIB_NAME}.
+
+This setup is safe to interrupt.
+Run `biab` later. It will continue from
+the first unfinished step.
+
+First, choose a password for this box.

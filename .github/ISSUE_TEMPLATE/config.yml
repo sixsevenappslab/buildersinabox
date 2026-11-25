@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions, setup help & show-and-tell
+    url: https://github.com/sixsevenappslab/buildersinabox/discussions
+    about: Ask anything in Discussions — hardware reports welcome.
+  - name: Security reports
+    url: https://github.com/sixsevenappslab/buildersinabox/blob/main/SECURITY.md
+    about: Please report vulnerabilities privately — see SECURITY.md for how.

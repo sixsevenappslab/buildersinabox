@@ -1,0 +1,646 @@
+#!/usr/bin/env bash
+# biab-worktrees - retire the worktrees of merged pull requests (FEAT-047).
+#
+# `spec-implementer` makes one sibling worktree per FEAT (../<project>-<feat-id>) and stops at
+# the pull request; nothing removes the folder after the merge. This is the on-demand cleanup:
+# it lists every linked worktree of every repository directly under the projects folder with a
+# verdict, and (after a yes, or with --yes) removes the ones that are safe to remove. A manual
+# command: no cron, no timer, never unattended.
+#
+#   biab-worktrees clean [--dry-run] [--yes]
+#
+# Called by the `biab worktrees clean` wrapper by absolute path, as the box user, without sudo.
+#
+# A worktree is `retirable` only when every one of these holds; any doubt keeps it:
+#   - it is a linked worktree inside the projects folder, with its folder present, not locked,
+#     on a branch other than the default one, of a repository with a GitHub remote;
+#   - nothing uncommitted, nothing untracked, and no ignored file except inside the regenerable
+#     directories (node_modules, build, dist...): the removal would delete a file that is in no
+#     commit and not on GitHub. An ignored .env* file, a nested .git in an ignored path, or a file
+#     marked skip-worktree or assume-unchanged keeps the worktree;
+#   - no process of the box user has its working directory inside it, and (when the box uses
+#     the phone-app service) no agent session listed there does either;
+#   - GitHub has a merged pull request from that branch whose head commit is the worktree's
+#     HEAD, or the HEAD is already an ancestor of origin/<default branch>.
+#
+# Removal never forces anything: `git worktree remove` without the force flag, then `git branch -d`;
+# when git refuses that (a squash merge, or a merge commit while the main checkout is behind),
+# the branch is deleted with `git update-ref -d` guarded by the verified commit, so git refuses
+# if the branch moved. Never -D, never a remote branch, no fetch/pull/push.
+#
+# Exit codes: 0 ok (also "nothing removed"), 1 a check could not be made or a removal failed,
+# 64 usage. The only network access is `gh auth status` and `gh pr list` (read calls).
+#
+# Test hooks: BIB_PROJECTS_ROOT, BIB_STATE_FILE, BIB_WT_GH_TIMEOUT, BIB_WT_PASEO_TIMEOUT.
+
+# The owner's locale is left alone (the message library reads it); the few places that need
+# byte-wise matching switch to the C locale for their own scope with `local LC_ALL=C`.
+set -euo pipefail
+
+unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+export GIT_OPTIONAL_LOCKS=0 GH_PROMPT_DISABLED=1
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+LIB_DIR="$(dirname "$SELF")/../lib"
+if [[ -r "$LIB_DIR/i18n.sh" ]]; then
+    # shellcheck source=../lib/i18n.sh
+    source "$LIB_DIR/i18n.sh"
+else
+    msg() { printf '[[%s]]' "$1"; }
+    msg_str() { printf -v "$1" '[[%s]]' "$2"; }
+fi
+
+ROOT="${BIB_PROJECTS_ROOT:-${HOME:-}/ai-platform/projects}"
+GH_TIMEOUT="${BIB_WT_GH_TIMEOUT:-15}"
+PASEO_TIMEOUT="${BIB_WT_PASEO_TIMEOUT:-10}"
+[[ "$GH_TIMEOUT" =~ ^[0-9]+$ ]] || GH_TIMEOUT=15
+[[ "$PASEO_TIMEOUT" =~ ^[0-9]+$ ]] || PASEO_TIMEOUT=10
+
+# Every git call: a hostile .git/config must not run a command through the fsmonitor hook, and no
+# hook of the repository runs as a side effect of a ref update or a worktree removal.
+g() { git -c core.fsmonitor=false -c core.hooksPath=/dev/null "$@"; }
+
+# Drops control bytes: C0, DEL and the C1 range U+0080-U+009F in UTF-8 (bytes C2 80-9F), which a
+# terminal also obeys (a path can carry escape sequences or a newline).
+clean() {
+    local LC_ALL=C t="$1"
+    t="${t//[[:cntrl:]]/}"
+    t="${t//$'\xc2'[$'\x80'-$'\x9f']/}"
+    printf '%s' "$t"
+}
+
+usage() {
+    msg biab.wt.usage >&2
+    exit 64
+}
+
+# --- arguments ---------------------------------------------------------------------------
+[[ "${1:-}" == "clean" ]] || usage
+shift
+DRY=0
+YES=0
+for a in "$@"; do
+    case "$a" in
+        --dry-run) DRY=1 ;;
+        --yes) YES=1 ;;
+        *) usage ;;
+    esac
+done
+
+# --- 1. root -------------------------------------------------------------------------------
+if [[ "$(id -u)" -eq 0 ]]; then
+    msg biab.wt.err_root >&2
+    exit 1
+fi
+
+# --- 2. gh preflight, always and first: a verdict without GitHub would be a guess ------------
+if ! command -v gh >/dev/null 2>&1; then
+    msg biab.wt.err_nogh >&2
+    exit 1
+fi
+if ! timeout "$GH_TIMEOUT" gh auth status >/dev/null 2>&1; then
+    msg biab.wt.err_gh_auth >&2
+    exit 1
+fi
+
+TMPD="$(mktemp -d)"
+trap 'rm -r -f -- "$TMPD"' EXIT
+
+if [[ ! -d "$ROOT" ]]; then
+    msg biab.wt.none "$(clean "$ROOT")"
+    exit 0
+fi
+ROOT_REAL="$(readlink -f -- "$ROOT")"
+ROOT_REAL="${ROOT_REAL%/}"
+
+# --- per-repository facts, read once -----------------------------------------------------------
+R_PATH=()
+R_DEF=()
+R_SLUG=()
+
+# The default branch of origin: origin/HEAD when it points at a branch that exists, else
+# origin/main, else origin/master. Empty when none of them exists.
+default_branch_of() {
+    local repo="$1" ref d
+    if ref="$(g -C "$repo" symbolic-ref -q refs/remotes/origin/HEAD 2>/dev/null)"; then
+        d="${ref#refs/remotes/origin/}"
+        if [[ "$d" != "$ref" && -n "$d" ]] && g -C "$repo" rev-parse --verify -q "refs/remotes/origin/$d^{commit}" >/dev/null 2>&1; then
+            printf '%s' "$d"
+            return 0
+        fi
+    fi
+    for d in main master; do
+        if g -C "$repo" rev-parse --verify -q "refs/remotes/origin/$d^{commit}" >/dev/null 2>&1; then
+            printf '%s' "$d"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# owner/repo from the RAW remote.origin.url (`git remote get-url` applies insteadOf rewrites),
+# for github.com only. Empty for anything else. The URL itself is never printed: it can carry
+# a token.
+slug_of() {
+    local LC_ALL=C
+    local url re='^(https?://([^/@]+@)?|ssh://([^/@]+@)?|[A-Za-z0-9._-]+@)github\.com[:/]([A-Za-z0-9._-]+)/([A-Za-z0-9._-]+)/?$' name
+    url="$(g -C "$1" config --get remote.origin.url 2>/dev/null)" || return 0
+    if [[ "$url" =~ $re ]]; then
+        name="${BASH_REMATCH[5]%.git}"
+        [[ -n "$name" ]] && printf '%s/%s' "${BASH_REMATCH[4]}" "$name"
+    fi
+    return 0
+}
+
+# --- worktrees ------------------------------------------------------------------------------------
+W_RIDX=()
+W_REPO=()
+W_PATH=()
+W_REAL=()
+W_HEAD=()
+W_BRANCH=()
+W_DETACHED=()
+W_LOCKED=()
+W_PRUNABLE=()
+W_MAIN=()
+W_REASON=()
+W_OID=()
+W_NIGN=()
+
+add_worktree() {
+    local n="${#W_PATH[@]}"
+    W_RIDX[n]="$1"
+    W_REPO[n]="${R_PATH[$1]}"
+    W_PATH[n]="$2"
+    W_HEAD[n]="$3"
+    W_BRANCH[n]="$4"
+    W_DETACHED[n]="$5"
+    W_LOCKED[n]="$6"
+    W_PRUNABLE[n]="$7"
+    W_MAIN[n]="$8"
+    W_REASON[n]=""
+    W_OID[n]=""
+    W_NIGN[n]=0
+}
+
+# Reads `git worktree list --porcelain -z` of one repository; the first record is the main checkout.
+scan_repo() {
+    local repo="$1" ridx="${#R_PATH[@]}" list="$TMPD/list" field
+    local path="" head="" branch="" detached=0 locked=0 prunable=0 first=1 have=0
+    if ! g -C "$repo" worktree list --porcelain -z >"$list" 2>/dev/null; then
+        msg biab.wt.note_repo "$(clean "$repo")" >&2
+        return 0
+    fi
+    R_PATH[ridx]="$repo"
+    R_DEF[ridx]="-"
+    R_SLUG[ridx]="-"
+    while IFS= read -r -d '' field; do
+        if [[ -z "$field" ]]; then
+            if [[ "$have" -eq 1 ]]; then
+                add_worktree "$ridx" "$path" "$head" "$branch" "$detached" "$locked" "$prunable" "$first"
+                first=0
+            fi
+            path="" head="" branch="" detached=0 locked=0 prunable=0 have=0
+            continue
+        fi
+        case "$field" in
+            "worktree "*) path="${field#worktree }"; have=1 ;;
+            "HEAD "*) head="${field#HEAD }" ;;
+            "branch refs/heads/"*) branch="${field#branch refs/heads/}" ;;
+            "branch "*) detached=1 ;;
+            detached) detached=1 ;;
+            locked | "locked "*) locked=1 ;;
+            prunable | "prunable "*) prunable=1 ;;
+            *) ;;
+        esac
+    done <"$list"
+    if [[ "$have" -eq 1 ]]; then
+        add_worktree "$ridx" "$path" "$head" "$branch" "$detached" "$locked" "$prunable" "$first"
+    fi
+    return 0
+}
+
+SEEN_COMMON=$'\n'
+for d in "$ROOT"/*/; do
+    d="${d%/}"
+    # A linked worktree has a .git FILE: it is listed through its repository, never as a repository.
+    if [[ -d "$d/.git" && ! -L "$d/.git" ]]; then
+        # Two names for one repository (a link inside projects/) must not be scanned twice.
+        common="$(g -C "$d" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+        if [[ -n "$common" ]]; then
+            common="$(readlink -f -- "$common")"
+            if [[ "$SEEN_COMMON" == *$'\n'"$common"$'\n'* ]]; then
+                continue
+            fi
+            SEEN_COMMON+="$common"$'\n'
+        fi
+        scan_repo "$d"
+    fi
+done
+
+if [[ "${#W_PATH[@]}" -eq 0 ]]; then
+    msg biab.wt.none "$(clean "$ROOT")"
+    exit 0
+fi
+
+# Directories (real paths) that processes of this user have as their working directory. A scan
+# that finds nothing is a scan that did not work (this very process has a working directory).
+PROC_CWDS=()
+scan_procs() {
+    PROC_CWDS=()
+    mapfile -d '' -t PROC_CWDS < <(find /proc -mindepth 2 -maxdepth 2 -name cwd -user "$(id -un)" -printf '%l\0' 2>/dev/null || true)
+    [[ "${#PROC_CWDS[@]}" -gt 0 ]]
+}
+PROC_OK=1
+scan_procs || PROC_OK=0
+
+# Regenerable directories: ignored content inside them is only counted. Any other ignored file,
+# a nested .git or an ignored .env* keeps the worktree.
+REGEN=" node_modules .venv venv __pycache__ .pytest_cache .mypy_cache .ruff_cache dist build .next .nuxt target .cache .turbo coverage .gradle "
+
+# Sets W_REASON[i] (empty when the content is safe to delete) and W_NIGN[i].
+check_content() {
+    local LC_ALL=C
+    local i="$1" p="${W_PATH[$1]}"
+    local reason code ent path base isdir mod=0 unt=0 hasenv=0 hasnested=0 hasother=0 hidden=0 nign=0 out
+    local st="$TMPD/status" lv="$TMPD/lsfiles"
+    W_REASON[i]=""
+    W_NIGN[i]=0
+
+    # One status call tells modified (anything but ?? and !!), untracked (??) and ignored (!!).
+    if ! g -C "$p" status --porcelain=v1 -z --untracked-files=all --ignored=matching >"$st" 2>/dev/null; then
+        msg_str reason biab.wt.why_gitfail; W_REASON[i]="$reason"
+        return 0
+    fi
+    while IFS= read -r -d '' ent; do
+        code="${ent:0:2}"
+        path="${ent:3}"
+        case "$code" in
+            '??') unt=1 ;;
+            '!!')
+                isdir=0
+                [[ "$path" == */ ]] && isdir=1
+                base="${path%/}"
+                base="${base##*/}"
+                if [[ "$base" == .env* ]]; then
+                    hasenv=1
+                elif [[ "$base" == .git ]]; then
+                    hasnested=1
+                elif [[ "$isdir" -eq 1 ]]; then
+                    # In the walk E marks a .env* entry, G a .git, and a dot every other file. find does
+                    # not follow links, so a link out of the worktree is not walked.
+                    out="$(find -P "$p/$path" -name .git -printf G -o -name '.env*' -printf E -o ! -type d -printf . 2>/dev/null || true)"
+                    if [[ "$out" == *E* ]]; then
+                        hasenv=1
+                    elif [[ "$out" == *G* ]]; then
+                        hasnested=1
+                    elif [[ "$REGEN" == *" $base "* ]]; then
+                        nign=$((nign + ${#out}))
+                    else
+                        hasother=1
+                    fi
+                else
+                    hasother=1
+                fi
+                ;;
+            *) mod=1 ;;
+        esac
+    done <"$st"
+    # skip-worktree / assume-unchanged hide edits from status: lower-case tag or S in ls-files -v.
+    if ! g -C "$p" ls-files -v -z >"$lv" 2>/dev/null; then
+        msg_str reason biab.wt.why_gitfail; W_REASON[i]="$reason"
+        return 0
+    fi
+    while IFS= read -r -d '' ent; do
+        if [[ "${ent:0:1}" == S || "${ent:0:1}" == [[:lower:]] ]]; then
+            hidden=1
+            break
+        fi
+    done <"$lv"
+    if [[ "$mod" -eq 1 ]]; then
+        msg_str reason biab.wt.why_modified; W_REASON[i]="$reason"
+    elif [[ "$unt" -eq 1 ]]; then
+        msg_str reason biab.wt.why_untracked; W_REASON[i]="$reason"
+    elif [[ "$hasenv" -eq 1 ]]; then
+        msg_str reason biab.wt.why_env; W_REASON[i]="$reason"
+    elif [[ "$hasnested" -eq 1 ]]; then
+        msg_str reason biab.wt.why_nested; W_REASON[i]="$reason"
+    elif [[ "$hasother" -eq 1 ]]; then
+        msg_str reason biab.wt.why_ignored; W_REASON[i]="$reason"
+    elif [[ "$hidden" -eq 1 ]]; then
+        msg_str reason biab.wt.why_hidden; W_REASON[i]="$reason"
+    else
+        W_NIGN[i]="$nign"
+    fi
+    return 0
+}
+
+# A process of the user with its working directory in the worktree.
+check_proc() {
+    local i="$1" c reason
+    for c in "${PROC_CWDS[@]}"; do
+        if [[ "$c" == "${W_REAL[i]}" || "$c" == "${W_REAL[i]}"/* ]]; then
+            msg_str reason biab.wt.why_inuse_proc; W_REASON[i]="$reason"
+            return 0
+        fi
+    done
+    return 0
+}
+
+# --- 3-4. local checks, cheapest first; the first one that applies is the reason ----------------
+# Sets W_REASON[i] and returns; an empty reason means "still a candidate".
+local_checks() {
+    local i="$1" p="${W_PATH[$1]}" repo="${W_REPO[$1]}" r="${W_RIDX[$1]}" reason
+
+    if [[ "${W_MAIN[i]}" -eq 1 ]]; then
+        msg_str reason biab.wt.why_main; W_REASON[i]="$reason"
+        return 0
+    fi
+    W_REAL[i]="$(readlink -f -- "$p")"
+    if [[ "${W_REAL[i]}" != "$ROOT_REAL"/* ]]; then
+        msg_str reason biab.wt.why_outside; W_REASON[i]="$reason"
+        return 0
+    fi
+    if [[ "${W_PRUNABLE[i]}" -eq 1 || ! -d "$p" ]]; then
+        msg_str reason biab.wt.why_prunable; W_REASON[i]="$reason"
+        return 0
+    fi
+    if [[ "${W_LOCKED[i]}" -eq 1 ]]; then
+        msg_str reason biab.wt.why_locked; W_REASON[i]="$reason"
+        return 0
+    fi
+    if [[ "${W_DETACHED[i]}" -eq 1 || -z "${W_BRANCH[i]}" ]]; then
+        msg_str reason biab.wt.why_detached; W_REASON[i]="$reason"
+        return 0
+    fi
+    if [[ "${R_DEF[r]}" == "-" ]]; then
+        R_DEF[r]="$(default_branch_of "$repo")"
+    fi
+    if [[ -z "${R_DEF[r]}" ]]; then
+        msg_str reason biab.wt.why_nodefault; W_REASON[i]="$reason"
+        return 0
+    fi
+    if [[ "${W_BRANCH[i]}" == "${R_DEF[r]}" ]]; then
+        msg_str reason biab.wt.why_default; W_REASON[i]="$reason"
+        return 0
+    fi
+    if [[ "${R_SLUG[r]}" == "-" ]]; then
+        R_SLUG[r]="$(slug_of "$repo")"
+    fi
+    if [[ -z "${R_SLUG[r]}" ]]; then
+        msg_str reason biab.wt.why_noremote; W_REASON[i]="$reason"
+        return 0
+    fi
+
+    check_content "$i"
+    [[ -z "${W_REASON[i]}" ]] || return 0
+    check_proc "$i"
+    return 0
+}
+
+for ((i = 0; i < ${#W_PATH[@]}; i++)); do
+    local_checks "$i"
+done
+
+# --- 5. GitHub: one `gh pr list` per branch that got this far; any failure aborts the whole scan ---
+gh_abort() {
+    msg biab.wt.err_gh_list "$1" >&2
+    exit 1
+}
+
+for ((i = 0; i < ${#W_PATH[@]}; i++)); do
+    [[ -z "${W_REASON[i]}" ]] || continue
+    r="${W_RIDX[i]}"
+    slug="${R_SLUG[r]}"
+    head="${W_HEAD[i]}"
+    if ! out="$(timeout "$GH_TIMEOUT" gh pr list --repo "$slug" --state merged --head "${W_BRANCH[i]}" --limit 30 --json number,headRefOid 2>/dev/null)"; then
+        gh_abort "$slug"
+    fi
+    # An empty answer, a non-list or a malformed one is a gh failure, not "no pull request".
+    # shellcheck disable=SC2016
+    if ! parsed="$(jq -r 'if type == "array" then ((length | tostring), (.[] | if type == "object" then ((.headRefOid // "") | if type == "string" then . else "" end) else error("x") end)) else error("x") end' <<<"$out" 2>/dev/null)"; then
+        gh_abort "$slug"
+    fi
+    n="${parsed%%$'\n'*}"
+    # jq prints nothing for an empty answer and still exits 0: that is a gh failure too.
+    if ! [[ "$n" =~ ^[0-9]+$ ]]; then
+        gh_abort "$slug"
+    fi
+    if [[ "$n" == "0" ]]; then
+        msg_str reason biab.wt.why_nopr; W_REASON[i]="$reason"
+        continue
+    fi
+    match=0
+    while IFS= read -r oid; do
+        # Exact equality with the full lowercase HEAD: no prefix, no case folding.
+        if [[ "$oid" == "$head" ]]; then
+            match=1
+        fi
+    done <<<"${parsed#*$'\n'}"
+    if [[ "$match" -eq 0 ]]; then
+        # The pull request was rebased or merged another way: still fine when origin has the commit.
+        if ! g -C "${W_REPO[i]}" merge-base --is-ancestor "$head" "refs/remotes/origin/${R_DEF[r]}" >/dev/null 2>&1; then
+            msg_str reason biab.wt.why_unmerged; W_REASON[i]="$reason"
+            continue
+        fi
+    fi
+    # The commit this verdict was reached for; the branch is only ever deleted if it still points here.
+    W_OID[i]="$head"
+done
+
+# --- 6. processes, box mode and agent sessions, only if something would be retired --------------------------
+PASEO_MODE=ssh
+AGENT_CWDS=()
+
+# Asks the phone-app daemon (one call, bounded) for its sessions and fills AGENT_CWDS with their
+# working directories as real paths. Fails on anything but a JSON array: an empty answer is not
+# "no sessions".
+agents_fetch() {
+    local json c rc
+    local -a cwds=()
+    AGENT_CWDS=()
+    json="$(timeout -k 2 "$PASEO_TIMEOUT" bash -c 'source "$1"; source "$2"; paseo_run_as "$3" "$(paseo_home_for "$4")" ls --json' _ "$LIB_DIR/ai-cli.sh" "$LIB_DIR/paseo.sh" "$(id -un)" "${HOME:-}" 2>/dev/null)" || return 1
+    jq -e 'type == "array"' <<<"$json" >/dev/null 2>&1 || return 1
+    # NUL-separated: a worktree path may hold a newline, and splitting it would hide its session.
+    mapfile -d '' -t cwds < <(jq -j '.[] | select(type == "object") | .cwd // empty | select(type == "string") | . + "\u0000"' <<<"$json" 2>/dev/null) || return 1
+    for c in "${cwds[@]}"; do
+        [[ -n "$c" ]] || continue
+        # The CLI abbreviates the home folder to ~.
+        case "$c" in
+            "~") c="${HOME:-}" ;;
+            "~"/*) c="${HOME:-}/${c#"~"/}" ;;
+            *) ;;
+        esac
+        [[ "$c" == /* ]] || continue
+        # Both sides as real paths: a session started through a link is in the worktree all the same.
+        rc="$(readlink -f -- "$c" 2>/dev/null || true)"
+        [[ -z "$rc" ]] || c="$rc"
+        AGENT_CWDS+=("${c%/}")
+    done
+    return 0
+}
+
+check_agent() {
+    local i="$1" c reason
+    for c in "${AGENT_CWDS[@]}"; do
+        if [[ "$c" == "${W_REAL[i]}" || "$c" == "${W_REAL[i]}"/* ]]; then
+            msg_str reason biab.wt.why_inuse_agent; W_REASON[i]="$reason"
+            return 0
+        fi
+    done
+    return 0
+}
+
+ANY=0
+for ((i = 0; i < ${#W_PATH[@]}; i++)); do
+    if [[ -z "${W_REASON[i]}" ]]; then
+        ANY=1
+    fi
+done
+
+if [[ "$ANY" -eq 1 ]]; then
+    if [[ "$PROC_OK" -ne 1 ]]; then
+        msg biab.wt.err_proc >&2
+        exit 1
+    fi
+    state_file="${BIB_STATE_FILE:-/var/lib/buildersinabox/state.json}"
+    # The CLI the app runs: a secondary may run under Paseo while the primary is
+    # SSH-only (FEAT-048), and its agents must still be seen.
+    cli="$(BIB_STATE_FILE="$state_file" bash -c 'source "$1"; source "$2"; paseo_app_cli' _ "$LIB_DIR/ai-cli.sh" "$LIB_DIR/paseo.sh" 2>/dev/null || true)"
+    if [[ -z "$cli" ]]; then
+        msg biab.wt.err_state >&2
+        exit 1
+    fi
+    if ! PASEO_MODE="$(BIB_STATE_FILE="$state_file" bash -c 'source "$1"; source "$2"; paseo_mode "$3"' _ "$LIB_DIR/ai-cli.sh" "$LIB_DIR/paseo.sh" "$cli" 2>/dev/null)"; then
+        msg biab.wt.err_paseo >&2
+        exit 1
+    fi
+    if [[ "$PASEO_MODE" == "paseo" ]]; then
+        if ! agents_fetch; then
+            msg biab.wt.err_paseo >&2
+            exit 1
+        fi
+        for ((i = 0; i < ${#W_PATH[@]}; i++)); do
+            [[ -z "${W_REASON[i]}" ]] || continue
+            check_agent "$i"
+        done
+    fi
+fi
+
+# --- 7. one line per worktree: path, branch, verdict (separated by tabs) -----------------------------------
+NRET=0
+for ((i = 0; i < ${#W_PATH[@]}; i++)); do
+    branch="-"
+    [[ "${W_DETACHED[i]}" -eq 1 || -z "${W_BRANCH[i]}" ]] || branch="$(clean "${W_BRANCH[i]}")"
+    if [[ -z "${W_REASON[i]}" ]]; then
+        NRET=$((NRET + 1))
+        msg_str verdict biab.wt.retirable
+        if [[ "${W_NIGN[i]}" -gt 0 ]]; then
+            note=""
+            msg_str note biab.wt.ignored_note "${W_NIGN[i]}"
+            verdict+="$note"
+        fi
+    else
+        msg_str verdict biab.wt.stays "${W_REASON[i]}"
+    fi
+    msg biab.wt.line "$(clean "${W_PATH[i]}")" "$branch" "$verdict"
+done
+
+if [[ "$NRET" -eq 0 ]]; then
+    msg biab.wt.nothing
+    exit 0
+fi
+if [[ "$DRY" -eq 1 ]]; then
+    msg biab.wt.dry_run
+    exit 0
+fi
+
+# --- confirmation: y/Y/s/S on one line of stdin; anything else, or the end of input, is a no ----------
+if [[ "$YES" -ne 1 ]]; then
+    msg biab.wt.confirm "$NRET"
+    ans=""
+    IFS= read -r ans || ans=""
+    printf '\n'
+    case "$ans" in
+        y | Y | s | S) ;;
+        *)
+            msg biab.wt.aborted
+            exit 0
+            ;;
+    esac
+fi
+
+# --- removal ----------------------------------------------------------------------------------------------------
+# No force flag, no capital -D. The worktree goes first (git refuses to delete a branch that is checked out).
+delete_branch() {
+    local repo="$1" branch="$2" oid="$3"
+    if g -C "$repo" branch -d -- "$branch" >/dev/null 2>&1; then
+        return 0
+    fi
+    # git refused (squash merge, or a merge commit with a main checkout that is behind): delete the
+    # branch only if it still points at the commit the verdict was reached for. With an empty or
+    # all-zero old value git 2.43 deletes the ref without checking anything, so refuse to call.
+    if ! [[ "$oid" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || [[ "$oid" =~ ^0+$ ]]; then
+        return 1
+    fi
+    g -C "$repo" update-ref -d -- "refs/heads/$branch" "$oid" >/dev/null 2>&1
+}
+
+# Just before removing a worktree, the verdict is checked again: the owner may have taken a while
+# to answer, or an agent may have started. Anything that changed keeps the worktree.
+recheck() {
+    local i="$1" cur ref reason
+    W_REASON[i]=""
+    cur="$(g -C "${W_PATH[i]}" rev-parse --verify -q HEAD 2>/dev/null || true)"
+    ref="$(g -C "${W_REPO[i]}" rev-parse --verify -q "refs/heads/${W_BRANCH[i]}" 2>/dev/null || true)"
+    if [[ "$cur" != "${W_OID[i]}" || "$ref" != "${W_OID[i]}" ]]; then
+        msg_str reason biab.wt.why_changed; W_REASON[i]="$reason"
+        return 0
+    fi
+    check_content "$i"
+    [[ -z "${W_REASON[i]}" ]] || return 0
+    if ! scan_procs; then
+        msg_str reason biab.wt.why_recheck; W_REASON[i]="$reason"
+        return 0
+    fi
+    check_proc "$i"
+    [[ -z "${W_REASON[i]}" ]] || return 0
+    if [[ "$PASEO_MODE" == "paseo" ]]; then
+        if ! agents_fetch; then
+            msg_str reason biab.wt.why_recheck; W_REASON[i]="$reason"
+            return 0
+        fi
+        check_agent "$i"
+    fi
+    return 0
+}
+
+REMOVED=0
+FAILED=0
+for ((i = 0; i < ${#W_PATH[@]}; i++)); do
+    [[ -z "${W_REASON[i]}" ]] || continue
+    repo="${W_REPO[i]}"
+    recheck "$i"
+    if [[ -n "${W_REASON[i]}" ]]; then
+        msg biab.wt.kept "$(clean "${W_PATH[i]}")" "${W_REASON[i]}"
+        continue
+    fi
+    if ! err="$(g -C "$repo" worktree remove -- "${W_PATH[i]}" 2>&1)"; then
+        msg biab.wt.fail_remove "$(clean "${W_PATH[i]}")" "$(clean "${err%%$'\n'*}")" >&2
+        FAILED=$((FAILED + 1))
+        continue
+    fi
+    REMOVED=$((REMOVED + 1))
+    msg biab.wt.removed "$(clean "${W_PATH[i]}")"
+    if ! delete_branch "$repo" "${W_BRANCH[i]}" "${W_OID[i]}"; then
+        msg biab.wt.fail_branch "$(clean "${W_PATH[i]}")" "$(clean "${W_BRANCH[i]}")" >&2
+        FAILED=$((FAILED + 1))
+    fi
+done
+
+# No `git worktree prune`: `git worktree remove` already deletes the admin data of what it removes,
+# and a prune would also drop that of worktrees reported as kept (a prunable one, say).
+
+msg biab.wt.summary "$REMOVED" "$FAILED"
+[[ "$FAILED" -eq 0 ]] || exit 1
+exit 0

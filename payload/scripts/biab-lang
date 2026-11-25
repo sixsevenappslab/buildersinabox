@@ -1,0 +1,218 @@
+#!/usr/bin/env bash
+# biab-lang - `biab lang`: show or change the language of the box (FEAT-045 R10).
+#
+#   biab lang          print the current language and what can be chosen
+#   biab lang <code>   switch to en or es (also: english, espanol, 1, 2)
+#
+# A switch does four things, in this order, and re-running it changes nothing:
+#   1. ~/README.md is rendered again in the new language, but only while the owner has not edited it:
+#      it must equal the hash the scaffold stored in the state (.readme_sha256), or a fresh render of the
+#      README as the box left it (with the project name /first-project filled in). An edited README is
+#      never touched: the new version goes to ~/README.<code>.md beside it.
+#   2. the `## Language` section of the context files (CLAUDE.md and AGENTS.md of the workspace,
+#      stratops and every project) is rewritten; a file without the section, or a link, is left alone.
+#   3. .lang in state.json (and phases.lang_confirmed, so the wizard does not ask again) is written, with
+#      sudo, atomically, like `biab update` does.
+#   4. the confirmation, in the new language.
+# Everything in the owner's home is written as the owner: when this runs as root it re-executes itself
+# as the box user, so root never writes through a path the owner controls. Only the state needs sudo.
+#
+# Test hooks: BIB_STATE_FILE, plus the environment lib/i18n.sh reads.
+
+set -euo pipefail
+
+SELF="$(readlink -f "${BASH_SOURCE[0]}")"
+PAYLOAD_DIR="$(cd "$(dirname "$SELF")/.." && pwd)"
+# shellcheck source=../lib/i18n.sh
+source "${PAYLOAD_DIR}/lib/i18n.sh"
+# shellcheck source=../lib/ai-cli.sh
+source "${PAYLOAD_DIR}/lib/ai-cli.sh"
+# shellcheck source=../lib/paseo.sh
+source "${PAYLOAD_DIR}/lib/paseo.sh"
+# shellcheck source=../lib/user-content.sh
+source "${PAYLOAD_DIR}/lib/user-content.sh"
+
+STATE="${BIB_STATE_FILE:-/var/lib/buildersinabox/state.json}"
+
+sj() { jq -r "$1" "$STATE" 2>/dev/null || true; }
+sha() { sha256sum -- "$1" | cut -d' ' -f1; }
+lname() { msg_in en "lang.name.$1"; }
+
+# `biab-lang --context <lang>`: only the Language blocks of the context files, in the home of whoever runs
+# it. 40-scaffold calls it as the box user (never as root: root must not write through paths the owner
+# controls), after it has handed the files over.
+if [[ "${1:-}" == "--context" ]]; then
+    if [[ "$(id -u)" -eq 0 || -z "${2:-}" ]] || ! bib_lang_valid "$2"; then
+        exit 1
+    fi
+    while IFS= read -r f; do
+        [[ -n "$f" ]] || continue
+        rc=0
+        uc_lang_apply "$f" "$2" || rc=$?
+    done < <(uc_context_files "${HOME:-}")
+    exit 0
+fi
+
+cur="$(bib_lang_current)"
+bib_lang_activate "$cur"
+avail="${BIB_LANGS_AVAILABLE// /|}"
+
+if [[ $# -eq 0 ]]; then
+    msg biab.lang.current "$(lname "$cur")" "$cur"
+    if [[ "$BIB_LANGS_AVAILABLE" == *" "* ]]; then
+        msg biab.lang.how "$avail"
+    else
+        msg biab.lang.gated_note
+    fi
+    exit 0
+fi
+if [[ $# -ne 1 ]]; then
+    msg biab.lang.usage "$avail" >&2
+    exit 1
+fi
+want="$(bib_lang_normalize "$1" || true)"
+if [[ -z "$want" ]]; then
+    msg biab.lang.unknown "$1" "$avail" >&2
+    exit 1
+fi
+if ! bib_lang_available "$want"; then
+    msg biab.lang.gated "$(lname "$want")" "$avail" >&2
+    exit 1
+fi
+if [[ ! -f "$STATE" ]] || ! jq -e . "$STATE" >/dev/null 2>&1; then
+    msg biab.lang.err_state >&2
+    exit 1
+fi
+
+user="$(sj '.bib_user // empty')"
+cli="$(sj 'if (.ai_clis | type == "array") and (.ai_clis | length > 0) then (.ai_clis | join(",")) else (.ai_cli // empty) end')"
+: "${cli:=${BIB_SUPPORTED_AI_CLIS[0]}}"
+home="${HOME:-}"
+if [[ -n "$user" ]]; then
+    home="$(getent passwd "$user" | cut -d: -f6 || true)"
+fi
+[[ -n "$home" ]] || home="${HOME:-}"
+
+# Root writes nothing in the owner's home: become the owner first. Only the real uid decides; no
+# variable of the caller can keep this process root, and the child does not inherit one either.
+if [[ "$(id -u)" -eq 0 && -n "$user" && "$user" != "root" ]]; then
+    exec runuser -u "$user" -- env -u BIB_LANG_REEXEC HOME="$home" "$SELF" "$@"
+fi
+[[ -n "$user" ]] || user="$(id -un)"
+
+# --- 1. the box README ---------------------------------------------------------------------------
+readme="${home}/README.md"
+readme_msg=""     # done | kept
+readme_hash=""
+tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/biab-lang.XXXXXX")"
+trap 'rm -rf -- "$tmp_dir"' EXIT
+
+with_project() { # stdin -> stdout: the project name /first-project would have filled in
+    local p
+    p="$(sj '.project_name // empty')"
+    if [[ -n "$p" ]]; then sed "s|{{PROJECT_NAME}}|${p}|g"; else cat; fi
+}
+
+readme_untouched() { # 0 when the README is still the one the scaffold wrote (or the same after /first-project)
+    local have stored
+    have="$(sha "$readme")"
+    stored="$(sj '.readme_sha256 // empty')"
+    [[ -n "$stored" && "$have" == "$stored" ]] && return 0
+    uc_render_readme "$cli" "$cur" "$user" | with_project > "${tmp_dir}/old.md"
+    [[ "$(sha "${tmp_dir}/old.md")" == "$have" ]] && return 0
+    uc_render_readme "$cli" "$cur" "$user" > "${tmp_dir}/old.md"
+    [[ "$(sha "${tmp_dir}/old.md")" == "$have" ]]
+}
+
+write_atomic() { # <file> <content-file>: beside the target, then moved in, keeping the mode when there is one
+    local dest="$1" src="$2" t
+    t="$(mktemp "${dest}.biab-tmp.XXXXXX")"
+    cat -- "$src" > "$t"
+    if [[ -e "$dest" ]]; then chmod --reference="$dest" "$t" 2>/dev/null || true; else chmod 644 "$t"; fi
+    mv -f -- "$t" "$dest"
+}
+
+# The side file for an edited README: README.<code>.md when it is free or already holds this very render,
+# else README.<code>.2.md ... .9.md. A file that is already there and differs may be the owner's notes:
+# it is never overwritten.
+side_path() {
+    local base="${home}/README.${want}" n=1 cand
+    cand="${base}.md"
+    while :; do
+        if [[ ! -e "$cand" && ! -L "$cand" ]] || { [[ -f "$cand" && ! -L "$cand" ]] && cmp -s "${tmp_dir}/new.md" "$cand"; }; then
+            printf '%s' "$cand"
+            return 0
+        fi
+        n=$((n + 1))
+        [[ "$n" -le 9 ]] || return 1
+        cand="${base}.${n}.md"
+    done
+}
+side_name=""
+
+if [[ -e "$readme" || -L "$readme" ]]; then
+    uc_render_readme "$cli" "$want" "$user" | with_project > "${tmp_dir}/new.md"
+    if [[ ! -L "$readme" && -f "$readme" ]] && readme_untouched; then
+        if ! cmp -s "${tmp_dir}/new.md" "$readme"; then
+            write_atomic "$readme" "${tmp_dir}/new.md"
+            readme_msg="done"
+        fi
+        readme_hash="$(sha "$readme")"
+    elif side="$(side_path)"; then
+        cmp -s "${tmp_dir}/new.md" "$side" 2>/dev/null || write_atomic "$side" "${tmp_dir}/new.md"
+        side_name="${side##*/}"
+        readme_msg="kept"
+    else
+        readme_msg="full"
+    fi
+fi
+
+# --- 2. the context files --------------------------------------------------------------------------
+changed=0
+skipped=""
+while IFS= read -r f; do
+    [[ -n "$f" ]] || continue
+    rc=0
+    uc_lang_apply "$f" "$want" || rc=$?
+    [[ "$rc" -ne 0 ]] || changed=$((changed + 1))
+    [[ "$rc" -ne 3 ]] || skipped+="${skipped:+, }${f#"${home}"/}"
+done < <(uc_context_files "$home")
+
+# --- 3. the state ------------------------------------------------------------------------------------
+jq --arg l "$want" --arg h "$readme_hash" \
+    '.lang = $l | .phases.lang_confirmed = true | if $h != "" then .readme_sha256 = $h else . end' \
+    "$STATE" > "${tmp_dir}/state.json"
+if ! cmp -s "${tmp_dir}/state.json" "$STATE"; then
+    state_dir="$(dirname "$STATE")"
+    if ! { state_tmp="$(sudo mktemp "${state_dir}/state.XXXXXX")" \
+            && sudo tee "$state_tmp" < "${tmp_dir}/state.json" >/dev/null \
+            && sudo mv "$state_tmp" "$STATE" \
+            && sudo chmod 644 "$STATE"; }; then
+        msg biab.lang.err_state >&2
+        exit 1
+    fi
+fi
+
+# --- 4. say it in the new language -----------------------------------------------------------------------
+bib_lang_activate "$want"
+if [[ "$want" != "$cur" ]]; then
+    msg biab.lang.changed "$(lname "$want")"
+else
+    msg biab.lang.same "$(lname "$want")"
+fi
+# shellcheck disable=SC2088  # the literal path the owner is told to open, not one to expand
+case "$readme_msg" in
+    done) msg biab.lang.readme_done "$(lname "$want")" ;;
+    kept) msg biab.lang.readme_kept "$(lname "$want")" "~/${side_name}" ;;
+    full) msg biab.lang.readme_full "$want" ;;
+esac
+if [[ "$changed" -gt 0 ]]; then
+    msg biab.lang.context "$changed"
+fi
+if [[ -n "$skipped" ]]; then
+    msg biab.lang.context_bad "$skipped"
+fi
+if [[ "$want" != "$cur" ]]; then
+    msg biab.lang.agents
+fi
+exit 0

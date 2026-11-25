@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# MEASUREMENT PROTOTYPE for the QF-01 resolution (FEAT-043 T1). Not product code.
+# Takes no arguments: pushes the run's one branch to the same name on origin.
+set -euo pipefail
+exec git -C '@REPO@' -c core.hooksPath=/dev/null push -u origin 'refs/heads/@BRANCH@:refs/heads/@BRANCH@'
